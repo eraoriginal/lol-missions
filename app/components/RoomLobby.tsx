@@ -2,7 +2,13 @@
 
 import { useState } from 'react';
 import { PlayerList } from './PlayerList';
-import type { Room } from '@/app/types/room';
+import { LeaveRoomButton } from './LeaveRoomButton';
+
+interface Room {
+    id: string;
+    code: string;
+    players: any[];
+}
 
 interface RoomLobbyProps {
     room: Room;
@@ -12,6 +18,7 @@ interface RoomLobbyProps {
 export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
     const [starting, setStarting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
 
     // Vérifie si l'utilisateur est le créateur
     const creatorToken = typeof window !== 'undefined'
@@ -48,36 +55,64 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
         ? `${window.location.origin}/room/${roomCode}`
         : '';
 
-    const copyToClipboard = () => {
-        navigator.clipboard.writeText(shareUrl);
-        alert('Lien copié !');
+    const copyToClipboard = async () => {
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            setCopied(true);
+
+            // Réinitialise après 3 secondes
+            setTimeout(() => {
+                setCopied(false);
+            }, 3000);
+        } catch (err) {
+            console.error('Failed to copy:', err);
+        }
     };
 
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="bg-white rounded-xl shadow-lg p-6 text-center">
-                <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                    Room: {roomCode}
-                </h1>
-                <p className="text-gray-600 mb-4">
-                    En attente que le créateur lance la partie...
-                </p>
+            <div className="bg-white rounded-xl shadow-lg p-6">
+                {/* Bouton quitter en haut à droite */}
+                <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                        <h1 className="text-3xl font-bold text-gray-800 mb-2">
+                            Room: {roomCode}
+                        </h1>
+                        <p className="text-gray-600">
+                            En attente que le créateur lance la partie...
+                        </p>
+                    </div>
+                    <LeaveRoomButton roomCode={roomCode} />
+                </div>
 
                 {/* Share link */}
-                <div className="flex gap-2 max-w-2xl mx-auto">
-                    <input
-                        type="text"
-                        value={shareUrl}
-                        readOnly
-                        className="flex-1 px-4 py-2 border rounded-lg bg-gray-50"
-                    />
-                    <button
-                        onClick={copyToClipboard}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
-                    >
-                        📋 Copier
-                    </button>
+                <div className="max-w-2xl mx-auto">
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={shareUrl}
+                            readOnly
+                            className="flex-1 px-4 py-2 border rounded-lg bg-gray-50 text-gray-700"
+                        />
+                        <button
+                            onClick={copyToClipboard}
+                            className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                                copied
+                                    ? 'bg-green-600 text-white'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                            }`}
+                        >
+                            {copied ? '✓ Copié !' : '📋 Copier'}
+                        </button>
+                    </div>
+
+                    {/* Message de succès */}
+                    {copied && (
+                        <div className="mt-3 p-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium animate-fade-in">
+                            ✓ Lien copié dans le presse-papier !
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -96,7 +131,7 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
                     <button
                         onClick={handleStart}
                         disabled={starting || room.players.length < 2}
-                        className="w-full py-4 bg-green-600 text-white rounded-lg font-bold text-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full py-4 bg-green-600 text-white rounded-lg font-bold text-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                         {starting ? '🚀 Démarrage...' : '🎮 LANCER LA PARTIE'}
                     </button>

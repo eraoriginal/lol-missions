@@ -10,13 +10,13 @@ datasource db {
 model Mission {
   id         String   @id @default(cuid())
   text       String
-  type       String   // 'START' ou 'MID'
+  type       String   // 'START', 'MID' ou 'LATE'
   category   String
   difficulty String   // 'easy', 'medium', 'hard'
   createdAt  DateTime @default(now())
-  
+
   playerMissions PlayerMission[]
-  
+
   @@index([type])
 }
 
@@ -27,9 +27,9 @@ model Room {
   gameStarted     Boolean   @default(false)
   gameStartTime   DateTime?
   createdAt       DateTime  @default(now())
-  
+
   players         Player[]
-  
+
   @@index([code])
 }
 
@@ -40,9 +40,9 @@ model Player {
   roomId          String
   room            Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   createdAt       DateTime @default(now())
-  
+
   missions        PlayerMission[]
-  
+
   @@index([roomId])
   @@index([token])
 }
@@ -53,7 +53,7 @@ model PlayerMission {
   player          Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
   missionId       String
   mission         Mission  @relation(fields: [missionId], references: [id])
-  type            String   // 'START' ou 'MID'
+  type            String   // 'START', 'MID' ou 'LATE'
   assignedAt      DateTime @default(now())
   
   @@unique([playerId, type])

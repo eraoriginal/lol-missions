@@ -45,7 +45,7 @@ export function JoinRoomForm() {
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-                <label htmlFor="code" className="block text-sm font-medium mb-2">
+                <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">
                     Code de la room
                 </label>
                 <input
@@ -55,23 +55,23 @@ export function JoinRoomForm() {
                     onChange={(e) => setCode(e.target.value.toUpperCase())}
                     required
                     maxLength={6}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 uppercase"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 uppercase text-gray-900 bg-white"
                     placeholder="Ex: ABC123"
                 />
             </div>
 
             <div>
-                <label htmlFor="name" className="block text-sm font-medium mb-2">
+                <label htmlFor="join-name" className="block text-sm font-medium text-gray-700 mb-2">
                     Ton nom
                 </label>
                 <input
-                    id="name"
+                    id="join-name"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
                     maxLength={50}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 bg-white"
                     placeholder="Entre ton pseudo"
                 />
             </div>
@@ -85,7 +85,7 @@ export function JoinRoomForm() {
             <button
                 type="submit"
                 disabled={loading || !name.trim() || !code.trim()}
-                className="w-full py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
                 {loading ? 'Connexion...' : 'Rejoindre la room'}
             </button>

@@ -1,0 +1,109 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ConfirmDialog } from './ConfirmDialog';
+import { Toast } from './Toast';
+
+interface LeaveRoomButtonProps {
+    roomCode: string;
+}
+
+export function LeaveRoomButton({ roomCode }: LeaveRoomButtonProps) {
+    const [leaving, setLeaving] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    const router = useRouter();
+
+    const isCreator = typeof window !== 'undefined'
+        ? !!localStorage.getItem(`room_${roomCode}_creator`)
+        : false;
+
+    const handleLeave = async () => {
+        setShowConfirm(false);
+        setLeaving(true);
+
+        const playerToken = localStorage.getItem(`room_${roomCode}_player`);
+        const creatorToken = localStorage.getItem(`room_${roomCode}_creator`); // ← Récupère le creatorToken
+
+        if (!playerToken) {
+            router.push('/');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/rooms/${roomCode}/leave`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    playerToken,
+                    creatorToken: creatorToken || undefined, // ← Envoie le creatorToken si présent
+                }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                // Nettoie le localStorage
+                localStorage.removeItem(`room_${roomCode}_player`);
+                localStorage.removeItem(`room_${roomCode}_creator`);
+
+                // Affiche un message selon le cas
+                if (data.reason === 'creator-left-before-start') {
+                    setToast({ message: 'Room supprimée avec succès', type: 'success' });
+                } else {
+                    setToast({ message: 'Tu as quitté la room', type: 'success' });
+                }
+
+                // Redirige après 1 seconde
+                setTimeout(() => {
+                    router.push('/');
+                }, 1000);
+            } else {
+                const errorData = await response.json();
+                setToast({ message: errorData.error || 'Erreur lors de la sortie', type: 'error' });
+                setLeaving(false);
+            }
+        } catch (error) {
+            console.error('Error leaving room:', error);
+            setToast({ message: 'Erreur de connexion', type: 'error' });
+            setLeaving(false);
+        }
+    };
+
+    return (
+        <>
+            <button
+                onClick={() => setShowConfirm(true)}
+                disabled={leaving}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+                {leaving ? 'Départ...' : '🚪 Quitter'}
+            </button>
+
+            {showConfirm && (
+                <ConfirmDialog
+                    title={isCreator ? "⚠️ Tu es le créateur !" : "Quitter la room ?"}
+                    message={
+                        isCreator
+                            ? "Si tu quittes avant le début de la partie, la room sera supprimée et tous les joueurs seront kickés. Es-tu sûr ?"
+                            : "Es-tu sûr de vouloir quitter cette room ?"
+                    }
+                    confirmText="Quitter"
+                    cancelText="Rester"
+                    confirmColor="red"
+                    onConfirm={handleLeave}
+                    onCancel={() => setShowConfirm(false)}
+                />
+            )}
+
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={() => setToast(null)}
+                />
+            )}
+        </>
+    );
+}

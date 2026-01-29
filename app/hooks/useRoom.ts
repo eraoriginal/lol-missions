@@ -1,35 +1,22 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSSE } from './useSSE';
 import type { Room } from '@/app/types/room';
-
-interface Player {
-    id: string;
-    name: string;
-    token: string;
-    missions: {
-        mission: {
-            id: string;
-            text: string;
-            type: string;
-            category: string;
-            difficulty: string;
-        };
-        type: string;
-    }[];
-}
 
 export function useRoom(roomCode: string | null) {
     const [room, setRoom] = useState<Room | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [notification, setNotification] = useState<{ message: string; type: 'info' | 'warning' } | null>(null);
+    const fetchingRef = useRef(false);
 
     // Charge la room
     const fetchRoom = useCallback(async () => {
-        if (!roomCode) return;
+        if (!roomCode || fetchingRef.current) return;
 
         try {
+            fetchingRef.current = true;
             setLoading(true);
             const response = await fetch(`/api/rooms/${roomCode}`);
 
@@ -45,26 +32,58 @@ export function useRoom(roomCode: string | null) {
             setRoom(null);
         } finally {
             setLoading(false);
+            fetchingRef.current = false;
         }
     }, [roomCode]);
 
-    // Charge au montage
+    // Charge au montage UNE SEULE FOIS
     useEffect(() => {
         fetchRoom();
-    }, [fetchRoom]);
+    }, [roomCode]); // NE MET PAS fetchRoom ici !
 
     // SSE pour les updates temps réel
+    const handleSSEMessage = useCallback((event: any) => {
+        console.log('[useRoom] SSE event received:', event);
+
+        if (event.type === 'room-closed') {
+            console.log('[useRoom] Room closed! Redirecting...');
+            // Affiche une notification au lieu d'un alert
+            setNotification({
+                message: event.message || 'La room a été fermée par le créateur',
+                type: 'warning',
+            });
+
+            // Redirige après 3 secondes
+            setTimeout(() => {
+                console.log('[useRoom] Redirecting to home...');
+                window.location.href = '/';
+            }, 3000);
+            return;
+        }
+
+        if (event.type === 'player-left' && event.wasCreator) {
+            console.log('[useRoom] Creator left');
+            setNotification({
+                message: `${event.playerName} (créateur) a quitté la partie`,
+                type: 'info',
+            });
+        }
+
+        if (
+            event.type === 'player-joined' ||
+            event.type === 'player-left' ||
+            event.type === 'game-started' ||
+            event.type === 'mid-missions-assigned' ||
+            event.type === 'late-missions-assigned'
+        ) {
+            fetchRoom();
+        }
+    }, [fetchRoom]);
+
     useSSE(
         roomCode ? `/api/rooms/${roomCode}/events` : null,
         {
-            onMessage: (event) => {
-                console.log('SSE event:', event);
-
-                if (event.type === 'player-joined' || event.type === 'game-started' || event.type === 'mid-missions-assigned') {
-                    // Recharge la room
-                    fetchRoom();
-                }
-            },
+            onMessage: handleSSEMessage,
             enabled: !!roomCode,
         }
     );
@@ -73,6 +92,7 @@ export function useRoom(roomCode: string | null) {
         room,
         loading,
         error,
+        notification,
         refetch: fetchRoom,
     };
 }

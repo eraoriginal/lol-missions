@@ -8,7 +8,7 @@ export interface Mission {
 
 export interface PlayerMission {
     mission: Mission;
-    type: string;
+    type: 'START' | 'MID' | 'LATE';
 }
 
 export interface Player {

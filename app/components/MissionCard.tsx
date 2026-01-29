@@ -10,7 +10,7 @@ interface Mission {
 
 interface MissionCardProps {
     mission: Mission;
-    type: 'START' | 'MID';
+    type: 'START' | 'MID' | 'LATE';
 }
 
 const difficultyColors = {
@@ -22,6 +22,13 @@ const difficultyColors = {
 const typeColors = {
     START: 'bg-blue-500',
     MID: 'bg-purple-500',
+    LATE: 'bg-red-500',
+};
+
+const typeLabels = {
+    START: '🎯 Mission Début',
+    MID: '⚡ Mission 5min',
+    LATE: '🔥 Mission Finale',
 };
 
 export function MissionCard({ mission, type }: MissionCardProps) {
@@ -29,7 +36,7 @@ export function MissionCard({ mission, type }: MissionCardProps) {
         <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-gray-200">
             <div className="flex items-start justify-between mb-4">
         <span className={`px-3 py-1 rounded-full text-white text-sm font-medium ${typeColors[type]}`}>
-          {type === 'START' ? '🎯 Mission Début' : '⚡ Mission 5min'}
+          {typeLabels[type]}
         </span>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium border ${difficultyColors[mission.difficulty as keyof typeof difficultyColors]}`}>
           {mission.difficulty === 'easy' && '😊 Facile'}

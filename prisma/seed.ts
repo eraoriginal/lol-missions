@@ -2,105 +2,133 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Échantillon de missions pour tester
-const START_MISSIONS = [
-    // Combat (5)
-    { text: "Tu ne peux attaquer que depuis un buisson", type: 'START', category: 'combat', difficulty: 'hard' },
-    { text: "Tu n'as pas le droit de prendre de kill (0 kill maximum)", type: 'START', category: 'combat', difficulty: 'hard' },
-    { text: "Tu ne peux attaquer que les ennemis qui ont moins de 50% HP", type: 'START', category: 'combat', difficulty: 'medium' },
-    { text: "Tu ne peux utiliser que tes sorts (pas d'auto-attaques)", type: 'START', category: 'combat', difficulty: 'medium' },
-    { text: "Tu dois annoncer dans /all avant chaque kill que tu vas faire", type: 'START', category: 'combat', difficulty: 'easy' },
-
-    // Items (5)
-    { text: "Tu dois revendre ton 1er item acheté après l'avoir acheté", type: 'START', category: 'items', difficulty: 'easy' },
-    { text: "Tu ne peux acheter que des items de support", type: 'START', category: 'items', difficulty: 'hard' },
-    { text: "Tu ne peux pas acheter de bottes pendant toute la game", type: 'START', category: 'items', difficulty: 'medium' },
-    { text: "Tous tes items doivent commencer par la même lettre", type: 'START', category: 'items', difficulty: 'medium' },
-    { text: "Tu dois copier exactement le build d'un allié", type: 'START', category: 'items', difficulty: 'easy' },
-
-    // Position (5)
-    { text: "Tu dois toujours être le plus proche de l'ennemi dans ton équipe", type: 'START', category: 'position', difficulty: 'hard' },
-    { text: "Tu dois toujours rester derrière tous tes alliés", type: 'START', category: 'position', difficulty: 'medium' },
-    { text: "Tu ne peux pas traverser le milieu de la lane (reste sur un côté)", type: 'START', category: 'position', difficulty: 'easy' },
-    { text: "Tu ne peux pas rester immobile plus de 2 secondes", type: 'START', category: 'position', difficulty: 'hard' },
-    { text: "Tu dois rester dans la moitié de map de ton équipe", type: 'START', category: 'position', difficulty: 'easy' },
-
-    // Sorts (3)
-    { text: "Tu ne peux utiliser qu'un seul sort (Q, W, E ou R) au choix", type: 'START', category: 'sorts', difficulty: 'hard' },
-    { text: "Tu dois utiliser ton ultime dès que c'est disponible", type: 'START', category: 'sorts', difficulty: 'medium' },
-    { text: "Tu ne peux jamais utiliser ton ultime", type: 'START', category: 'sorts', difficulty: 'hard' },
-
-    // Roleplay (2)
-    { text: "Tu es un pacifiste : pas d'attaque tant que tu n'es pas attaqué", type: 'START', category: 'roleplay', difficulty: 'hard' },
-    { text: "Tu es le bodyguard d'un allié choisi (reste collé à lui)", type: 'START', category: 'roleplay', difficulty: 'medium' },
+// Missions START (début de partie)
+const startMissions = [
+    { text: "Ne pas acheter de bottes pendant les 10 premières minutes", category: "items", difficulty: "medium" },
+    { text: "Acheter uniquement des objets qui commencent par la lettre de ton champion", category: "items", difficulty: "hard" },
+    { text: "Rester dans ta lane pendant les 5 premières minutes", category: "position", difficulty: "easy" },
+    { text: "Ne pas utiliser ton ultime avant le level 8", category: "sorts", difficulty: "medium" },
+    { text: "Faire un firstblood", category: "combat", difficulty: "medium" },
+    { text: "Ne pas mourir avant 10 minutes", category: "combat", difficulty: "medium" },
+    { text: "Farmer 50 CS en 7 minutes", category: "roleplay", difficulty: "hard" },
+    { text: "Voler le premier drake", category: "combat", difficulty: "hard" },
+    { text: "Acheter un objet support en premier", category: "items", difficulty: "easy" },
+    { text: "Jouer sans trinket pendant 5 minutes", category: "roleplay", difficulty: "medium" },
+    { text: "Commencer par des objets de soin uniquement", category: "items", difficulty: "medium" },
+    { text: "Tuer 3 champions avant 15 minutes", category: "combat", difficulty: "hard" },
+    { text: "Ne pas retourner à la base avant 8 minutes", category: "position", difficulty: "hard" },
+    { text: "Avoir 100% de participation aux kills d'équipe pendant 10 min", category: "combat", difficulty: "hard" },
+    { text: "Finir avec 0 mort en early game (avant 10min)", category: "combat", difficulty: "medium" },
+    { text: "Acheter les mêmes items que ton adversaire direct", category: "items", difficulty: "medium" },
+    { text: "Ne pas utiliser de potions pendant 10 minutes", category: "roleplay", difficulty: "hard" },
+    { text: "Placer 10 wards dans les 8 premières minutes", category: "position", difficulty: "medium" },
+    { text: "Ne pas farmer de mobs neutres avant 12 minutes", category: "position", difficulty: "easy" },
+    { text: "Acheter Boots of Mobility en premier objet", category: "items", difficulty: "easy" },
 ];
 
-const MID_MISSIONS = [
-    // Build (5)
-    { text: "Vends ton item le plus cher et achète 6 bottes", type: 'MID', category: 'build', difficulty: 'hard' },
-    { text: "Vends tous tes items et reconstruis un build AP/AD (inverse)", type: 'MID', category: 'build', difficulty: 'hard' },
-    { text: "Achète uniquement des items actifs à partir de maintenant", type: 'MID', category: 'build', difficulty: 'medium' },
-    { text: "Vends tout et ne garde que des potions et wards", type: 'MID', category: 'build', difficulty: 'hard' },
-    { text: "Double ton item le plus cher si possible (achète le même 2 fois)", type: 'MID', category: 'build', difficulty: 'easy' },
+// Missions MID (5 minutes de jeu)
+const midMissions = [
+    { text: "Vendre tous tes items et recommencer ton build", category: "build", difficulty: "hard" },
+    { text: "Acheter uniquement des objets défensifs jusqu'à la fin", category: "build", difficulty: "medium" },
+    { text: "Ne plus utiliser ton sort Q", category: "combat", difficulty: "hard" },
+    { text: "Faire 5 kills dans les 5 prochaines minutes", category: "score", difficulty: "hard" },
+    { text: "Ne plus mourir jusqu'à la fin de la partie", category: "combat", difficulty: "hard" },
+    { text: "Rester uniquement dans la jungle adverse", category: "position", difficulty: "hard" },
+    { text: "Suivre un allié partout où il va pendant 3 minutes", category: "tactique", difficulty: "medium" },
+    { text: "Farmer 100 CS dans les 5 prochaines minutes", category: "score", difficulty: "medium" },
+    { text: "Détruire 2 tours dans les 10 prochaines minutes", category: "score", difficulty: "medium" },
+    { text: "Ne plus retourner à la fontaine jusqu'à la fin", category: "position", difficulty: "hard" },
+    { text: "Acheter 6 Doran items", category: "build", difficulty: "easy" },
+    { text: "Ne plus utiliser de wards", category: "tactique", difficulty: "medium" },
+    { text: "Voler le prochain Baron ou Dragon", category: "combat", difficulty: "hard" },
+    { text: "Faire un pentakill", category: "combat", difficulty: "hard" },
+    { text: "Avoir plus de dégâts aux structures que tous tes alliés", category: "score", difficulty: "medium" },
+    { text: "Tank le plus de dégâts de ton équipe", category: "tactique", difficulty: "medium" },
+    { text: "Avoir 100% KP jusqu'à la fin", category: "score", difficulty: "hard" },
+    { text: "Construire full objets critiques", category: "build", difficulty: "medium" },
+    { text: "Ne plus farm de minions, uniquement des kills", category: "tactique", difficulty: "hard" },
+    { text: "Acheter Trinity Force même si ça ne fit pas ton champion", category: "build", difficulty: "easy" },
+];
 
-    // Combat (5)
-    { text: "Tu ne peux plus toucher le champion que tu as tué le plus", type: 'MID', category: 'combat', difficulty: 'medium' },
-    { text: "Tu dois focus uniquement le champion qui t'a tué le plus", type: 'MID', category: 'combat', difficulty: 'easy' },
-    { text: "Change de target à chaque auto-attaque", type: 'MID', category: 'combat', difficulty: 'hard' },
-    { text: "Laisse toujours le kill à un allié (stop à 5% HP ennemi)", type: 'MID', category: 'combat', difficulty: 'medium' },
-    { text: "Tu dois protéger le joueur avec le plus de morts dans ton équipe", type: 'MID', category: 'combat', difficulty: 'easy' },
-
-    // Score (4)
-    { text: "Tu dois égaliser ton nombre de kills et deaths", type: 'MID', category: 'score', difficulty: 'hard' },
-    { text: "Tu dois finir avec un KDA parfait (0 death)", type: 'MID', category: 'score', difficulty: 'hard' },
-    { text: "Tu dois atteindre exactement 100 CS (pas plus, pas moins)", type: 'MID', category: 'score', difficulty: 'medium' },
-    { text: "Dépense exactement tout ton or (0 gold en banque)", type: 'MID', category: 'score', difficulty: 'easy' },
-
-    // Position (3)
-    { text: "Tu ne peux plus entrer dans les buissons", type: 'MID', category: 'position', difficulty: 'easy' },
-    { text: "Tu dois rester dans les buissons le plus possible", type: 'MID', category: 'position', difficulty: 'medium' },
-    { text: "Reste toujours à max range de tes capacités", type: 'MID', category: 'position', difficulty: 'medium' },
-
-    // Tactique (3)
-    { text: "Pose 10 wards (achète des pinks)", type: 'MID', category: 'tactique', difficulty: 'easy' },
-    { text: "Détruis 5 wards ennemies", type: 'MID', category: 'tactique', difficulty: 'medium' },
-    { text: "Tu dois faire au moins 3 assists sur les 5 prochains kills", type: 'MID', category: 'tactique', difficulty: 'medium' },
+// Missions LATE (10+ minutes de jeu)
+const lateMissions = [
+    { text: "Termine la partie avec au moins 10 kills", category: "score", difficulty: "hard" },
+    { text: "Ne meurs pas une seule fois jusqu'à la fin", category: "survie", difficulty: "hard" },
+    { text: "Fais un pentakill avant la fin", category: "combat", difficulty: "hard" },
+    { text: "Détruis au moins 3 tours ennemies", category: "objectif", difficulty: "medium" },
+    { text: "Finis avec 300+ CS", category: "farm", difficulty: "medium" },
+    { text: "Vole le Baron Nashor", category: "objectif", difficulty: "hard" },
+    { text: "Gagne avec moins de 50% HP sur le Nexus", category: "clutch", difficulty: "hard" },
+    { text: "Finis avec 20+ assists", category: "support", difficulty: "medium" },
+    { text: "Achète 6 objets légendaires complets", category: "build", difficulty: "medium" },
+    { text: "Fais la plus grosse série de kills de la partie", category: "combat", difficulty: "hard" },
+    { text: "Inflige plus de 50,000 dégâts aux champions", category: "dégâts", difficulty: "hard" },
+    { text: "Tank plus de 30,000 dégâts", category: "tank", difficulty: "medium" },
+    { text: "Place 50+ wards", category: "vision", difficulty: "easy" },
+    { text: "Détruis 20+ wards ennemis", category: "vision", difficulty: "medium" },
+    { text: "Gagne en dansant sur le Nexus ennemi", category: "bm", difficulty: "easy" },
+    { text: "Finis 1v5 et gagne", category: "héroïque", difficulty: "hard" },
+    { text: "Vole 3 objectifs majeurs (Dragon/Baron)", category: "objectif", difficulty: "hard" },
+    { text: "Termine avec un KDA supérieur à 10", category: "score", difficulty: "hard" },
+    { text: "Porte ton équipe avec le MVP", category: "carry", difficulty: "hard" },
+    { text: "Gagne sans perdre une seule inhibiteur", category: "domination", difficulty: "medium" },
 ];
 
 async function main() {
     console.log('🌱 Seeding database...');
 
-    // Nettoyer les anciennes données
+    // Supprime toutes les données existantes
     await prisma.playerMission.deleteMany();
     await prisma.player.deleteMany();
     await prisma.room.deleteMany();
     await prisma.mission.deleteMany();
 
-    // Insérer les missions START
-    for (const mission of START_MISSIONS) {
+    // Ajoute les missions START
+    console.log('📝 Adding START missions...');
+    for (const mission of startMissions) {
         await prisma.mission.create({
-            data: mission,
+            data: {
+                text: mission.text,
+                type: 'START',
+                category: mission.category,
+                difficulty: mission.difficulty,
+            },
         });
     }
 
-    // Insérer les missions MID
-    for (const mission of MID_MISSIONS) {
+    // Ajoute les missions MID
+    console.log('📝 Adding MID missions...');
+    for (const mission of midMissions) {
         await prisma.mission.create({
-            data: mission,
+            data: {
+                text: mission.text,
+                type: 'MID',
+                category: mission.category,
+                difficulty: mission.difficulty,
+            },
         });
     }
 
-    const startCount = await prisma.mission.count({ where: { type: 'START' } });
-    const midCount = await prisma.mission.count({ where: { type: 'MID' } });
+    // Ajoute les missions LATE
+    console.log('📝 Adding LATE missions...');
+    for (const mission of lateMissions) {
+        await prisma.mission.create({
+            data: {
+                text: mission.text,
+                type: 'LATE',
+                category: mission.category,
+                difficulty: mission.difficulty,
+            },
+        });
+    }
 
-    console.log(`✅ ${startCount} missions START créées`);
-    console.log(`✅ ${midCount} missions MID créées`);
-    console.log('✨ Seeding terminé !');
+    const missionCount = await prisma.mission.count();
+    console.log(`✅ Seeding complete! ${missionCount} missions created.`);
 }
 
 main()
     .catch((e) => {
-        console.error('❌ Erreur lors du seeding:', e);
+        console.error('❌ Error during seeding:', e);
         process.exit(1);
     })
     .finally(async () => {
