@@ -1,15 +1,27 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useSSE } from './useSSE';
 import type { Room } from '@/app/types/room';
 
+interface Player {
+    id: string;
+    name: string;
+    token: string;
+    isCreator: boolean;
+    missions: any[];
+}
+
+interface RoomWithPlayers extends Room {
+    players: Player[];
+}
+
 export function useRoom(roomCode: string | null) {
-    const [room, setRoom] = useState<Room | null>(null);
+    const [room, setRoom] = useState<RoomWithPlayers | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [notification, setNotification] = useState<{ message: string; type: 'info' | 'warning' } | null>(null);
     const fetchingRef = useRef(false);
+    const previousPlayerCountRef = useRef<number>(0);
 
     // Charge la room
     const fetchRoom = useCallback(async () => {
@@ -17,76 +29,92 @@ export function useRoom(roomCode: string | null) {
 
         try {
             fetchingRef.current = true;
-            setLoading(true);
-            const response = await fetch(`/api/rooms/${roomCode}`);
+            const isInitialLoad = loading;
+
+            const response = await fetch(`/api/rooms/${roomCode}`, {
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                },
+            });
 
             if (!response.ok) {
-                throw new Error('Room not found');
+                if (response.status === 404) {
+                    // Room supprimée = redirection immédiate
+                    if (!isInitialLoad && room) {
+                        console.log('[useRoom] Room deleted, redirecting...');
+                        setNotification({
+                            message: 'La room a été fermée',
+                            type: 'warning',
+                        });
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 2000);
+                    }
+                    throw new Error('Room not found');
+                }
+                throw new Error('Failed to load room');
             }
 
             const data = await response.json();
-            setRoom(data.room);
+            const newRoom = data.room;
+
+            // Détecte si un joueur a quitté (seulement après le chargement initial)
+            if (!isInitialLoad && room && newRoom.players.length < previousPlayerCountRef.current) {
+                const previousPlayers = room.players.map(p => p.id);
+                const currentPlayers = newRoom.players.map(p => p.id);
+                const leftPlayerId = previousPlayers.find(id => !currentPlayers.includes(id));
+
+                if (leftPlayerId) {
+                    const leftPlayer = room.players.find(p => p.id === leftPlayerId);
+                    if (leftPlayer?.isCreator) {
+                        setNotification({
+                            message: `${leftPlayer.name} (créateur) a quitté la partie`,
+                            type: 'info',
+                        });
+                    }
+                }
+            }
+
+            // Détecte si la partie vient de commencer
+            if (!isInitialLoad && room && !room.gameStarted && newRoom.gameStarted) {
+                console.log('[useRoom] Game started!');
+            }
+
+            previousPlayerCountRef.current = newRoom.players.length;
+
+            setRoom(newRoom);
             setError(null);
+            setLoading(false);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load room');
             setRoom(null);
-        } finally {
             setLoading(false);
+        } finally {
             fetchingRef.current = false;
         }
-    }, [roomCode]);
+    }, [roomCode, loading, room]);
 
-    // Charge au montage UNE SEULE FOIS
+    // Charge au montage
     useEffect(() => {
         fetchRoom();
-    }, [roomCode]); // NE MET PAS fetchRoom ici !
+    }, [roomCode]);
 
-    // SSE pour les updates temps réel
-    const handleSSEMessage = useCallback((event: any) => {
-        console.log('[useRoom] SSE event received:', event);
+    // 🔥 POLLING : Rafraîchit toutes les 2 secondes
+    useEffect(() => {
+        if (!roomCode || error) return;
 
-        if (event.type === 'room-closed') {
-            console.log('[useRoom] Room closed! Redirecting...');
-            // Affiche une notification au lieu d'un alert
-            setNotification({
-                message: event.message || 'La room a été fermée par le créateur',
-                type: 'warning',
-            });
+        console.log('[useRoom] Starting polling every 2 seconds...');
 
-            // Redirige après 3 secondes
-            setTimeout(() => {
-                console.log('[useRoom] Redirecting to home...');
-                window.location.href = '/';
-            }, 3000);
-            return;
-        }
-
-        if (event.type === 'player-left' && event.wasCreator) {
-            console.log('[useRoom] Creator left');
-            setNotification({
-                message: `${event.playerName} (créateur) a quitté la partie`,
-                type: 'info',
-            });
-        }
-
-        if (
-            event.type === 'player-joined' ||
-            event.type === 'player-left' ||
-            event.type === 'game-started' ||
-            event.type === 'mid-missions-assigned' ||
-            event.type === 'late-missions-assigned'
-        ) {
+        const interval = setInterval(() => {
             fetchRoom();
-        }
-    }, [fetchRoom]);
+        }, 2000); // Polling toutes les 2 secondes
 
-    useSSE(
-        roomCode ? `/api/rooms/${roomCode}/events` : null,
-        {
-            onMessage: handleSSEMessage,
-            enabled: !!roomCode,
-        }
-    );
+        return () => {
+            console.log('[useRoom] Stopping polling');
+            clearInterval(interval);
+        };
+    }, [roomCode, error, fetchRoom]);
 
     return {
         room,

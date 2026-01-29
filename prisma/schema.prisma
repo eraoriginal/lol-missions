@@ -23,12 +23,13 @@ model Mission {
 model Room {
   id              String    @id @default(cuid())
   code            String    @unique
-  creatorToken    String    // Token pour identifier le créateur
+  creatorToken    String
   gameStarted     Boolean   @default(false)
   gameStartTime   DateTime?
   createdAt       DateTime  @default(now())
 
   players         Player[]
+  messages        Message[] // Relation messages
 
   @@index([code])
 }
@@ -37,6 +38,7 @@ model Player {
   id              String   @id @default(cuid())
   name            String
   token           String   @unique // Token unique du joueur
+  avatar          String   @default("") // Avatar du joueur
   roomId          String
   room            Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   createdAt       DateTime @default(now())
@@ -58,4 +60,18 @@ model PlayerMission {
   
   @@unique([playerId, type])
   @@index([playerId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  playerId  String
+  playerName String  // Dénormalisé pour performance
+  playerAvatar String @default("")
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([roomId])
+  @@index([createdAt])
 }

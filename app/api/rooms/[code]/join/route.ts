@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { generatePlayerToken } from '@/lib/utils';
 import { z } from 'zod';
-import {broadcastToRoom} from "@/app/api/rooms/[code]/events/route";
 
 const joinRoomSchema = z.object({
     playerName: z.string().min(1).max(50),
@@ -58,11 +57,17 @@ export async function POST(
             );
         }
 
-        // Crée le joueur
+        // 🆕 Génère un avatar unique basé sur le nom du joueur + timestamp
+        const avatarSeed = `${playerName}-${Date.now()}`;
+        const avatarStyle = 'big-smile';
+        const avatarUrl = `https://api.dicebear.com/7.x/${avatarStyle}/svg?seed=${encodeURIComponent(avatarSeed)}`;
+
+        // Crée le joueur avec avatar
         const player = await prisma.player.create({
             data: {
                 name: playerName,
                 token: generatePlayerToken(),
+                avatar: avatarUrl, // 🆕 Avatar ajouté
                 roomId: room.id,
             },
         });
@@ -83,16 +88,8 @@ export async function POST(
             },
         });
 
-        // Broadcast l'event aux autres joueurs
-        broadcastToRoom(code, {
-            type: 'player-joined',
-            data: {
-                player: {
-                    id: player.id,
-                    name: player.name,
-                },
-            },
-        });
+        // Le polling détectera automatiquement le nouveau joueur
+        console.log(`[JOIN] Player ${playerName} joined room ${code}`);
 
         return Response.json({
             player,

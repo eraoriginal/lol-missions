@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { broadcastToRoom } from '../events/route';
 
 // Récupère le délai depuis la variable d'environnement
 const MID_MISSION_DELAY = parseInt(process.env.NEXT_PUBLIC_MID_MISSION_DELAY || '300') * 1000;
@@ -119,11 +118,7 @@ export async function POST(
             },
         });
 
-        // Broadcast aux clients
-        broadcastToRoom(code, {
-            type: 'mid-missions-assigned',
-            room: updatedRoom,
-        });
+        console.log(`[MID] Mid missions assigned in room ${code}`);
 
         return Response.json({
             message: 'MID missions assigned',

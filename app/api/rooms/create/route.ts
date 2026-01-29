@@ -25,7 +25,12 @@ export async function POST(request: NextRequest) {
         // Token du créateur
         const creatorToken = generatePlayerToken();
 
-        // Crée la room et le joueur créateur
+        // 🆕 Génère un avatar pour le créateur
+        const avatarSeed = `${creatorName}-${Date.now()}`;
+        const avatarStyle = 'big-smile';
+        const avatarUrl = `https://api.dicebear.com/7.x/${avatarStyle}/svg?seed=${encodeURIComponent(avatarSeed)}`;
+
+        // Crée la room et le joueur créateur avec avatar
         const room = await prisma.room.create({
             data: {
                 code,
@@ -34,6 +39,7 @@ export async function POST(request: NextRequest) {
                     create: {
                         name: creatorName,
                         token: generatePlayerToken(),
+                        avatar: avatarUrl, // 🆕 Avatar du créateur
                     },
                 },
             },

@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { broadcastToRoom } from '../events/route';
 
 // Récupère le délai depuis la variable d'environnement
 const LATE_MISSION_DELAY = parseInt(process.env.NEXT_PUBLIC_LATE_MISSION_DELAY || '600') * 1000;
@@ -119,11 +118,7 @@ export async function POST(
             },
         });
 
-        // Broadcast aux clients
-        broadcastToRoom(code, {
-            type: 'late-missions-assigned',
-            room: updatedRoom,
-        });
+        console.log(`[LATE] Late missions assigned in room ${code}`);
 
         return Response.json({
             message: 'LATE missions assigned',

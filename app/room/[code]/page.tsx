@@ -147,14 +147,55 @@ export default function RoomPage({
                         duration={3000}
                     />
                 )}
-                <main className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 flex items-center justify-center">
-                    <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md">
-                        <h1 className="text-2xl font-bold text-red-600 mb-4">Erreur</h1>
-                        <p className="text-gray-700 mb-6">{error || 'Room not found'}</p>
+                <main className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 flex items-center justify-center p-4">
+                    <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl p-10 max-w-md w-full border border-white/20">
+                        {/* Icône d'erreur animée */}
+                        <div className="flex justify-center mb-6">
+                            <div className="relative">
+                                <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-pink-600 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                                    <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                </div>
+                                {/* Cercle animé autour */}
+                                <div className="absolute inset-0 rounded-full border-4 border-red-300 animate-ping opacity-20"></div>
+                            </div>
+                        </div>
 
-                        <a href="/" className="block text-center py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">
-                            Retour à l'accueil
+                        {/* Titre */}
+                        <h1 className="text-3xl font-bold text-gray-800 mb-3 text-center">
+                            Room introuvable
+                        </h1>
+
+                        {/* Message d'erreur */}
+                        <p className="text-gray-600 text-center mb-8 leading-relaxed">
+                            {error === 'Room not found'
+                                ? "Cette room n'existe pas ou a été supprimée par le créateur."
+                                : error
+                            }
+                        </p>
+
+                        {/* Bouton retour amélioré */}
+                        <a
+                            href="/"
+                            className="group relative block text-center py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold overflow-hidden transition-all duration-300 hover:shadow-2xl hover:scale-105"
+                        >
+                            {/* Effet de brillance au survol */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+
+                            {/* Texte du bouton */}
+                            <span className="relative flex items-center justify-center gap-2">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Retour à l'accueil
+            </span>
                         </a>
+
+                        {/* Message d'aide */}
+                        <p className="text-gray-400 text-sm text-center mt-6">
+                            💡 Crée une nouvelle room ou rejoins-en une existante
+                        </p>
                     </div>
                 </main>
             </>

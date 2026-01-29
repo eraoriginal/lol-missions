@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { isCreator } from '@/lib/utils';
 import { z } from 'zod';
-import {broadcastToRoom} from "@/app/api/rooms/[code]/events/route";
 
 const startGameSchema = z.object({
     creatorToken: z.string(),
@@ -112,13 +111,7 @@ export async function POST(
             },
         });
 
-        // Broadcast l'event à tous les joueurs
-        broadcastToRoom(code, {
-            type: 'game-started',
-            data: {
-                gameStartTime: updatedRoom.gameStartTime,
-            },
-        });
+        console.log(`[START] Game started in room ${code}`);
 
         return Response.json({ room: updatedRoom });
     } catch (error) {
