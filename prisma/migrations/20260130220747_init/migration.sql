@@ -5,6 +5,7 @@ CREATE TABLE "Mission" (
     "type" TEXT NOT NULL,
     "category" TEXT NOT NULL,
     "difficulty" TEXT NOT NULL,
+    "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Mission_pkey" PRIMARY KEY ("id")
@@ -15,8 +16,10 @@ CREATE TABLE "Room" (
     "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
     "creatorToken" TEXT NOT NULL,
+    "gameType" TEXT NOT NULL DEFAULT 'aram-missions',
     "gameStarted" BOOLEAN NOT NULL DEFAULT false,
     "gameStartTime" TIMESTAMP(3),
+    "gameStopped" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Room_pkey" PRIMARY KEY ("id")
@@ -27,6 +30,7 @@ CREATE TABLE "Player" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "token" TEXT NOT NULL,
+    "avatar" TEXT NOT NULL DEFAULT '',
     "roomId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
