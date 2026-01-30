@@ -6,6 +6,7 @@ import { useRoom } from '@/app/hooks/useRoom';
 import { RoomLobby } from '@/app/components/RoomLobby';
 import { GameView } from '@/app/components/GameView';
 import { Toast } from '@/app/components/Toast';
+import {ComingSoonGame} from "@/app/components/ComingSoonGame";
 
 export default function RoomPage({
                                      params
@@ -215,10 +216,24 @@ export default function RoomPage({
 
             <main className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 p-4">
                 <div className="max-w-6xl mx-auto py-8">
-                    {room.gameStarted ? (
-                        <GameView room={room} roomCode={code} />
+                    {/* Si le jeu n'est pas ARAM Missions, affiche "En construction" */}
+                    {room.gameType !== 'aram-missions' ? (
+                        <ComingSoonGame
+                            roomCode={code}
+                            gameName={
+                                room.gameType === 'codename-ceo' ? 'Codename du CEO' :
+                                    room.gameType === 'break-room-quiz' ? 'Quiz de la salle de pause' :
+                                        'À venir'
+                            }
+                        />
                     ) : (
-                        <RoomLobby room={room} roomCode={code} />
+                        <>
+                            {room.gameStarted ? (
+                                <GameView room={room} roomCode={code} />
+                            ) : (
+                                <RoomLobby room={room} roomCode={code} />
+                            )}
+                        </>
                     )}
                 </div>
             </main>

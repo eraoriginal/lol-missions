@@ -13,6 +13,7 @@ model Mission {
   type       String   // 'START', 'MID' ou 'LATE'
   category   String
   difficulty String   // 'easy', 'medium', 'hard'
+  isPrivate  Boolean  @default(false)
   createdAt  DateTime @default(now())
 
   playerMissions PlayerMission[]
@@ -24,12 +25,13 @@ model Room {
   id              String    @id @default(cuid())
   code            String    @unique
   creatorToken    String
+  gameType        String    @default("aram-missions")
   gameStarted     Boolean   @default(false)
   gameStartTime   DateTime?
+  gameStopped     Boolean   @default(false)
   createdAt       DateTime  @default(now())
 
   players         Player[]
-  messages        Message[] // Relation messages
 
   @@index([code])
 }
@@ -57,21 +59,7 @@ model PlayerMission {
   mission         Mission  @relation(fields: [missionId], references: [id])
   type            String   // 'START', 'MID' ou 'LATE'
   assignedAt      DateTime @default(now())
-  
+
   @@unique([playerId, type])
   @@index([playerId])
-}
-
-model Message {
-  id        String   @id @default(cuid())
-  roomId    String
-  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  playerId  String
-  playerName String  // Dénormalisé pour performance
-  playerAvatar String @default("")
-  content   String
-  createdAt DateTime @default(now())
-
-  @@index([roomId])
-  @@index([createdAt])
 }

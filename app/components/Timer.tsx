@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 interface TimerProps {
     gameStartTime: string;
     roomCode: string;
+    gameStopped?: boolean;
 }
 
 // Récupère les délais depuis les variables d'environnement
@@ -14,7 +15,7 @@ const LATE_MISSION_DELAY = parseInt(process.env.NEXT_PUBLIC_LATE_MISSION_DELAY |
 // Délai avant l'arrivée de la mission pour jouer le son (5 secondes avant)
 const WARNING_DELAY = 5;
 
-export function Timer({ gameStartTime, roomCode }: TimerProps) {
+export function Timer({ gameStartTime, roomCode, gameStopped = false }: TimerProps) {
     const [elapsed, setElapsed] = useState(0);
     const [midMissionsChecked, setMidMissionsChecked] = useState(false);
     const [lateMissionsChecked, setLateMissionsChecked] = useState(false);
@@ -46,6 +47,12 @@ export function Timer({ gameStartTime, roomCode }: TimerProps) {
     };
 
     useEffect(() => {
+        // 🆕 Si la partie est stoppée, ne pas lancer l'intervalle
+        if (gameStopped) {
+            console.log('[Timer] Game stopped, not starting interval');
+            return;
+        }
+
         const startTime = new Date(gameStartTime).getTime();
 
         const interval = setInterval(() => {

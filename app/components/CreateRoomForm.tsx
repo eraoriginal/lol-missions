@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { GameSelector } from './GameSelector';
 
 export function CreateRoomForm() {
     const [name, setName] = useState('');
+    const [selectedGame, setSelectedGame] = useState('aram-missions');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
@@ -18,7 +20,10 @@ export function CreateRoomForm() {
             const response = await fetch('/api/rooms/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ creatorName: name }),
+                body: JSON.stringify({
+                    creatorName: name,
+                    gameType: selectedGame, // 🆕 Envoie le type de jeu
+                }),
             });
 
             if (!response.ok) {
@@ -40,7 +45,8 @@ export function CreateRoomForm() {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Nom du joueur */}
             <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                     Ton nom
@@ -56,6 +62,12 @@ export function CreateRoomForm() {
                     placeholder="Entre ton pseudo"
                 />
             </div>
+
+            {/* 🆕 Sélection du jeu */}
+            <GameSelector
+                selectedGame={selectedGame}
+                onSelectGame={setSelectedGame}
+            />
 
             {error && (
                 <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">

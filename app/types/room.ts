@@ -15,13 +15,17 @@ export interface Player {
     id: string;
     name: string;
     token: string;
-    missions: PlayerMission[];
+    avatar: string;
+    missions: any[];
 }
 
 export interface Room {
     id: string;
     code: string;
+    gameType: string;
     gameStarted: boolean;
     gameStartTime: string | null;
+    gameStopped: boolean;
+    creatorToken?: string;
     players: Player[];
 }

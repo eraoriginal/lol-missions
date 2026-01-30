@@ -1,15 +1,17 @@
 'use client';
 
-import { PlayerList } from './PlayerList';
 import { MissionCard } from './MissionCard';
 import { Timer } from './Timer';
 import { LeaveRoomButton } from './LeaveRoomButton';
-import { ChatBox } from './ChatBox'; // 🆕 IMPORT AJOUTÉ
+import {StopGameButton} from "@/app/components/StopGameButton";
+import {GameEndScreen} from "@/app/components/GameEndScreen";
+import {OtherPlayersMissions} from "@/app/components/OtherPlayersMissions";
 
 interface Room {
     id: string;
     code: string;
     gameStartTime: string | null;
+    gameStopped: boolean;
     players: any[];
 }
 
@@ -23,7 +25,18 @@ export function GameView({ room, roomCode }: GameViewProps) {
         ? localStorage.getItem(`room_${roomCode}_player`)
         : null;
 
+    const creatorToken = typeof window !== 'undefined'
+        ? localStorage.getItem(`room_${roomCode}_creator`)
+        : null;
+
+    const isCreator = !!creatorToken;
+
     const currentPlayer = room.players.find((p) => p.token === playerToken);
+
+    // 🆕 Si la partie est stoppée, affiche l'écran de fin
+    if (room.gameStopped) {
+        return <GameEndScreen room={room} roomCode={roomCode} isCreator={isCreator} />;
+    }
 
     const startMission = currentPlayer?.missions.find((m: any) => m.type === 'START');
     const midMission = currentPlayer?.missions.find((m: any) => m.type === 'MID');
@@ -40,6 +53,7 @@ export function GameView({ room, roomCode }: GameViewProps) {
 
     return (
         <div className="space-y-6">
+
             {/* Header */}
             <div className="bg-white rounded-xl shadow-lg p-6">
                 <div className="flex justify-between items-center">
@@ -51,12 +65,19 @@ export function GameView({ room, roomCode }: GameViewProps) {
                             Room: <span className="font-mono font-bold">{roomCode}</span>
                         </p>
                     </div>
-                    <LeaveRoomButton roomCode={roomCode} />
+                    <div className="flex gap-2">
+                        {isCreator && <StopGameButton roomCode={roomCode} />}
+                        <LeaveRoomButton roomCode={roomCode} />
+                    </div>
                 </div>
             </div>
 
             {/* Timer */}
-            <Timer gameStartTime={room.gameStartTime} roomCode={roomCode} />
+            <Timer
+                gameStartTime={room.gameStartTime}
+                roomCode={roomCode}
+                gameStopped={room.gameStopped}
+            />
 
             {/* Missions - ORDRE INVERSÉ : LATE → MID → START */}
             <div className="space-y-4">
@@ -116,14 +137,15 @@ export function GameView({ room, roomCode }: GameViewProps) {
                     <div className="opacity-90">
                         <MissionCard mission={startMission.mission} type="START" />
                     </div>
+
                 )}
             </div>
 
-            {/* Players */}
-            <PlayerList players={room.players} currentPlayerToken={playerToken} />
-
-            {/* Chat */}
-            <ChatBox roomCode={roomCode} />
+            {/* Missions des autres joueurs */}
+            <OtherPlayersMissions
+                players={room.players}
+                currentPlayerToken={playerToken}
+            />
         </div>
     );
 }

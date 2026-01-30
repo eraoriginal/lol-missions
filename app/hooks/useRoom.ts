@@ -3,20 +3,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Room } from '@/app/types/room';
 
-interface Player {
-    id: string;
-    name: string;
-    token: string;
-    isCreator: boolean;
-    missions: any[];
-}
-
-interface RoomWithPlayers extends Room {
-    players: Player[];
-}
-
 export function useRoom(roomCode: string | null) {
-    const [room, setRoom] = useState<RoomWithPlayers | null>(null);
+    const [room, setRoom] = useState<Room | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [notification, setNotification] = useState<{ message: string; type: 'info' | 'warning' } | null>(null);
@@ -40,16 +28,36 @@ export function useRoom(roomCode: string | null) {
 
             if (!response.ok) {
                 if (response.status === 404) {
-                    // Room supprimée = redirection immédiate
+                    // 🔥 Room supprimée - comportement différent selon créateur ou non
                     if (!isInitialLoad && room) {
-                        console.log('[useRoom] Room deleted, redirecting...');
-                        setNotification({
-                            message: 'La room a été fermée',
-                            type: 'warning',
-                        });
-                        setTimeout(() => {
+                        console.log('[useRoom] Room deleted');
+
+                        // Vérifie si c'est le créateur
+                        const creatorToken = typeof window !== 'undefined'
+                            ? localStorage.getItem(`room_${roomCode}_creator`)
+                            : null;
+
+                        if (creatorToken) {
+                            // ✅ Créateur : redirection directe, pas de message
+                            console.log('[useRoom] Creator - immediate redirect');
+                            // Nettoie le localStorage
+                            localStorage.removeItem(`room_${roomCode}_creator`);
+                            localStorage.removeItem(`room_${roomCode}_player`);
                             window.location.href = '/';
-                        }, 2000);
+                            return;
+                        } else {
+                            // ✅ Autre joueur : affiche notification puis redirige
+                            console.log('[useRoom] Regular player - show notification');
+                            setNotification({
+                                message: 'La room a été fermée par le créateur',
+                                type: 'warning',
+                            });
+                            // Nettoie le localStorage
+                            localStorage.removeItem(`room_${roomCode}_player`);
+                            setTimeout(() => {
+                                window.location.href = '/';
+                            }, 2000);
+                        }
                     }
                     throw new Error('Room not found');
                 }
@@ -67,7 +75,9 @@ export function useRoom(roomCode: string | null) {
 
                 if (leftPlayerId) {
                     const leftPlayer = room.players.find(p => p.id === leftPlayerId);
-                    if (leftPlayer?.isCreator) {
+                    const wasCreator = room.players[0]?.id === leftPlayerId;
+
+                    if (wasCreator && leftPlayer) {
                         setNotification({
                             message: `${leftPlayer.name} (créateur) a quitté la partie`,
                             type: 'info',
@@ -108,7 +118,7 @@ export function useRoom(roomCode: string | null) {
 
         const interval = setInterval(() => {
             fetchRoom();
-        }, 2000); // Polling toutes les 2 secondes
+        }, 2000);
 
         return () => {
             console.log('[useRoom] Stopping polling');

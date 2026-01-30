@@ -45,7 +45,7 @@ export async function POST(
 
         console.log(`[leave] Player ${player.name} (creator: ${isCreator}) leaving room ${code}`);
 
-        // 🔥 NOUVEAU : Le créateur quitte = SUPPRESSION DE LA ROOM (avant ou après le start)
+        // 🔥 Le créateur quitte = SUPPRESSION DE LA ROOM (avant ou après le start)
         if (isCreator) {
             console.log(`[leave] Creator leaving, deleting room ${code}...`);
 

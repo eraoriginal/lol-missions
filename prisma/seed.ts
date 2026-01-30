@@ -2,128 +2,348 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Missions START (début de partie)
-const startMissions = [
-    { text: "Ne pas acheter de bottes pendant les 10 premières minutes", category: "items", difficulty: "medium" },
-    { text: "Acheter uniquement des objets qui commencent par la lettre de ton champion", category: "items", difficulty: "hard" },
-    { text: "Rester dans ta lane pendant les 5 premières minutes", category: "position", difficulty: "easy" },
-    { text: "Ne pas utiliser ton ultime avant le level 8", category: "sorts", difficulty: "medium" },
-    { text: "Faire un firstblood", category: "combat", difficulty: "medium" },
-    { text: "Ne pas mourir avant 10 minutes", category: "combat", difficulty: "medium" },
-    { text: "Farmer 50 CS en 7 minutes", category: "roleplay", difficulty: "hard" },
-    { text: "Voler le premier drake", category: "combat", difficulty: "hard" },
-    { text: "Acheter un objet support en premier", category: "items", difficulty: "easy" },
-    { text: "Jouer sans trinket pendant 5 minutes", category: "roleplay", difficulty: "medium" },
-    { text: "Commencer par des objets de soin uniquement", category: "items", difficulty: "medium" },
-    { text: "Tuer 3 champions avant 15 minutes", category: "combat", difficulty: "hard" },
-    { text: "Ne pas retourner à la base avant 8 minutes", category: "position", difficulty: "hard" },
-    { text: "Avoir 100% de participation aux kills d'équipe pendant 10 min", category: "combat", difficulty: "hard" },
-    { text: "Finir avec 0 mort en early game (avant 10min)", category: "combat", difficulty: "medium" },
-    { text: "Acheter les mêmes items que ton adversaire direct", category: "items", difficulty: "medium" },
-    { text: "Ne pas utiliser de potions pendant 10 minutes", category: "roleplay", difficulty: "hard" },
-    { text: "Placer 10 wards dans les 8 premières minutes", category: "position", difficulty: "medium" },
-    { text: "Ne pas farmer de mobs neutres avant 12 minutes", category: "position", difficulty: "easy" },
-    { text: "Acheter Boots of Mobility en premier objet", category: "items", difficulty: "easy" },
-];
-
-// Missions MID (5 minutes de jeu)
-const midMissions = [
-    { text: "Vendre tous tes items et recommencer ton build", category: "build", difficulty: "hard" },
-    { text: "Acheter uniquement des objets défensifs jusqu'à la fin", category: "build", difficulty: "medium" },
-    { text: "Ne plus utiliser ton sort Q", category: "combat", difficulty: "hard" },
-    { text: "Faire 5 kills dans les 5 prochaines minutes", category: "score", difficulty: "hard" },
-    { text: "Ne plus mourir jusqu'à la fin de la partie", category: "combat", difficulty: "hard" },
-    { text: "Rester uniquement dans la jungle adverse", category: "position", difficulty: "hard" },
-    { text: "Suivre un allié partout où il va pendant 3 minutes", category: "tactique", difficulty: "medium" },
-    { text: "Farmer 100 CS dans les 5 prochaines minutes", category: "score", difficulty: "medium" },
-    { text: "Détruire 2 tours dans les 10 prochaines minutes", category: "score", difficulty: "medium" },
-    { text: "Ne plus retourner à la fontaine jusqu'à la fin", category: "position", difficulty: "hard" },
-    { text: "Acheter 6 Doran items", category: "build", difficulty: "easy" },
-    { text: "Ne plus utiliser de wards", category: "tactique", difficulty: "medium" },
-    { text: "Voler le prochain Baron ou Dragon", category: "combat", difficulty: "hard" },
-    { text: "Faire un pentakill", category: "combat", difficulty: "hard" },
-    { text: "Avoir plus de dégâts aux structures que tous tes alliés", category: "score", difficulty: "medium" },
-    { text: "Tank le plus de dégâts de ton équipe", category: "tactique", difficulty: "medium" },
-    { text: "Avoir 100% KP jusqu'à la fin", category: "score", difficulty: "hard" },
-    { text: "Construire full objets critiques", category: "build", difficulty: "medium" },
-    { text: "Ne plus farm de minions, uniquement des kills", category: "tactique", difficulty: "hard" },
-    { text: "Acheter Trinity Force même si ça ne fit pas ton champion", category: "build", difficulty: "easy" },
-];
-
-// Missions LATE (10+ minutes de jeu)
-const lateMissions = [
-    { text: "Termine la partie avec au moins 10 kills", category: "score", difficulty: "hard" },
-    { text: "Ne meurs pas une seule fois jusqu'à la fin", category: "survie", difficulty: "hard" },
-    { text: "Fais un pentakill avant la fin", category: "combat", difficulty: "hard" },
-    { text: "Détruis au moins 3 tours ennemies", category: "objectif", difficulty: "medium" },
-    { text: "Finis avec 300+ CS", category: "farm", difficulty: "medium" },
-    { text: "Vole le Baron Nashor", category: "objectif", difficulty: "hard" },
-    { text: "Gagne avec moins de 50% HP sur le Nexus", category: "clutch", difficulty: "hard" },
-    { text: "Finis avec 20+ assists", category: "support", difficulty: "medium" },
-    { text: "Achète 6 objets légendaires complets", category: "build", difficulty: "medium" },
-    { text: "Fais la plus grosse série de kills de la partie", category: "combat", difficulty: "hard" },
-    { text: "Inflige plus de 50,000 dégâts aux champions", category: "dégâts", difficulty: "hard" },
-    { text: "Tank plus de 30,000 dégâts", category: "tank", difficulty: "medium" },
-    { text: "Place 50+ wards", category: "vision", difficulty: "easy" },
-    { text: "Détruis 20+ wards ennemis", category: "vision", difficulty: "medium" },
-    { text: "Gagne en dansant sur le Nexus ennemi", category: "bm", difficulty: "easy" },
-    { text: "Finis 1v5 et gagne", category: "héroïque", difficulty: "hard" },
-    { text: "Vole 3 objectifs majeurs (Dragon/Baron)", category: "objectif", difficulty: "hard" },
-    { text: "Termine avec un KDA supérieur à 10", category: "score", difficulty: "hard" },
-    { text: "Porte ton équipe avec le MVP", category: "carry", difficulty: "hard" },
-    { text: "Gagne sans perdre une seule inhibiteur", category: "domination", difficulty: "medium" },
-];
-
 async function main() {
     console.log('🌱 Seeding database...');
 
-    // Supprime toutes les données existantes
-    await prisma.playerMission.deleteMany();
-    await prisma.player.deleteMany();
-    await prisma.room.deleteMany();
-    await prisma.mission.deleteMany();
+    // Supprime les missions existantes
+    try {
+        // await prisma.playerMission.deleteMany();
+        await prisma.player.deleteMany();
+        await prisma.room.deleteMany();
+        await prisma.mission.deleteMany();
+        console.log('✅ Existing missions deleted');
+    } catch (e) {
+        console.log('⚠️ No existing missions to delete');
+    }
 
-    // Ajoute les missions START
-    console.log('📝 Adding START missions...');
+    // ========================================
+    // MISSIONS START (début de partie)
+    // ========================================
+    const startMissions = [
+        // Missions publiques
+        {
+            text: "Finir la partie avec plus de 10 kills",
+            type: "START",
+            category: "Combat",
+            difficulty: "medium",
+            isPrivate: false,
+        },
+        {
+            text: "Ne pas mourir avant 10 minutes",
+            type: "START",
+            category: "Survie",
+            difficulty: "easy",
+            isPrivate: false,
+        },
+        {
+            text: "Faire un pentakill",
+            type: "START",
+            category: "Combat",
+            difficulty: "hard",
+            isPrivate: false,
+        },
+        {
+            text: "Finir avec le plus de dégâts de ton équipe",
+            type: "START",
+            category: "Combat",
+            difficulty: "hard",
+            isPrivate: false,
+        },
+        {
+            text: "Protéger un allié et l'empêcher de mourir 3 fois",
+            type: "START",
+            category: "Support",
+            difficulty: "medium",
+            isPrivate: false,
+        },
+        {
+            text: "Voler 3 kills à tes coéquipiers",
+            type: "START",
+            category: "Troll",
+            difficulty: "easy",
+            isPrivate: false,
+        },
+        {
+            text: "Tank plus de 50 000 dégâts",
+            type: "START",
+            category: "Tank",
+            difficulty: "medium",
+            isPrivate: false,
+        },
+        {
+            text: "Ne jamais acheter de ward",
+            type: "START",
+            category: "Troll",
+            difficulty: "easy",
+            isPrivate: false,
+        },
+
+        // 🔒 Missions secrètes (privées)
+        {
+            text: "Ne jamais acheter de bottes pendant toute la partie",
+            type: "START",
+            category: "Handicap",
+            difficulty: "medium",
+            isPrivate: true, // 🔒 SECRÈTE
+        },
+        {
+            text: "Dire 'gg ez' dans le chat toutes les 2 minutes",
+            type: "START",
+            category: "Troll",
+            difficulty: "easy",
+            isPrivate: true, // 🔒 SECRÈTE
+        },
+        {
+            text: "Utiliser uniquement des sorts en cliquant (pas de raccourcis clavier)",
+            type: "START",
+            category: "Handicap",
+            difficulty: "hard",
+            isPrivate: true, // 🔒 SECRÈTE
+        },
+        {
+            text: "Acheter uniquement des objets qui commencent par la lettre B",
+            type: "START",
+            category: "Troll",
+            difficulty: "medium",
+            isPrivate: true, // 🔒 SECRÈTE
+        },
+        {
+            text: "Mourir exactement 7 fois, ni plus ni moins",
+            type: "START",
+            category: "Précision",
+            difficulty: "hard",
+            isPrivate: true, // 🔒 SECRÈTE
+        },
+        {
+            text: "Ne jamais attaquer le même ennemi que tes alliés",
+            type: "START",
+            category: "Handicap",
+            difficulty: "hard",
+            isPrivate: true, // 🔒 SECRÈTE
+        },
+    ];
+
+    // ========================================
+    // MISSIONS MID (milieu de partie - 15s)
+    // ========================================
+    const midMissions = [
+        // Missions publiques
+        {
+            text: "Faire un double kill dans les 2 prochaines minutes",
+            type: "MID",
+            category: "Combat",
+            difficulty: "medium",
+            isPrivate: false,
+        },
+        {
+            text: "Détruire une tourelle adverse",
+            type: "MID",
+            category: "Objectif",
+            difficulty: "easy",
+            isPrivate: false,
+        },
+        {
+            text: "Voler le Baron Nashor ou l'Ancien Dragon",
+            type: "MID",
+            category: "Objectif",
+            difficulty: "hard",
+            isPrivate: false,
+        },
+        {
+            text: "Faire 5 assists dans les 3 prochaines minutes",
+            type: "MID",
+            category: "Support",
+            difficulty: "medium",
+            isPrivate: false,
+        },
+        {
+            text: "Acheter un objet légendaire complet",
+            type: "MID",
+            category: "Farm",
+            difficulty: "easy",
+            isPrivate: false,
+        },
+        {
+            text: "Ne pas mourir pendant 5 minutes",
+            type: "MID",
+            category: "Survie",
+            difficulty: "medium",
+            isPrivate: false,
+        },
+        {
+            text: "Faire plus de 15 000 dégâts aux champions dans les 5 prochaines minutes",
+            type: "MID",
+            category: "Combat",
+            difficulty: "hard",
+            isPrivate: false,
+        },
+
+        // 🔒 Missions secrètes (privées)
+        {
+            text: "Mourir intentionnellement dans les 30 prochaines secondes",
+            type: "MID",
+            category: "Suicide",
+            difficulty: "easy",
+            isPrivate: true, // 🔒 SECRÈTE
+        },
+        {
+            text: "Vendre tous tes objets et racheter des consommables uniquement",
+            type: "MID",
+            category: "Troll",
+            difficulty: "medium",
+            isPrivate: true, // 🔒 SECRÈTE
+        },
+        {
+            text: "Flash dans un mur et rester bloqué 5 secondes",
+            type: "MID",
+            category: "Troll",
+            difficulty: "easy",
+            isPrivate: true, // 🔒 SECRÈTE
+        },
+        {
+            text: "Suivre un coéquipier partout pendant 2 minutes (jamais à plus de 500 unités)",
+            type: "MID",
+            category: "Troll",
+            difficulty: "easy",
+            isPrivate: true, // 🔒 SECRÈTE
+        },
+        {
+            text: "Communiquer uniquement en emotes pendant 3 minutes",
+            type: "MID",
+            category: "Communication",
+            difficulty: "easy",
+            isPrivate: true, // 🔒 SECRÈTE
+        },
+    ];
+
+    // ========================================
+    // MISSIONS LATE (fin de partie - 30s)
+    // ========================================
+    const lateMissions = [
+        // Missions publiques
+        {
+            text: "Détruire le Nexus ennemi",
+            type: "LATE",
+            category: "Victoire",
+            difficulty: "hard",
+            isPrivate: false,
+        },
+        {
+            text: "Remporter le dernier teamfight",
+            type: "LATE",
+            category: "Combat",
+            difficulty: "hard",
+            isPrivate: false,
+        },
+        {
+            text: "Finir la partie sans mourir",
+            type: "LATE",
+            category: "Survie",
+            difficulty: "hard",
+            isPrivate: false,
+        },
+        {
+            text: "Avoir le meilleur KDA de la partie",
+            type: "LATE",
+            category: "Performance",
+            difficulty: "hard",
+            isPrivate: false,
+        },
+        {
+            text: "Faire un quadra ou pentakill avant la fin",
+            type: "LATE",
+            category: "Combat",
+            difficulty: "hard",
+            isPrivate: false,
+        },
+        {
+            text: "Sauver un allié d'une mort certaine",
+            type: "LATE",
+            category: "Support",
+            difficulty: "medium",
+            isPrivate: false,
+        },
+        {
+            text: "Détruire les 3 inhibiteurs ennemis",
+            type: "LATE",
+            category: "Objectif",
+            difficulty: "hard",
+            isPrivate: false,
+        },
+
+        // 🔒 Missions secrètes (privées)
+        {
+            text: "Perdre la partie volontairement en initiant un mauvais fight",
+            type: "LATE",
+            category: "Sabotage",
+            difficulty: "hard",
+            isPrivate: true, // 🔒 SECRÈTE
+        },
+        {
+            text: "Acheter 6 bottes différentes avant la fin",
+            type: "LATE",
+            category: "Troll",
+            difficulty: "medium",
+            isPrivate: true, // 🔒 SECRÈTE
+        },
+        {
+            text: "Voler le Baron à ton équipe avec Smite",
+            type: "LATE",
+            category: "Troll",
+            difficulty: "hard",
+            isPrivate: true, // 🔒 SECRÈTE
+        },
+        {
+            text: "Finir la partie avec exactement 69 de farm",
+            type: "LATE",
+            category: "Précision",
+            difficulty: "hard",
+            isPrivate: true, // 🔒 SECRÈTE
+        },
+        {
+            text: "Danser sur le cadavre de chaque ennemi tué",
+            type: "LATE",
+            category: "BM",
+            difficulty: "easy",
+            isPrivate: true, // 🔒 SECRÈTE
+        },
+        {
+            text: "Spam ping '?' sur tes alliés pendant 1 minute",
+            type: "LATE",
+            category: "Toxic",
+            difficulty: "easy",
+            isPrivate: true, // 🔒 SECRÈTE
+        },
+    ];
+
+    // ========================================
+    // INSERTION EN BASE
+    // ========================================
+    console.log('📝 Creating START missions...');
     for (const mission of startMissions) {
-        await prisma.mission.create({
-            data: {
-                text: mission.text,
-                type: 'START',
-                category: mission.category,
-                difficulty: mission.difficulty,
-            },
-        });
+        await prisma.mission.create({ data: mission });
     }
+    console.log(`✅ ${startMissions.length} START missions created (${startMissions.filter(m => m.isPrivate).length} secrètes)`);
 
-    // Ajoute les missions MID
-    console.log('📝 Adding MID missions...');
+    console.log('📝 Creating MID missions...');
     for (const mission of midMissions) {
-        await prisma.mission.create({
-            data: {
-                text: mission.text,
-                type: 'MID',
-                category: mission.category,
-                difficulty: mission.difficulty,
-            },
-        });
+        await prisma.mission.create({ data: mission });
     }
+    console.log(`✅ ${midMissions.length} MID missions created (${midMissions.filter(m => m.isPrivate).length} secrètes)`);
 
-    // Ajoute les missions LATE
-    console.log('📝 Adding LATE missions...');
+    console.log('📝 Creating LATE missions...');
     for (const mission of lateMissions) {
-        await prisma.mission.create({
-            data: {
-                text: mission.text,
-                type: 'LATE',
-                category: mission.category,
-                difficulty: mission.difficulty,
-            },
-        });
+        await prisma.mission.create({ data: mission });
     }
+    console.log(`✅ ${lateMissions.length} LATE missions created (${lateMissions.filter(m => m.isPrivate).length} secrètes)`);
 
-    const missionCount = await prisma.mission.count();
-    console.log(`✅ Seeding complete! ${missionCount} missions created.`);
+    const totalPublic = [...startMissions, ...midMissions, ...lateMissions].filter(m => !m.isPrivate).length;
+    const totalPrivate = [...startMissions, ...midMissions, ...lateMissions].filter(m => m.isPrivate).length;
+
+    console.log(`\n🎉 Seeding completed!`);
+    console.log(`📊 Total: ${totalPublic + totalPrivate} missions`);
+    console.log(`   - 👁️  ${totalPublic} missions publiques`);
+    console.log(`   - 🔒 ${totalPrivate} missions secrètes`);
 }
 
 main()

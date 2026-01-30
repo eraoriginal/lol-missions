@@ -24,7 +24,7 @@ export function LeaveRoomButton({ roomCode }: LeaveRoomButtonProps) {
         setLeaving(true);
 
         const playerToken = localStorage.getItem(`room_${roomCode}_player`);
-        const creatorToken = localStorage.getItem(`room_${roomCode}_creator`); // ← Récupère le creatorToken
+        const creatorToken = localStorage.getItem(`room_${roomCode}_creator`);
 
         if (!playerToken) {
             router.push('/');
@@ -37,7 +37,7 @@ export function LeaveRoomButton({ roomCode }: LeaveRoomButtonProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     playerToken,
-                    creatorToken: creatorToken || undefined, // ← Envoie le creatorToken si présent
+                    creatorToken: creatorToken || undefined,
                 }),
             });
 
@@ -49,7 +49,7 @@ export function LeaveRoomButton({ roomCode }: LeaveRoomButtonProps) {
                 localStorage.removeItem(`room_${roomCode}_creator`);
 
                 // Affiche un message selon le cas
-                if (data.reason === 'creator-left-before-start') {
+                if (data.reason === 'creator-left') {
                     setToast({ message: 'Room supprimée avec succès', type: 'success' });
                 } else {
                     setToast({ message: 'Tu as quitté la room', type: 'success' });
@@ -86,7 +86,7 @@ export function LeaveRoomButton({ roomCode }: LeaveRoomButtonProps) {
                     title={isCreator ? "⚠️ Tu es le créateur !" : "Quitter la room ?"}
                     message={
                         isCreator
-                            ? "Si tu quittes avant le début de la partie, la room sera supprimée et tous les joueurs seront kickés. Es-tu sûr ?"
+                            ? "Si tu quittes, la room sera supprimée et tous les joueurs seront déconnectés. Es-tu sûr ?"
                             : "Es-tu sûr de vouloir quitter cette room ?"
                     }
                     confirmText="Quitter"

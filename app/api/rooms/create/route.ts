@@ -5,41 +5,41 @@ import { z } from 'zod';
 
 const createRoomSchema = z.object({
     creatorName: z.string().min(1).max(50),
+    gameType: z.string().default('aram-missions'), // 🆕 Ajouté
 });
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { creatorName } = createRoomSchema.parse(body);
+        const { creatorName, gameType } = createRoomSchema.parse(body);
 
         // Génère un code unique
         let code = generateRoomCode();
         let existingRoom = await prisma.room.findUnique({ where: { code } });
 
-        // Regénère si le code existe déjà (très rare)
         while (existingRoom) {
             code = generateRoomCode();
             existingRoom = await prisma.room.findUnique({ where: { code } });
         }
 
-        // Token du créateur
         const creatorToken = generatePlayerToken();
 
-        // 🆕 Génère un avatar pour le créateur
+        // Génère un avatar pour le créateur
         const avatarSeed = `${creatorName}-${Date.now()}`;
         const avatarStyle = 'big-smile';
         const avatarUrl = `https://api.dicebear.com/7.x/${avatarStyle}/svg?seed=${encodeURIComponent(avatarSeed)}`;
 
-        // Crée la room et le joueur créateur avec avatar
+        // Crée la room avec le type de jeu
         const room = await prisma.room.create({
             data: {
                 code,
                 creatorToken,
+                gameType, // 🆕 Ajouté
                 players: {
                     create: {
                         name: creatorName,
                         token: generatePlayerToken(),
-                        avatar: avatarUrl, // 🆕 Avatar du créateur
+                        avatar: avatarUrl,
                     },
                 },
             },
