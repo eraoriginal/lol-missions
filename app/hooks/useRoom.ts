@@ -3,6 +3,14 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Room } from '@/app/types/room';
 
+interface Player {
+    id: string;
+    name: string;
+    token?: string;
+    avatar?: string;
+    missions?: any[];
+}
+
 export function useRoom(roomCode: string | null) {
     const [room, setRoom] = useState<Room | null>(null);
     const [loading, setLoading] = useState(true);
@@ -69,12 +77,12 @@ export function useRoom(roomCode: string | null) {
 
             // Détecte si un joueur a quitté (seulement après le chargement initial)
             if (!isInitialLoad && room && newRoom.players.length < previousPlayerCountRef.current) {
-                const previousPlayers = room.players.map(p => p.id);
-                const currentPlayers = newRoom.players.map(p => p.id);
-                const leftPlayerId = previousPlayers.find(id => !currentPlayers.includes(id));
+                const previousPlayers = room.players.map((p: Player) => p.id);
+                const currentPlayers = newRoom.players.map((p: Player) => p.id);
+                const leftPlayerId = previousPlayers.find((id: string) => !currentPlayers.includes(id));
 
                 if (leftPlayerId) {
-                    const leftPlayer = room.players.find(p => p.id === leftPlayerId);
+                    const leftPlayer = room.players.find((p: any) => p.id === leftPlayerId);
                     const wasCreator = room.players[0]?.id === leftPlayerId;
 
                     if (wasCreator && leftPlayer) {
