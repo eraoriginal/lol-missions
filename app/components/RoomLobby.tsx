@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { PlayerList } from './PlayerList';
+import { TeamSelector } from './TeamSelector';
 import { LeaveRoomButton } from './LeaveRoomButton';
 
 interface Room {
@@ -15,20 +16,122 @@ interface RoomLobbyProps {
     roomCode: string;
 }
 
+const RULES = [
+    {
+        id: 'teams',
+        icon: '🔴🔵',
+        title: 'Équipes',
+        content: (
+            <p className="text-gray-600 text-sm leading-relaxed">
+                Choisissez l'équipe Rouge ou Bleue avant le démarrage. Chaque équipe peut avoir au plus 5 joueurs.
+                Vous pouvez changer d'équipe ou retour en spectateur à tout moment avant que le créateur ne lance la partie.
+            </p>
+        ),
+    },
+    {
+        id: 'missions',
+        icon: '📋',
+        title: 'Missions',
+        content: (
+            <div className="space-y-3">
+                <p className="text-gray-600 text-sm leading-relaxed">
+                    Chaque joueur reçoit 3 missions au fil de la partie :
+                </p>
+                <div className="space-y-2">
+                    {[
+                        { color: 'bg-blue-500', label: 'Mission Début', desc: 'Disponible dès que le créateur lance la partie. Vous pouvez la voir avant même que le compteur ne tourne.' },
+                        { color: 'bg-purple-500', label: 'Mission 5min', desc: 'Apparaît après quelques minutes de jeu une fois le compteur lancé.' },
+                        { color: 'bg-red-500', label: 'Mission Finale', desc: 'Apparaît en fin de partie. Accomplissez-la avant que le créateur ne stop le compteur !' },
+                    ].map(m => (
+                        <div key={m.label} className="flex items-start gap-2.5">
+                            <span className={`inline-block mt-1.5 w-2.5 h-2.5 rounded-full ${m.color} flex-shrink-0`}></span>
+                            <p className="text-gray-600 text-sm leading-relaxed">
+                                <span className="font-semibold text-gray-700">{m.label}</span> — {m.desc}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        ),
+    },
+    {
+        id: 'secret',
+        icon: '🔒',
+        title: 'Missions secrètes',
+        content: (
+            <p className="text-gray-600 text-sm leading-relaxed">
+                Certaines missions sont secrètes : seul le joueur concerné voit le texte et la difficulté pendant la partie.
+                Les autres joueurs ne voient qu'un bloc flou avec le badge 🔒. Tout est révélé à tous lors de la validation à la fin.
+            </p>
+        ),
+    },
+    {
+        id: 'points',
+        icon: '💰',
+        title: 'Points',
+        content: (
+            <div className="space-y-3">
+                <p className="text-gray-600 text-sm leading-relaxed">
+                    Chaque mission validée rapporte des points selon sa difficulté :
+                </p>
+                <div className="flex gap-2 flex-wrap">
+                    {[
+                        { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700', dot: 'bg-green-400', label: 'Facile — 100 pts' },
+                        { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700', dot: 'bg-yellow-400', label: 'Moyen — 200 pts' },
+                        { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', dot: 'bg-red-400', label: 'Difficile — 500 pts' },
+                    ].map(p => (
+                        <span key={p.label} className={`inline-flex items-center gap-1.5 ${p.bg} border ${p.border} ${p.text} text-sm font-semibold px-3 py-1 rounded-full`}>
+                            <span className={`w-2.5 h-2.5 rounded-full ${p.dot}`}></span>
+                            {p.label}
+                        </span>
+                    ))}
+                </div>
+            </div>
+        ),
+    },
+    {
+        id: 'validation',
+        icon: '✅',
+        title: 'Validation',
+        content: (
+            <p className="text-gray-600 text-sm leading-relaxed">
+                Quand le créateur arrête le compteur, la phase de validation commence.
+                Il vérifie chaque mission joueur par joueur, devant tout le monde en temps réel.
+                Chaque mission est soit validée ✅ (vous gagnez les points), soit échouée ❌ (0 point).
+            </p>
+        ),
+    },
+    {
+        id: 'victory',
+        icon: '🏆',
+        title: 'Victoire',
+        content: (
+            <p className="text-gray-600 text-sm leading-relaxed">
+                À la fin, les points de chaque joueur sont additionnés par équipe.
+                Les joueurs sont classés par ordre décroissant de points au sein de leur équipe.
+                L'équipe avec le plus grand total remporte la partie !
+            </p>
+        ),
+    },
+];
+
 export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
     const [starting, setStarting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
+    const [openRule, setOpenRule] = useState<string | null>(null);
 
-    // Vérifie si l'utilisateur est le créateur
     const creatorToken = typeof window !== 'undefined'
         ? localStorage.getItem(`room_${roomCode}_creator`)
         : null;
     const isCreator = !!creatorToken;
 
+    const playerToken = typeof window !== 'undefined'
+        ? localStorage.getItem(`room_${roomCode}_player`)
+        : null;
+
     const handleStart = async () => {
         if (!creatorToken) return;
-
         setStarting(true);
         setError(null);
 
@@ -43,8 +146,6 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
                 const data = await response.json();
                 throw new Error(data.error || 'Failed to start game');
             }
-
-            // La room se mettra à jour via SSE
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to start game');
             setStarting(false);
@@ -59,11 +160,7 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
         try {
             await navigator.clipboard.writeText(shareUrl);
             setCopied(true);
-
-            // Réinitialise après 3 secondes
-            setTimeout(() => {
-                setCopied(false);
-            }, 3000);
+            setTimeout(() => setCopied(false), 3000);
         } catch (err) {
             console.error('Failed to copy:', err);
         }
@@ -73,7 +170,6 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
         <div className="space-y-6">
             {/* Header */}
             <div className="bg-white rounded-xl shadow-lg p-6">
-                {/* Bouton quitter en haut à droite */}
                 <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
                         <h1 className="text-3xl font-bold text-gray-800 mb-2">
@@ -86,7 +182,6 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
                     <LeaveRoomButton roomCode={roomCode} />
                 </div>
 
-                {/* Share link */}
                 <div className="max-w-2xl mx-auto">
                     <div className="flex gap-2">
                         <input
@@ -106,18 +201,23 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
                             {copied ? '✓ Copié !' : '📋 Copier'}
                         </button>
                     </div>
-
-                    {/* Message de succès */}
                     {copied && (
-                        <div className="mt-3 p-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium animate-fade-in">
+                        <div className="mt-3 p-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
                             ✓ Lien copié dans le presse-papier !
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Players */}
+            {/* Liste des joueurs */}
             <PlayerList players={room.players} />
+
+            {/* Sélection des équipes */}
+            <TeamSelector
+                players={room.players}
+                roomCode={roomCode}
+                currentPlayerToken={playerToken}
+            />
 
             {/* Start button (creator only) */}
             {isCreator && (
@@ -151,6 +251,47 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
                     </p>
                 </div>
             )}
+
+            {/* ========== ACCORDÉON RÈGLES — EN BAS ========== */}
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                    <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                        <span>📜</span> Règles du jeu
+                    </h3>
+                </div>
+
+                <div className="divide-y divide-gray-100">
+                    {RULES.map((rule) => {
+                        const isOpen = openRule === rule.id;
+                        return (
+                            <div key={rule.id}>
+                                {/* Ligne cliquable */}
+                                <button
+                                    onClick={() => setOpenRule(isOpen ? null : rule.id)}
+                                    className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-gray-50 transition-colors text-left"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-lg">{rule.icon}</span>
+                                        <span className={`font-semibold ${isOpen ? 'text-blue-700' : 'text-gray-700'}`}>
+                                            {rule.title}
+                                        </span>
+                                    </div>
+                                    <span className={`text-gray-400 text-xs transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
+                                        ▼
+                                    </span>
+                                </button>
+
+                                {/* Contenu dépliable */}
+                                {isOpen && (
+                                    <div className="px-6 pb-4 pt-1">
+                                        {rule.content}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
         </div>
     );
 }

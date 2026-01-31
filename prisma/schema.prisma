@@ -13,6 +13,7 @@ model Mission {
   type       String   // 'START', 'MID' ou 'LATE'
   category   String
   difficulty String   // 'easy', 'medium', 'hard'
+  points     Int      // 100 (easy), 200 (medium), 500 (hard)
   isPrivate  Boolean  @default(false)
   createdAt  DateTime @default(now())
 
@@ -29,6 +30,7 @@ model Room {
   gameStarted     Boolean   @default(false)
   gameStartTime   DateTime?
   gameStopped     Boolean   @default(false)
+  validationStatus String   @default("not_started") // 'not_started', 'in_progress', 'completed'
   createdAt       DateTime  @default(now())
 
   players         Player[]
@@ -37,28 +39,32 @@ model Room {
 }
 
 model Player {
-  id              String   @id @default(cuid())
-  name            String
-  token           String   @unique // Token unique du joueur
-  avatar          String   @default("") // Avatar du joueur
-  roomId          String
-  room            Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  createdAt       DateTime @default(now())
+  id        String   @id @default(cuid())
+  name      String
+  token     String   @unique
+  avatar    String   @default("")
+  team      String   @default("")   // "" = spectateur, "red" ou "blue"
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 
-  missions        PlayerMission[]
+  missions PlayerMission[]
 
   @@index([roomId])
   @@index([token])
 }
 
 model PlayerMission {
-  id              String   @id @default(cuid())
-  playerId        String
-  player          Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  missionId       String
-  mission         Mission  @relation(fields: [missionId], references: [id])
-  type            String   // 'START', 'MID' ou 'LATE'
-  assignedAt      DateTime @default(now())
+  id           String   @id @default(cuid())
+  playerId     String
+  player       Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  missionId    String
+  mission      Mission  @relation(fields: [missionId], references: [id])
+  type         String   // 'START', 'MID' ou 'LATE'
+  validated    Boolean  @default(false)
+  pointsEarned Int      @default(0)
+  decided      Boolean  @default(false) // true dès que le créateur a traité cette mission
+  assignedAt   DateTime @default(now())
 
   @@unique([playerId, type])
   @@index([playerId])

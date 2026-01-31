@@ -38,11 +38,12 @@ export async function POST(
             );
         }
 
-        // Stoppe la partie
+        // Stoppe la partie et démarre la phase de validation
         const updatedRoom = await prisma.room.update({
             where: { id: room.id },
             data: {
                 gameStopped: true,
+                validationStatus: 'in_progress',
             },
         });
 

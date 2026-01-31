@@ -6,12 +6,14 @@ interface Mission {
     type: string;
     category: string;
     difficulty: string;
-    isPrivate?: boolean; // 🆕 Ajouté
+    points?: number;
+    isPrivate?: boolean;
 }
 
 interface MissionCardProps {
     mission: Mission;
     type: 'START' | 'MID' | 'LATE';
+    showPoints?: boolean; // si true, affiche le badge de points
 }
 
 const difficultyColors = {
@@ -32,7 +34,7 @@ const typeLabels = {
     LATE: '🔥 Mission Finale',
 };
 
-export function MissionCard({ mission, type }: MissionCardProps) {
+export function MissionCard({ mission, type, showPoints = false }: MissionCardProps) {
     return (
         <div className={`bg-white rounded-xl shadow-lg p-6 border-2 ${
             mission.isPrivate
@@ -44,25 +46,31 @@ export function MissionCard({ mission, type }: MissionCardProps) {
                     <span className={`px-3 py-1 rounded-full text-white text-sm font-medium ${typeColors[type]}`}>
                         {typeLabels[type]}
                     </span>
-                    {/* 🆕 Badge "Secrète" */}
                     {mission.isPrivate && (
                         <span className="px-3 py-1 rounded-full text-white text-sm font-medium bg-purple-600 flex items-center gap-1 animate-pulse">
                             🔒 Secrète
                         </span>
                     )}
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${difficultyColors[mission.difficulty as keyof typeof difficultyColors]}`}>
-                    {mission.difficulty === 'easy' && '😊 Facile'}
-                    {mission.difficulty === 'medium' && '😐 Moyen'}
-                    {mission.difficulty === 'hard' && '😰 Difficile'}
-                </span>
+                <div className="flex items-center gap-2">
+                    {/* Badge points — uniquement si showPoints est true */}
+                    {showPoints && mission.points !== undefined && (
+                        <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 border border-yellow-300">
+                            💰 {mission.points} pts
+                        </span>
+                    )}
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${difficultyColors[mission.difficulty as keyof typeof difficultyColors]}`}>
+                        {mission.difficulty === 'easy' && '😊 Facile'}
+                        {mission.difficulty === 'medium' && '😐 Moyen'}
+                        {mission.difficulty === 'hard' && '😰 Difficile'}
+                    </span>
+                </div>
             </div>
 
             <p className="text-lg text-gray-800 leading-relaxed">
                 {mission.text}
             </p>
 
-            {/* 🆕 Avertissement mission secrète */}
             {mission.isPrivate && (
                 <div className="mt-4 p-3 bg-purple-100 border border-purple-300 rounded-lg">
                     <p className="text-sm text-purple-800 flex items-center gap-2">

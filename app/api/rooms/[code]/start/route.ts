@@ -16,26 +16,19 @@ export async function POST(
         const body = await request.json();
         const { creatorToken } = startGameSchema.parse(body);
 
-        // Récupère la room
         const room = await prisma.room.findUnique({
             where: { code },
             include: {
                 players: {
-                    include: {
-                        missions: true,
-                    },
+                    include: { missions: true },
                 },
             },
         });
 
         if (!room) {
-            return Response.json(
-                { error: 'Room not found' },
-                { status: 404 }
-            );
+            return Response.json({ error: 'Room not found' }, { status: 404 });
         }
 
-        // Vérifie que c'est le créateur
         if (!isCreator(room, creatorToken)) {
             return Response.json(
                 { error: 'Only the room creator can start the game' },
@@ -43,89 +36,62 @@ export async function POST(
             );
         }
 
-        // Vérifie que la game n'a pas déjà commencé
         if (room.gameStarted) {
-            return Response.json(
-                { error: 'Game already started' },
-                { status: 400 }
-            );
+            return Response.json({ error: 'Game already started' }, { status: 400 });
         }
 
-        // Vérifie qu'il y a au moins 2 joueurs
         if (room.players.length < 2) {
-            return Response.json(
-                { error: 'Need at least 2 players to start' },
-                { status: 400 }
-            );
+            return Response.json({ error: 'Need at least 2 players to start' }, { status: 400 });
         }
 
-        // Récupère toutes les missions START disponibles
-        const startMissions = await prisma.mission.findMany({
-            where: { type: 'START' },
-        });
+        // Récupère et mélange les missions START
+        const startMissions = await prisma.mission.findMany({ where: { type: 'START' } });
 
         if (startMissions.length < room.players.length) {
-            return Response.json(
-                { error: 'Not enough missions available' },
-                { status: 500 }
-            );
+            return Response.json({ error: 'Not enough missions available' }, { status: 500 });
         }
 
-        // Mélange les missions (Fisher-Yates shuffle)
         const shuffledMissions = [...startMissions];
         for (let i = shuffledMissions.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [shuffledMissions[i], shuffledMissions[j]] = [shuffledMissions[j], shuffledMissions[i]];
         }
 
-        // Assigne une mission unique à chaque joueur
-        const playerMissionPromises = room.players.map((player, index) => {
-            return prisma.playerMission.create({
-                data: {
-                    playerId: player.id,
-                    missionId: shuffledMissions[index].id,
-                    type: 'START',
-                },
-            });
-        });
+        // Assigne les missions START
+        await Promise.all(
+            room.players.map((player, index) =>
+                prisma.playerMission.create({
+                    data: {
+                        playerId: player.id,
+                        missionId: shuffledMissions[index].id,
+                        type: 'START',
+                    },
+                })
+            )
+        );
 
-        await Promise.all(playerMissionPromises);
-
-        // Démarre la game
+        // gameStarted = true, mais gameStartTime reste null
+        // Le compteur ne démarre que quand le créateur clique "Lancer le compteur"
         const updatedRoom = await prisma.room.update({
             where: { id: room.id },
             data: {
                 gameStarted: true,
-                gameStartTime: new Date(),
+                gameStartTime: null,
             },
             include: {
                 players: {
-                    include: {
-                        missions: {
-                            include: {
-                                mission: true,
-                            },
-                        },
-                    },
+                    include: { missions: { include: { mission: true } } },
                 },
             },
         });
 
-        console.log(`[START] Game started in room ${code}`);
-
+        console.log(`[START] Game started in room ${code} — waiting for countdown launch`);
         return Response.json({ room: updatedRoom });
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return Response.json(
-                { error: 'Invalid input', details: error.issues },
-                { status: 400 }
-            );
+            return Response.json({ error: 'Invalid input', details: error.issues }, { status: 400 });
         }
-
         console.error('Error starting game:', error);
-        return Response.json(
-            { error: 'Failed to start game' },
-            { status: 500 }
-        );
+        return Response.json({ error: 'Failed to start game' }, { status: 500 });
     }
 }

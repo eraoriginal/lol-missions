@@ -61,6 +61,7 @@ export async function POST(
                 gameStarted: false,
                 gameStartTime: null,
                 gameStopped: false,
+                validationStatus: 'not_started',
             },
         });
 

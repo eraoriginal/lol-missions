@@ -26,6 +26,7 @@ async function main() {
             type: "START",
             category: "Combat",
             difficulty: "medium",
+            points: 200,
             isPrivate: false,
         },
         {
@@ -33,6 +34,7 @@ async function main() {
             type: "START",
             category: "Survie",
             difficulty: "easy",
+            points: 100,
             isPrivate: false,
         },
         {
@@ -40,6 +42,7 @@ async function main() {
             type: "START",
             category: "Combat",
             difficulty: "hard",
+            points: 500,
             isPrivate: false,
         },
         {
@@ -47,6 +50,7 @@ async function main() {
             type: "START",
             category: "Combat",
             difficulty: "hard",
+            points: 500,
             isPrivate: false,
         },
         {
@@ -54,6 +58,7 @@ async function main() {
             type: "START",
             category: "Support",
             difficulty: "medium",
+            points: 200,
             isPrivate: false,
         },
         {
@@ -61,6 +66,7 @@ async function main() {
             type: "START",
             category: "Troll",
             difficulty: "easy",
+            points: 100,
             isPrivate: false,
         },
         {
@@ -68,6 +74,7 @@ async function main() {
             type: "START",
             category: "Tank",
             difficulty: "medium",
+            points: 200,
             isPrivate: false,
         },
         {
@@ -75,6 +82,7 @@ async function main() {
             type: "START",
             category: "Troll",
             difficulty: "easy",
+            points: 100,
             isPrivate: false,
         },
 
@@ -84,6 +92,7 @@ async function main() {
             type: "START",
             category: "Handicap",
             difficulty: "medium",
+            points: 200,
             isPrivate: true, // 🔒 SECRÈTE
         },
         {
@@ -91,6 +100,7 @@ async function main() {
             type: "START",
             category: "Troll",
             difficulty: "easy",
+            points: 100,
             isPrivate: true, // 🔒 SECRÈTE
         },
         {
@@ -98,6 +108,7 @@ async function main() {
             type: "START",
             category: "Handicap",
             difficulty: "hard",
+            points: 500,
             isPrivate: true, // 🔒 SECRÈTE
         },
         {
@@ -105,6 +116,7 @@ async function main() {
             type: "START",
             category: "Troll",
             difficulty: "medium",
+            points: 200,
             isPrivate: true, // 🔒 SECRÈTE
         },
         {
@@ -112,6 +124,7 @@ async function main() {
             type: "START",
             category: "Précision",
             difficulty: "hard",
+            points: 500,
             isPrivate: true, // 🔒 SECRÈTE
         },
         {
@@ -119,6 +132,7 @@ async function main() {
             type: "START",
             category: "Handicap",
             difficulty: "hard",
+            points: 500,
             isPrivate: true, // 🔒 SECRÈTE
         },
     ];
@@ -133,6 +147,7 @@ async function main() {
             type: "MID",
             category: "Combat",
             difficulty: "medium",
+            points: 200,
             isPrivate: false,
         },
         {
@@ -140,6 +155,7 @@ async function main() {
             type: "MID",
             category: "Objectif",
             difficulty: "easy",
+            points: 100,
             isPrivate: false,
         },
         {
@@ -147,6 +163,7 @@ async function main() {
             type: "MID",
             category: "Objectif",
             difficulty: "hard",
+            points: 500,
             isPrivate: false,
         },
         {
@@ -154,6 +171,7 @@ async function main() {
             type: "MID",
             category: "Support",
             difficulty: "medium",
+            points: 200,
             isPrivate: false,
         },
         {
@@ -161,6 +179,7 @@ async function main() {
             type: "MID",
             category: "Farm",
             difficulty: "easy",
+            points: 100,
             isPrivate: false,
         },
         {
@@ -168,6 +187,7 @@ async function main() {
             type: "MID",
             category: "Survie",
             difficulty: "medium",
+            points: 200,
             isPrivate: false,
         },
         {
@@ -175,6 +195,7 @@ async function main() {
             type: "MID",
             category: "Combat",
             difficulty: "hard",
+            points: 500,
             isPrivate: false,
         },
 
@@ -184,6 +205,7 @@ async function main() {
             type: "MID",
             category: "Suicide",
             difficulty: "easy",
+            points: 100,
             isPrivate: true, // 🔒 SECRÈTE
         },
         {
@@ -191,6 +213,7 @@ async function main() {
             type: "MID",
             category: "Troll",
             difficulty: "medium",
+            points: 200,
             isPrivate: true, // 🔒 SECRÈTE
         },
         {
@@ -198,6 +221,7 @@ async function main() {
             type: "MID",
             category: "Troll",
             difficulty: "easy",
+            points: 100,
             isPrivate: true, // 🔒 SECRÈTE
         },
         {
@@ -205,6 +229,7 @@ async function main() {
             type: "MID",
             category: "Troll",
             difficulty: "easy",
+            points: 100,
             isPrivate: true, // 🔒 SECRÈTE
         },
         {
@@ -212,6 +237,7 @@ async function main() {
             type: "MID",
             category: "Communication",
             difficulty: "easy",
+            points: 100,
             isPrivate: true, // 🔒 SECRÈTE
         },
     ];
@@ -226,6 +252,7 @@ async function main() {
             type: "LATE",
             category: "Victoire",
             difficulty: "hard",
+            points: 500,
             isPrivate: false,
         },
         {
@@ -233,6 +260,7 @@ async function main() {
             type: "LATE",
             category: "Combat",
             difficulty: "hard",
+            points: 500,
             isPrivate: false,
         },
         {
@@ -240,6 +268,7 @@ async function main() {
             type: "LATE",
             category: "Survie",
             difficulty: "hard",
+            points: 500,
             isPrivate: false,
         },
         {
@@ -247,6 +276,7 @@ async function main() {
             type: "LATE",
             category: "Performance",
             difficulty: "hard",
+            points: 500,
             isPrivate: false,
         },
         {
@@ -254,6 +284,7 @@ async function main() {
             type: "LATE",
             category: "Combat",
             difficulty: "hard",
+            points: 500,
             isPrivate: false,
         },
         {
@@ -261,6 +292,7 @@ async function main() {
             type: "LATE",
             category: "Support",
             difficulty: "medium",
+            points: 200,
             isPrivate: false,
         },
         {
@@ -268,6 +300,7 @@ async function main() {
             type: "LATE",
             category: "Objectif",
             difficulty: "hard",
+            points: 500,
             isPrivate: false,
         },
 
@@ -277,6 +310,7 @@ async function main() {
             type: "LATE",
             category: "Sabotage",
             difficulty: "hard",
+            points: 500,
             isPrivate: true, // 🔒 SECRÈTE
         },
         {
@@ -284,6 +318,7 @@ async function main() {
             type: "LATE",
             category: "Troll",
             difficulty: "medium",
+            points: 200,
             isPrivate: true, // 🔒 SECRÈTE
         },
         {
@@ -291,6 +326,7 @@ async function main() {
             type: "LATE",
             category: "Troll",
             difficulty: "hard",
+            points: 500,
             isPrivate: true, // 🔒 SECRÈTE
         },
         {
@@ -298,6 +334,7 @@ async function main() {
             type: "LATE",
             category: "Précision",
             difficulty: "hard",
+            points: 500,
             isPrivate: true, // 🔒 SECRÈTE
         },
         {
@@ -305,6 +342,7 @@ async function main() {
             type: "LATE",
             category: "BM",
             difficulty: "easy",
+            points: 100,
             isPrivate: true, // 🔒 SECRÈTE
         },
         {
@@ -312,6 +350,7 @@ async function main() {
             type: "LATE",
             category: "Toxic",
             difficulty: "easy",
+            points: 100,
             isPrivate: true, // 🔒 SECRÈTE
         },
     ];
