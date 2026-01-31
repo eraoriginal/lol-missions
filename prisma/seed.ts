@@ -68,12 +68,6 @@ async function main() {
         { text: "Ne pas faire plus de 4 kills",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 500, isPrivate: true  },
         { text: "Être le joueur avec le plus de morts de la partie",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 500, isPrivate: true  },
         { text: "Être le joueur avec le moins de morts de la partie",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 500, isPrivate: true  },
-
-
-        { text: "Dire 'gg ez' dans le chat toutes les 2 minutes",                                 type: "START", category: "Troll",       difficulty: "easy",   points: 100, isPrivate: true  },
-        { text: "Utiliser uniquement des sorts en cliquant (pas de raccourcis clavier)",          type: "START", category: "Handicap",    difficulty: "hard",   points: 500, isPrivate: true  },
-        { text: "Acheter uniquement des objets qui commencent par la lettre B",                   type: "START", category: "Troll",       difficulty: "medium", points: 200, isPrivate: true  },
-        { text: "Ne jamais attaquer le même ennemi que tes alliés",                               type: "START", category: "Handicap",    difficulty: "hard",   points: 500, isPrivate: true  },
     ];
 
     // ========================================
