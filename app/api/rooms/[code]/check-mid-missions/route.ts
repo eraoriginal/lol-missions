@@ -1,9 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// Récupère le délai depuis la variable d'environnement
-const MID_MISSION_DELAY = parseInt(process.env.NEXT_PUBLIC_MID_MISSION_DELAY || '300') * 1000;
-
 export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ code: string }> }
@@ -42,9 +39,10 @@ export async function POST(
         }
 
         const elapsed = Date.now() - new Date(room.gameStartTime).getTime();
-        const shouldAssign = elapsed >= MID_MISSION_DELAY;
+        const midDelayMs = room.midMissionDelay * 1000;
+        const shouldAssign = elapsed >= midDelayMs;
 
-        console.log(`[check-mid-missions] Room ${code}: elapsed=${Math.floor(elapsed/1000)}s, shouldAssign=${shouldAssign}, delay=${MID_MISSION_DELAY/1000}s`);
+        console.log(`[check-mid-missions] Room ${code}: elapsed=${Math.floor(elapsed/1000)}s, shouldAssign=${shouldAssign}, delay=${room.midMissionDelay}s`);
 
         // Si pas encore le moment
         if (!shouldAssign) {
@@ -52,7 +50,7 @@ export async function POST(
                 message: 'Not time yet',
                 shouldAssign: false,
                 elapsed: Math.floor(elapsed / 1000),
-                required: Math.floor(MID_MISSION_DELAY / 1000),
+                required: room.midMissionDelay,
             });
         }
 

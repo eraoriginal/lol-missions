@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Room" ADD COLUMN     "lateMissionDelay" INTEGER NOT NULL DEFAULT 600,
+ADD COLUMN     "midMissionDelay" INTEGER NOT NULL DEFAULT 300;

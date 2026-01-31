@@ -6,48 +6,33 @@ interface TimerProps {
     gameStartTime: string;
     roomCode: string;
     gameStopped?: boolean;
+    midMissionDelay: number;
+    lateMissionDelay: number;
 }
 
-// Récupère les délais depuis les variables d'environnement
-const MID_MISSION_DELAY = parseInt(process.env.NEXT_PUBLIC_MID_MISSION_DELAY || '300');
-const LATE_MISSION_DELAY = parseInt(process.env.NEXT_PUBLIC_LATE_MISSION_DELAY || '600');
-
-// Délai avant l'arrivée de la mission pour jouer le son (5 secondes avant)
-const WARNING_DELAY = 5;
-
-export function Timer({ gameStartTime, roomCode, gameStopped = false }: TimerProps) {
+export function Timer({ gameStartTime, roomCode, gameStopped = false, midMissionDelay, lateMissionDelay }: TimerProps) {
     const [elapsed, setElapsed] = useState(0);
     const [midMissionsChecked, setMidMissionsChecked] = useState(false);
     const [lateMissionsChecked, setLateMissionsChecked] = useState(false);
-    const [midWarningPlayed, setMidWarningPlayed] = useState(false);
-    const [lateWarningPlayed, setLateWarningPlayed] = useState(false);
+    const [midSoundPlayed, setMidSoundPlayed] = useState(false);
+    const [lateSoundPlayed, setLateSoundPlayed] = useState(false);
 
-    // Fonction pour jouer un son de notification
-    const playWarningSound = (type: 'mid' | 'late') => {
-        console.log('[Timer] playWarningSound called, type:', type);
-
-        // Choisis le bon fichier audio
+    const playSound = (type: 'mid' | 'late') => {
         const audioFile = type === 'mid'
             ? '/sounds/allo.mp3'
             : '/sounds/allons_y.mp3';
 
-        console.log('[Timer] Playing audio file:', audioFile);
+        console.log('[Timer] Playing sound:', audioFile);
 
-        // Crée et joue l'audio
         const audio = new Audio(audioFile);
-        audio.volume = 0.7; // Volume à 70%
+        audio.volume = 0.7;
 
         audio.play()
-            .then(() => {
-                console.log('[Timer] ✅ Audio playing');
-            })
-            .catch(err => {
-                console.error('[Timer] ❌ Audio play failed:', err);
-            });
+            .then(() => console.log('[Timer] ✅ Audio playing'))
+            .catch(err => console.error('[Timer] ❌ Audio play failed:', err));
     };
 
     useEffect(() => {
-        // 🆕 Si la partie est stoppée, ne pas lancer l'intervalle
         if (gameStopped) {
             console.log('[Timer] Game stopped, not starting interval');
             return;
@@ -61,70 +46,59 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false }: TimerPro
             const elapsedSeconds = Math.floor(diff / 1000);
             setElapsed(elapsedSeconds);
 
-            // 🔊 Son d'avertissement MID (5 secondes avant)
-            const timeUntilMid = MID_MISSION_DELAY - elapsedSeconds;
-            if (timeUntilMid === WARNING_DELAY && !midWarningPlayed) {
-                console.log('[Timer] Playing MID warning sound...');
-                playWarningSound('mid');
-                setMidWarningPlayed(true);
+            // --- MID : son + assignation en même temps ---
+            if (diff >= midMissionDelay * 1000) {
+                if (!midSoundPlayed) {
+                    console.log('[Timer] MID reached — playing sound');
+                    playSound('mid');
+                    setMidSoundPlayed(true);
+                }
+                if (!midMissionsChecked) {
+                    console.log(`[Timer] MID reached — calling check-mid-missions`);
+                    setMidMissionsChecked(true);
+
+                    fetch(`/api/rooms/${roomCode}/check-mid-missions`, { method: 'POST' })
+                        .then(res => res.json())
+                        .then(data => console.log('[Timer] check-mid-missions response:', data))
+                        .catch(err => console.error('[Timer] check-mid-missions error:', err));
+                }
             }
 
-            // Vérifie les missions MID
-            if (diff >= MID_MISSION_DELAY * 1000 && !midMissionsChecked) {
-                console.log(`[Timer] ${MID_MISSION_DELAY} seconds reached! Calling check-mid-missions...`);
-                setMidMissionsChecked(true);
+            // --- LATE : son + assignation en même temps ---
+            if (diff >= lateMissionDelay * 1000) {
+                if (!lateSoundPlayed) {
+                    console.log('[Timer] LATE reached — playing sound');
+                    playSound('late');
+                    setLateSoundPlayed(true);
+                }
+                if (!lateMissionsChecked) {
+                    console.log(`[Timer] LATE reached — calling check-late-missions`);
+                    setLateMissionsChecked(true);
 
-                fetch(`/api/rooms/${roomCode}/check-mid-missions`, {
-                    method: 'POST',
-                })
-                    .then(res => res.json())
-                    .then(data => {
-                        console.log('[Timer] check-mid-missions response:', data);
-                    })
-                    .catch(err => {
-                        console.error('[Timer] check-mid-missions error:', err);
-                    });
-            }
-
-            // 🔊 Son d'avertissement LATE (5 secondes avant)
-            const timeUntilLate = LATE_MISSION_DELAY - elapsedSeconds;
-            if (timeUntilLate === WARNING_DELAY && !lateWarningPlayed) {
-                console.log('[Timer] Playing LATE warning sound...');
-                playWarningSound('late');
-                setLateWarningPlayed(true);
-            }
-
-            // Vérifie les missions LATE
-            if (diff >= LATE_MISSION_DELAY * 1000 && !lateMissionsChecked) {
-                console.log(`[Timer] ${LATE_MISSION_DELAY} seconds reached! Calling check-late-missions...`);
-                setLateMissionsChecked(true);
-
-                fetch(`/api/rooms/${roomCode}/check-late-missions`, {
-                    method: 'POST',
-                })
-                    .then(res => res.json())
-                    .then(data => {
-                        console.log('[Timer] check-late-missions response:', data);
-                    })
-                    .catch(err => {
-                        console.error('[Timer] check-late-missions error:', err);
-                    });
+                    fetch(`/api/rooms/${roomCode}/check-late-missions`, { method: 'POST' })
+                        .then(res => res.json())
+                        .then(data => console.log('[Timer] check-late-missions response:', data))
+                        .catch(err => console.error('[Timer] check-late-missions error:', err));
+                }
             }
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [gameStartTime, roomCode, midMissionsChecked, lateMissionsChecked, midWarningPlayed, lateWarningPlayed]);
+    }, [gameStartTime, roomCode, midMissionsChecked, lateMissionsChecked, midSoundPlayed, lateSoundPlayed, midMissionDelay, lateMissionDelay]);
 
     const minutes = Math.floor(elapsed / 60);
     const seconds = elapsed % 60;
-    const midDelayPassed = elapsed >= MID_MISSION_DELAY;
-    const lateDelayPassed = elapsed >= LATE_MISSION_DELAY;
+    const midDelayPassed = elapsed >= midMissionDelay;
+    const lateDelayPassed = elapsed >= lateMissionDelay;
 
-    // Calcule le temps restant avant la prochaine mission
-    const timeUntilMid = Math.max(0, MID_MISSION_DELAY - elapsed);
-    const timeUntilLate = Math.max(0, LATE_MISSION_DELAY - elapsed);
-    const showMidWarning = timeUntilMid > 0 && timeUntilMid <= WARNING_DELAY;
-    const showLateWarning = midDelayPassed && timeUntilLate > 0 && timeUntilLate <= WARNING_DELAY;
+    const timeUntilMid = Math.max(0, midMissionDelay - elapsed);
+    const timeUntilLate = Math.max(0, lateMissionDelay - elapsed);
+
+    const formatRemaining = (s: number) => {
+        const m = Math.floor(s / 60);
+        const sec = s % 60;
+        return sec === 0 ? `${m}min` : `${m}min ${sec}s`;
+    };
 
     return (
         <div className={`bg-white rounded-xl shadow-lg p-6 text-center transition-all duration-300 ${
@@ -132,9 +106,7 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false }: TimerPro
                 ? 'border-4 border-red-500'
                 : midDelayPassed
                     ? 'border-4 border-purple-500'
-                    : showMidWarning || showLateWarning
-                        ? 'border-4 border-yellow-400 animate-pulse'
-                        : ''
+                    : ''
         }`}>
             <h3 className="text-lg font-semibold text-gray-700 mb-2">
                 ⏱️ Temps écoulé
@@ -144,39 +116,25 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false }: TimerPro
             </div>
 
             <div className="space-y-2 mt-4">
-                {/* Avertissement MID */}
-                {showMidWarning && (
-                    <div className="p-3 bg-yellow-100 text-yellow-800 rounded-lg text-sm font-bold animate-pulse border-2 border-yellow-400">
-                        ⚠️ Nouvelle mission dans {timeUntilMid}s !
-                    </div>
-                )}
-
-                {/* MID missions */}
+                {/* MID */}
                 {midDelayPassed ? (
                     <div className="p-2 bg-purple-100 text-purple-800 rounded-lg text-sm font-medium">
                         ⚡ Missions MID assignées !
                     </div>
-                ) : !showMidWarning ? (
+                ) : (
                     <div className="text-sm text-gray-500">
-                        Missions MID dans {timeUntilMid}s
-                    </div>
-                ) : null}
-
-                {/* Avertissement LATE */}
-                {showLateWarning && (
-                    <div className="p-3 bg-orange-100 text-orange-800 rounded-lg text-sm font-bold animate-pulse border-2 border-orange-400">
-                        🔥 Mission FINALE dans {timeUntilLate}s !
+                        Missions MID dans {formatRemaining(timeUntilMid)}
                     </div>
                 )}
 
-                {/* LATE missions */}
+                {/* LATE */}
                 {lateDelayPassed ? (
                     <div className="p-2 bg-red-100 text-red-800 rounded-lg text-sm font-medium">
                         🔥 Missions FINALE assignées !
                     </div>
-                ) : midDelayPassed && !showLateWarning ? (
+                ) : midDelayPassed ? (
                     <div className="text-sm text-gray-500">
-                        Missions FINALE dans {timeUntilLate}s
+                        Missions FINALE dans {formatRemaining(timeUntilLate)}
                     </div>
                 ) : null}
             </div>

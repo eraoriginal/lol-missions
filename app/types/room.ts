@@ -26,6 +26,8 @@ export interface Room {
     gameStarted: boolean;
     gameStartTime: string | null;
     gameStopped: boolean;
+    midMissionDelay: number;
+    lateMissionDelay: number;
     creatorToken?: string;
     players: Player[];
 }

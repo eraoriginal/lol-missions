@@ -13,6 +13,8 @@ interface Room {
     code: string;
     gameStartTime: string | null;
     gameStopped: boolean;
+    midMissionDelay: number;
+    lateMissionDelay: number;
     players: any[];
 }
 
@@ -93,6 +95,8 @@ export function GameView({ room, roomCode }: GameViewProps) {
                     gameStartTime={room.gameStartTime}
                     roomCode={roomCode}
                     gameStopped={room.gameStopped}
+                    midMissionDelay={room.midMissionDelay}
+                    lateMissionDelay={room.lateMissionDelay}
                 />
             ) : (
                 <div className="bg-gradient-to-br from-blue-900/80 to-purple-900/80 backdrop-blur-lg rounded-xl shadow-lg p-8 border border-white/20 text-center">
@@ -171,7 +175,7 @@ export function GameView({ room, roomCode }: GameViewProps) {
                             Ta mission MID apparaîtra dans...
                         </p>
                         <p className="text-3xl font-bold mt-2 text-purple-300">
-                            {process.env.NEXT_PUBLIC_MID_MISSION_DELAY || '300'} secondes
+                            {Math.round(room.midMissionDelay / 60)}min
                         </p>
                     </div>
                 )}

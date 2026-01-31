@@ -23,17 +23,19 @@ model Mission {
 }
 
 model Room {
-  id              String    @id @default(cuid())
-  code            String    @unique
-  creatorToken    String
-  gameType        String    @default("aram-missions")
-  gameStarted     Boolean   @default(false)
-  gameStartTime   DateTime?
-  gameStopped     Boolean   @default(false)
-  validationStatus String   @default("not_started") // 'not_started', 'in_progress', 'completed'
-  createdAt       DateTime  @default(now())
+  id               String    @id @default(cuid())
+  code             String    @unique
+  creatorToken     String
+  gameType         String    @default("aram-missions")
+  gameStarted      Boolean   @default(false)
+  gameStartTime    DateTime?
+  gameStopped      Boolean   @default(false)
+  validationStatus String    @default("not_started") // 'not_started', 'in_progress', 'completed'
+  midMissionDelay  Int       @default(300)            // en secondes, défaut 5 min
+  lateMissionDelay Int       @default(600)            // en secondes, défaut 10 min
+  createdAt        DateTime  @default(now())
 
-  players         Player[]
+  players          Player[]
 
   @@index([code])
 }

@@ -3,12 +3,15 @@
 import { useState } from 'react';
 import { PlayerList } from './PlayerList';
 import { TeamSelector } from './TeamSelector';
+import { MissionDelayPicker } from './MissionDelayPicker';
 import { LeaveRoomButton } from './LeaveRoomButton';
 
 interface Room {
     id: string;
     code: string;
     players: any[];
+    midMissionDelay: number;
+    lateMissionDelay: number;
 }
 
 interface RoomLobbyProps {
@@ -40,7 +43,7 @@ const RULES = [
                 <div className="space-y-2">
                     {[
                         { color: 'bg-blue-500', label: 'Mission Début', desc: 'Disponible dès que le créateur lance la partie. Vous pouvez la voir avant même que le compteur ne tourne.' },
-                        { color: 'bg-purple-500', label: 'Mission 5min', desc: 'Apparaît après quelques minutes de jeu une fois le compteur lancé.' },
+                        { color: 'bg-purple-500', label: 'Mission MID', desc: 'Apparaît après le délai configuré par le créateur une fois le compteur lancé.' },
                         { color: 'bg-red-500', label: 'Mission Finale', desc: 'Apparaît en fin de partie. Accomplissez-la avant que le créateur ne stop le compteur !' },
                     ].map(m => (
                         <div key={m.label} className="flex items-start gap-2.5">
@@ -217,6 +220,15 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
                 players={room.players}
                 roomCode={roomCode}
                 currentPlayerToken={playerToken}
+            />
+
+            {/* Délais des missions — editable créateur, lecture seule autres */}
+            <MissionDelayPicker
+                midMissionDelay={room.midMissionDelay}
+                lateMissionDelay={room.lateMissionDelay}
+                isCreator={isCreator}
+                roomCode={roomCode}
+                creatorToken={creatorToken}
             />
 
             {/* Start button (creator only) */}
