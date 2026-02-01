@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { pushRoomUpdate } from '@/lib/pusher';
 
 export async function POST(
     request: NextRequest,
@@ -117,6 +118,9 @@ export async function POST(
         });
 
         console.log(`[MID] Mid missions assigned in room ${code}`);
+
+        // Push : missions MID assignées
+        await pushRoomUpdate(code);
 
         return Response.json({
             message: 'MID missions assigned',

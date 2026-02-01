@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { pushRoomUpdate } from '@/lib/pusher';
 
 export async function POST(
     request: NextRequest,
@@ -45,7 +46,7 @@ export async function POST(
             );
         }
 
-        // 🔥 Supprime toutes les missions des joueurs
+        // Supprime toutes les missions des joueurs
         await prisma.playerMission.deleteMany({
             where: {
                 playerId: {
@@ -54,7 +55,7 @@ export async function POST(
             },
         });
 
-        // 🔥 Réinitialise la room
+        // Réinitialise la room
         const updatedRoom = await prisma.room.update({
             where: { id: room.id },
             data: {
@@ -66,6 +67,9 @@ export async function POST(
         });
 
         console.log(`[RESTART] Game restarted in room ${code}`);
+
+        // Push : partie redémarrée, retour au lobby
+        await pushRoomUpdate(code);
 
         return NextResponse.json({
             success: true,

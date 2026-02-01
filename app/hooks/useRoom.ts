@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import Pusher from 'pusher-js';
 import type { Room } from '@/app/types/room';
 
 interface Player {
@@ -11,6 +12,19 @@ interface Player {
     missions?: any[];
 }
 
+// Singleton Pusher client — une seule connexion pour toute la vie de l'onglet
+let pusherInstance: Pusher | null = null;
+
+function getPusherClient(): Pusher {
+    if (!pusherInstance) {
+        pusherInstance = new Pusher(process.env.NEXT_PUBLIC_PUSHER_APP_KEY!, {
+            cluster: process.env.NEXT_PUBLIC_PUSHER_APP_CLUSTER!,
+            forceTLS: true,
+        });
+    }
+    return pusherInstance;
+}
+
 export function useRoom(roomCode: string | null) {
     const [room, setRoom] = useState<Room | null>(null);
     const [loading, setLoading] = useState(true);
@@ -18,14 +32,23 @@ export function useRoom(roomCode: string | null) {
     const [notification, setNotification] = useState<{ message: string; type: 'info' | 'warning' } | null>(null);
     const fetchingRef = useRef(false);
     const previousPlayerCountRef = useRef<number>(0);
+    const roomRef = useRef<Room | null>(null);
+    const loadingRef = useRef(true);
 
-    // Charge la room
+    // Garde roomRef et loadingRef en sync pour les closures du callback Pusher
+    useEffect(() => {
+        roomRef.current = room;
+    }, [room]);
+    useEffect(() => {
+        loadingRef.current = loading;
+    }, [loading]);
+
     const fetchRoom = useCallback(async () => {
         if (!roomCode || fetchingRef.current) return;
 
         try {
             fetchingRef.current = true;
-            const isInitialLoad = loading;
+            const isInitialLoad = loadingRef.current;
 
             const response = await fetch(`/api/rooms/${roomCode}`, {
                 cache: 'no-store',
@@ -36,31 +59,26 @@ export function useRoom(roomCode: string | null) {
 
             if (!response.ok) {
                 if (response.status === 404) {
-                    // 🔥 Room supprimée - comportement différent selon créateur ou non
-                    if (!isInitialLoad && room) {
+                    // Room supprimée
+                    if (!isInitialLoad && roomRef.current) {
                         console.log('[useRoom] Room deleted');
 
-                        // Vérifie si c'est le créateur
                         const creatorToken = typeof window !== 'undefined'
                             ? localStorage.getItem(`room_${roomCode}_creator`)
                             : null;
 
                         if (creatorToken) {
-                            // ✅ Créateur : redirection directe, pas de message
                             console.log('[useRoom] Creator - immediate redirect');
-                            // Nettoie le localStorage
                             localStorage.removeItem(`room_${roomCode}_creator`);
                             localStorage.removeItem(`room_${roomCode}_player`);
                             window.location.href = '/';
                             return;
                         } else {
-                            // ✅ Autre joueur : affiche notification puis redirige
                             console.log('[useRoom] Regular player - show notification');
                             setNotification({
                                 message: 'La room a été fermée par le créateur',
                                 type: 'warning',
                             });
-                            // Nettoie le localStorage
                             localStorage.removeItem(`room_${roomCode}_player`);
                             setTimeout(() => {
                                 window.location.href = '/';
@@ -75,15 +93,15 @@ export function useRoom(roomCode: string | null) {
             const data = await response.json();
             const newRoom = data.room;
 
-            // Détecte si un joueur a quitté (seulement après le chargement initial)
-            if (!isInitialLoad && room && newRoom.players.length < previousPlayerCountRef.current) {
-                const previousPlayers = room.players.map((p: Player) => p.id);
+            // Détecte si un joueur a quitté
+            if (!isInitialLoad && roomRef.current && newRoom.players.length < previousPlayerCountRef.current) {
+                const previousPlayers = roomRef.current.players.map((p: Player) => p.id);
                 const currentPlayers = newRoom.players.map((p: Player) => p.id);
                 const leftPlayerId = previousPlayers.find((id: string) => !currentPlayers.includes(id));
 
                 if (leftPlayerId) {
-                    const leftPlayer = room.players.find((p: any) => p.id === leftPlayerId);
-                    const wasCreator = room.players[0]?.id === leftPlayerId;
+                    const leftPlayer = roomRef.current.players.find((p: any) => p.id === leftPlayerId);
+                    const wasCreator = roomRef.current.players[0]?.id === leftPlayerId;
 
                     if (wasCreator && leftPlayer) {
                         setNotification({
@@ -95,7 +113,7 @@ export function useRoom(roomCode: string | null) {
             }
 
             // Détecte si la partie vient de commencer
-            if (!isInitialLoad && room && !room.gameStarted && newRoom.gameStarted) {
+            if (!isInitialLoad && roomRef.current && !roomRef.current.gameStarted && newRoom.gameStarted) {
                 console.log('[useRoom] Game started!');
             }
 
@@ -111,26 +129,31 @@ export function useRoom(roomCode: string | null) {
         } finally {
             fetchingRef.current = false;
         }
-    }, [roomCode, loading, room]);
+    }, [roomCode]);
 
-    // Charge au montage
+    // Chargement initial
     useEffect(() => {
         fetchRoom();
     }, [roomCode]);
 
-    // 🔥 POLLING : Rafraîchit toutes les 2 secondes
+    // Subscription Pusher — remplace le polling
     useEffect(() => {
         if (!roomCode || error) return;
 
-        console.log('[useRoom] Starting polling every 2 seconds...');
+        const pusher = getPusherClient();
+        const channelName = `room-${roomCode}`;
 
-        const interval = setInterval(() => {
+        console.log(`[useRoom] Subscribing to Pusher channel: ${channelName}`);
+        const channel = pusher.subscribe(channelName);
+
+        channel.bind('room-updated', () => {
+            console.log(`[useRoom] Pusher event received on ${channelName} — fetching room`);
             fetchRoom();
-        }, 2000);
+        });
 
         return () => {
-            console.log('[useRoom] Stopping polling');
-            clearInterval(interval);
+            console.log(`[useRoom] Unsubscribing from Pusher channel: ${channelName}`);
+            pusher.unsubscribe(channelName);
         };
     }, [roomCode, error, fetchRoom]);
 

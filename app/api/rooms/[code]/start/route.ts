@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { pushRoomUpdate } from '@/lib/pusher';
 import { isCreator } from '@/lib/utils';
 import { z } from 'zod';
 
@@ -86,6 +87,10 @@ export async function POST(
         });
 
         console.log(`[START] Game started in room ${code} — waiting for countdown launch`);
+
+        // Push : partie démarrée + missions START assignées
+        await pushRoomUpdate(code);
+
         return Response.json({ room: updatedRoom });
     } catch (error) {
         if (error instanceof z.ZodError) {

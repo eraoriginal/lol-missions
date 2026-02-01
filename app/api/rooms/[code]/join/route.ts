@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { pushRoomUpdate } from '@/lib/pusher';
 import { generatePlayerToken } from '@/lib/utils';
 import { z } from 'zod';
 
@@ -57,7 +58,7 @@ export async function POST(
             );
         }
 
-        // 🆕 Génère un avatar unique basé sur le nom du joueur + timestamp
+        // Génère un avatar unique basé sur le nom du joueur + timestamp
         const avatarSeed = `${playerName}-${Date.now()}`;
         const avatarStyle = 'big-smile';
         const avatarUrl = `https://api.dicebear.com/7.x/${avatarStyle}/svg?seed=${encodeURIComponent(avatarSeed)}`;
@@ -67,7 +68,7 @@ export async function POST(
             data: {
                 name: playerName,
                 token: generatePlayerToken(),
-                avatar: avatarUrl, // 🆕 Avatar ajouté
+                avatar: avatarUrl,
                 roomId: room.id,
             },
         });
@@ -88,8 +89,10 @@ export async function POST(
             },
         });
 
-        // Le polling détectera automatiquement le nouveau joueur
         console.log(`[JOIN] Player ${playerName} joined room ${code}`);
+
+        // Push l'événement vers tous les clients de la room
+        await pushRoomUpdate(code);
 
         return Response.json({
             player,

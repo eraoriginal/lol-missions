@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { pushRoomUpdate } from '@/lib/pusher';
 import { isCreator } from '@/lib/utils';
 import { z } from 'zod';
 
@@ -66,6 +67,9 @@ export async function PATCH(
                 ...(lateMissionDelay !== undefined && { lateMissionDelay }),
             },
         });
+
+        // Push : délais modifiés
+        await pushRoomUpdate(code);
 
         return Response.json({
             midMissionDelay: updatedRoom.midMissionDelay,

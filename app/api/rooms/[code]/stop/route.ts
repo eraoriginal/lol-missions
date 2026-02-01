@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { pushRoomUpdate } from '@/lib/pusher';
 
 export async function POST(
     request: NextRequest,
@@ -48,6 +49,9 @@ export async function POST(
         });
 
         console.log(`[STOP] Game stopped in room ${code} by creator`);
+
+        // Push : jeu arrêté, phase de validation commence
+        await pushRoomUpdate(code);
 
         return NextResponse.json({
             success: true,

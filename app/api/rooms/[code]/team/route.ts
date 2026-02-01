@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { pushRoomUpdate } from '@/lib/pusher';
 
 // POST — un joueur choisit une équipe
 // Body: { playerToken, team } où team est "red", "blue", ou "" (spectateur)
@@ -51,6 +52,9 @@ export async function POST(
             where: { id: player.id },
             data: { team },
         });
+
+        // Push : changement d'équipe / spectateur
+        await pushRoomUpdate(code);
 
         return NextResponse.json({ success: true });
     } catch (error) {

@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { pushRoomUpdate } from '@/lib/pusher';
 
 export async function POST(
     request: NextRequest,
@@ -45,7 +46,7 @@ export async function POST(
 
         console.log(`[leave] Player ${player.name} (creator: ${isCreator}) leaving room ${code}`);
 
-        // 🔥 Le créateur quitte = SUPPRESSION DE LA ROOM (avant ou après le start)
+        // Le créateur quitte = SUPPRESSION DE LA ROOM
         if (isCreator) {
             console.log(`[leave] Creator leaving, deleting room ${code}...`);
 
@@ -56,6 +57,9 @@ export async function POST(
 
             console.log(`[leave] Room ${code} deleted`);
 
+            // Push le signal même après suppression — les clients détecteront le 404
+            await pushRoomUpdate(code);
+
             return Response.json({
                 message: 'Creator left, room deleted',
                 roomDeleted: true,
@@ -63,7 +67,7 @@ export async function POST(
             });
         }
 
-        // CAS 2 : Un joueur normal quitte
+        // Un joueur normal quitte
         console.log(`[leave] Regular player ${player.name} leaving room ${code}`);
 
         // Supprime le joueur
@@ -85,6 +89,8 @@ export async function POST(
                 where: { id: room.id },
             });
 
+            await pushRoomUpdate(code);
+
             return Response.json({
                 message: 'Player left and room deleted (empty)',
                 roomDeleted: true,
@@ -92,6 +98,9 @@ export async function POST(
         }
 
         console.log(`[leave] Player left room ${code}`);
+
+        // Push la mise à jour pour que les autres joueurs voient le départ
+        await pushRoomUpdate(code);
 
         return Response.json({
             message: 'Player left',

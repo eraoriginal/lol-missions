@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { pushRoomUpdate } from '@/lib/pusher';
 import { isCreator } from '@/lib/utils';
 import { z } from 'zod';
 
@@ -43,6 +44,10 @@ export async function POST(
         });
 
         console.log(`[LAUNCH] Countdown started in room ${code}`);
+
+        // Push : compteur lancé
+        await pushRoomUpdate(code);
+
         return Response.json({ success: true });
     } catch (error) {
         if (error instanceof z.ZodError) {

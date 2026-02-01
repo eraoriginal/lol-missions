@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { pushRoomUpdate } from '@/lib/pusher';
 
 // POST — valide une ou plusieurs missions d'un joueur (envoyé à chaque click ✅/❌)
 export async function POST(
@@ -44,6 +45,9 @@ export async function POST(
             }
         }
 
+        // Push : mission validée ou invalidée
+        await pushRoomUpdate(code);
+
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error validating missions:', error);
@@ -80,6 +84,9 @@ export async function PATCH(
             data: { validationStatus: `in_progress:${currentPlayerIndex}` },
         });
 
+        // Push : avancement vers le joueur suivant
+        await pushRoomUpdate(code);
+
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error advancing player:', error);
@@ -87,7 +94,7 @@ export async function PATCH(
     }
 }
 
-// PUT — termine la validation
+// PUT — termine la validation → récapitulatif affiché pour tout le monde
 // Body: { creatorToken }
 export async function PUT(
     request: NextRequest,
@@ -114,6 +121,9 @@ export async function PUT(
             where: { code },
             data: { validationStatus: 'completed' },
         });
+
+        // Push : validation terminée, récapitulatif affiché pour tous
+        await pushRoomUpdate(code);
 
         return NextResponse.json({ success: true });
     } catch (error) {
