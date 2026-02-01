@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 
 interface TimerProps {
     gameStartTime: string;
@@ -12,12 +12,15 @@ interface TimerProps {
 
 export function Timer({ gameStartTime, roomCode, gameStopped = false, midMissionDelay, lateMissionDelay }: TimerProps) {
     const [elapsed, setElapsed] = useState(0);
-    const [midMissionsChecked, setMidMissionsChecked] = useState(false);
-    const [lateMissionsChecked, setLateMissionsChecked] = useState(false);
-    const [midSoundPlayed, setMidSoundPlayed] = useState(false);
-    const [lateSoundPlayed, setLateSoundPlayed] = useState(false);
 
-    const playSound = (type: 'mid' | 'late') => {
+    // Utiliser des refs pour éviter les problèmes de closure dans l'interval
+    const midMissionsCheckedRef = useRef(false);
+    const lateMissionsCheckedRef = useRef(false);
+    const midSoundPlayedRef = useRef(false);
+    const lateSoundPlayedRef = useRef(false);
+    const prevGameStartTimeRef = useRef<string | null>(null);
+
+    const playSound = useCallback((type: 'mid' | 'late') => {
         const audioFile = type === 'mid'
             ? '/sounds/allo.mp3'
             : '/sounds/allons_y.mp3';
@@ -28,9 +31,48 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false, midMission
         audio.volume = 0.7;
 
         audio.play()
-            .then(() => console.log('[Timer] ✅ Audio playing'))
-            .catch(err => console.error('[Timer] ❌ Audio play failed:', err));
-    };
+            .then(() => console.log('[Timer] Audio playing'))
+            .catch(err => console.error('[Timer] Audio play failed:', err));
+    }, []);
+
+    const checkMidMissions = useCallback(async () => {
+        console.log(`[Timer] MID reached — calling check-mid-missions`);
+        try {
+            const res = await fetch(`/api/games/aram-missions/${roomCode}/check-mid-missions`, { method: 'POST' });
+            const data = await res.json();
+            console.log('[Timer] check-mid-missions response:', data);
+        } catch (err) {
+            console.error('[Timer] check-mid-missions error:', err);
+            // En cas d'erreur, permettre un nouvel essai
+            midMissionsCheckedRef.current = false;
+        }
+    }, [roomCode]);
+
+    const checkLateMissions = useCallback(async () => {
+        console.log(`[Timer] LATE reached — calling check-late-missions`);
+        try {
+            const res = await fetch(`/api/games/aram-missions/${roomCode}/check-late-missions`, { method: 'POST' });
+            const data = await res.json();
+            console.log('[Timer] check-late-missions response:', data);
+        } catch (err) {
+            console.error('[Timer] check-late-missions error:', err);
+            // En cas d'erreur, permettre un nouvel essai
+            lateMissionsCheckedRef.current = false;
+        }
+    }, [roomCode]);
+
+    // Réinitialiser les refs quand une nouvelle partie commence
+    useEffect(() => {
+        if (gameStartTime && gameStartTime !== prevGameStartTimeRef.current) {
+            console.log('[Timer] Nouvelle partie détectée, réinitialisation des refs');
+            prevGameStartTimeRef.current = gameStartTime;
+            midMissionsCheckedRef.current = false;
+            lateMissionsCheckedRef.current = false;
+            midSoundPlayedRef.current = false;
+            lateSoundPlayedRef.current = false;
+            setElapsed(0);
+        }
+    }, [gameStartTime]);
 
     useEffect(() => {
         if (gameStopped) {
@@ -39,6 +81,7 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false, midMission
         }
 
         const startTime = new Date(gameStartTime).getTime();
+        console.log('[Timer] Starting interval, startTime:', gameStartTime);
 
         const interval = setInterval(() => {
             const now = Date.now();
@@ -46,45 +89,38 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false, midMission
             const elapsedSeconds = Math.floor(diff / 1000);
             setElapsed(elapsedSeconds);
 
-            // --- MID : son + assignation en même temps ---
+            // Check MID missions
             if (diff >= midMissionDelay * 1000) {
-                if (!midSoundPlayed) {
+                if (!midSoundPlayedRef.current) {
                     console.log('[Timer] MID reached — playing sound');
                     playSound('mid');
-                    setMidSoundPlayed(true);
+                    midSoundPlayedRef.current = true;
                 }
-                if (!midMissionsChecked) {
-                    console.log(`[Timer] MID reached — calling check-mid-missions`);
-                    setMidMissionsChecked(true);
-
-                    fetch(`/api/rooms/${roomCode}/check-mid-missions`, { method: 'POST' })
-                        .then(res => res.json())
-                        .then(data => console.log('[Timer] check-mid-missions response:', data))
-                        .catch(err => console.error('[Timer] check-mid-missions error:', err));
+                if (!midMissionsCheckedRef.current) {
+                    midMissionsCheckedRef.current = true;
+                    checkMidMissions();
                 }
             }
 
-            // --- LATE : son + assignation en même temps ---
+            // Check LATE missions
             if (diff >= lateMissionDelay * 1000) {
-                if (!lateSoundPlayed) {
+                if (!lateSoundPlayedRef.current) {
                     console.log('[Timer] LATE reached — playing sound');
                     playSound('late');
-                    setLateSoundPlayed(true);
+                    lateSoundPlayedRef.current = true;
                 }
-                if (!lateMissionsChecked) {
-                    console.log(`[Timer] LATE reached — calling check-late-missions`);
-                    setLateMissionsChecked(true);
-
-                    fetch(`/api/rooms/${roomCode}/check-late-missions`, { method: 'POST' })
-                        .then(res => res.json())
-                        .then(data => console.log('[Timer] check-late-missions response:', data))
-                        .catch(err => console.error('[Timer] check-late-missions error:', err));
+                if (!lateMissionsCheckedRef.current) {
+                    lateMissionsCheckedRef.current = true;
+                    checkLateMissions();
                 }
             }
         }, 1000);
 
-        return () => clearInterval(interval);
-    }, [gameStartTime, roomCode, midMissionsChecked, lateMissionsChecked, midSoundPlayed, lateSoundPlayed, midMissionDelay, lateMissionDelay]);
+        return () => {
+            console.log('[Timer] Clearing interval');
+            clearInterval(interval);
+        };
+    }, [gameStartTime, gameStopped, midMissionDelay, lateMissionDelay, playSound, checkMidMissions, checkLateMissions]);
 
     const minutes = Math.floor(elapsed / 60);
     const seconds = elapsed % 60;
@@ -101,40 +137,40 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false, midMission
     };
 
     return (
-        <div className={`bg-white rounded-xl shadow-lg p-6 text-center transition-all duration-300 ${
+        <div className={`lol-card rounded-lg p-6 text-center transition-all duration-300 ${
             lateDelayPassed
-                ? 'border-4 border-red-500'
+                ? 'border-2 border-red-500 shadow-lg shadow-red-500/30'
                 : midDelayPassed
-                    ? 'border-4 border-purple-500'
+                    ? 'border-2 border-purple-500 shadow-lg shadow-purple-500/30'
                     : ''
         }`}>
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                ⏱️ Temps écoulé
+            <h3 className="text-lg font-semibold lol-text-gold mb-2 uppercase tracking-wider">
+                ⏱️ Temps de combat
             </h3>
-            <div className="text-5xl font-bold text-gray-900 mb-2">
+            <div className="text-5xl font-bold lol-title-gold mb-2 font-mono">
                 {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
             </div>
 
             <div className="space-y-2 mt-4">
                 {/* MID */}
                 {midDelayPassed ? (
-                    <div className="p-2 bg-purple-100 text-purple-800 rounded-lg text-sm font-medium">
-                        ⚡ Missions MID assignées !
+                    <div className="p-2 bg-purple-900/50 border border-purple-500 text-purple-300 rounded-lg text-sm font-medium">
+                        ⚡ Missions MID débloquées !
                     </div>
                 ) : (
-                    <div className="text-sm text-gray-500">
-                        Missions MID dans {formatRemaining(timeUntilMid)}
+                    <div className="text-sm lol-text">
+                        Missions MID dans <span className="lol-text-gold font-bold">{formatRemaining(timeUntilMid)}</span>
                     </div>
                 )}
 
                 {/* LATE */}
                 {lateDelayPassed ? (
-                    <div className="p-2 bg-red-100 text-red-800 rounded-lg text-sm font-medium">
-                        🔥 Missions FINALE assignées !
+                    <div className="p-2 bg-red-900/50 border border-red-500 text-red-300 rounded-lg text-sm font-medium">
+                        🔥 Missions FINALE débloquées !
                     </div>
                 ) : midDelayPassed ? (
-                    <div className="text-sm text-gray-500">
-                        Missions FINALE dans {formatRemaining(timeUntilLate)}
+                    <div className="text-sm lol-text">
+                        Missions FINALE dans <span className="text-red-400 font-bold">{formatRemaining(timeUntilLate)}</span>
                     </div>
                 ) : null}
             </div>

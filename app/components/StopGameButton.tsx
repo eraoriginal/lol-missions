@@ -26,7 +26,7 @@ export function StopGameButton({ roomCode }: StopGameButtonProps) {
         }
 
         try {
-            const response = await fetch(`/api/rooms/${roomCode}/stop`, {
+            const response = await fetch(`/api/games/aram-missions/${roomCode}/stop`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ creatorToken }),
@@ -51,15 +51,15 @@ export function StopGameButton({ roomCode }: StopGameButtonProps) {
             <button
                 onClick={() => setShowConfirm(true)}
                 disabled={stopping}
-                className="px-4 py-2 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg font-medium hover:from-orange-700 hover:to-orange-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all border border-orange-500/50 shadow-lg shadow-orange-500/20"
             >
-                {stopping ? 'Arrêt...' : '⏸️ Mettre fin à la partie'}
+                {stopping ? 'Arrêt...' : '⏸️ Mettre fin'}
             </button>
 
             {showConfirm && (
                 <ConfirmDialog
                     title="⏸️ Arrêter la partie ?"
-                    message="La partie sera mise en pause et le compteur s'arrêtera. Tu pourras ensuite recommencer une nouvelle partie."
+                    message="La partie sera mise en pause et le compteur s'arrêtera. Tu pourras ensuite recommencer une nouvelle bataille."
                     confirmText="Arrêter"
                     cancelText="Continuer"
                     confirmColor="orange"

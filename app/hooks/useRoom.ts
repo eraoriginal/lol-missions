@@ -30,12 +30,13 @@ export function useRoom(roomCode: string | null) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [notification, setNotification] = useState<{ message: string; type: 'info' | 'warning' } | null>(null);
-    const fetchingRef = useRef(false);
+
     const previousPlayerCountRef = useRef<number>(0);
     const roomRef = useRef<Room | null>(null);
     const loadingRef = useRef(true);
+    const lastFetchTimeRef = useRef<number>(0);
 
-    // Garde roomRef et loadingRef en sync pour les closures du callback Pusher
+    // Garde roomRef et loadingRef en sync pour les closures
     useEffect(() => {
         roomRef.current = room;
     }, [room]);
@@ -43,23 +44,31 @@ export function useRoom(roomCode: string | null) {
         loadingRef.current = loading;
     }, [loading]);
 
-    const fetchRoom = useCallback(async () => {
-        if (!roomCode || fetchingRef.current) return;
+    const fetchRoom = useCallback(async (source: string = 'unknown') => {
+        if (!roomCode) return;
+
+        // Anti-spam: pas plus d'un fetch toutes les 500ms
+        const now = Date.now();
+        if (now - lastFetchTimeRef.current < 500) {
+            console.log(`[useRoom] Fetch skipped (too soon), source: ${source}`);
+            return;
+        }
+        lastFetchTimeRef.current = now;
 
         try {
-            fetchingRef.current = true;
             const isInitialLoad = loadingRef.current;
+            console.log(`[useRoom] Fetching room: ${roomCode}, source: ${source}`);
 
-            const response = await fetch(`/api/rooms/${roomCode}`, {
+            const response = await fetch(`/api/rooms/${roomCode}?t=${now}`, {
                 cache: 'no-store',
                 headers: {
-                    'Cache-Control': 'no-cache',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
                 },
             });
 
             if (!response.ok) {
                 if (response.status === 404) {
-                    // Room supprimée
                     if (!isInitialLoad && roomRef.current) {
                         console.log('[useRoom] Room deleted');
 
@@ -68,13 +77,11 @@ export function useRoom(roomCode: string | null) {
                             : null;
 
                         if (creatorToken) {
-                            console.log('[useRoom] Creator - immediate redirect');
                             localStorage.removeItem(`room_${roomCode}_creator`);
                             localStorage.removeItem(`room_${roomCode}_player`);
                             window.location.href = '/';
                             return;
                         } else {
-                            console.log('[useRoom] Regular player - show notification');
                             setNotification({
                                 message: 'La room a été fermée par le créateur',
                                 type: 'warning',
@@ -92,6 +99,13 @@ export function useRoom(roomCode: string | null) {
 
             const data = await response.json();
             const newRoom = data.room;
+
+            // Log détaillé des missions
+            const missionCounts = newRoom.players.map((p: Player) => ({
+                name: p.name,
+                missions: p.missions?.map((m: any) => m.type) || []
+            }));
+            console.log(`[useRoom] Room fetched, missions:`, JSON.stringify(missionCounts));
 
             // Détecte si un joueur a quitté
             if (!isInitialLoad && roomRef.current && newRoom.players.length < previousPlayerCountRef.current) {
@@ -112,31 +126,25 @@ export function useRoom(roomCode: string | null) {
                 }
             }
 
-            // Détecte si la partie vient de commencer
-            if (!isInitialLoad && roomRef.current && !roomRef.current.gameStarted && newRoom.gameStarted) {
-                console.log('[useRoom] Game started!');
-            }
-
             previousPlayerCountRef.current = newRoom.players.length;
 
             setRoom(newRoom);
             setError(null);
             setLoading(false);
         } catch (err) {
+            console.error('[useRoom] Fetch error:', err);
             setError(err instanceof Error ? err.message : 'Failed to load room');
             setRoom(null);
             setLoading(false);
-        } finally {
-            fetchingRef.current = false;
         }
     }, [roomCode]);
 
     // Chargement initial
     useEffect(() => {
-        fetchRoom();
+        fetchRoom('initial');
     }, [roomCode]);
 
-    // Subscription Pusher — remplace le polling
+    // Subscription Pusher + polling fallback
     useEffect(() => {
         if (!roomCode || error) return;
 
@@ -147,13 +155,23 @@ export function useRoom(roomCode: string | null) {
         const channel = pusher.subscribe(channelName);
 
         channel.bind('room-updated', () => {
-            console.log(`[useRoom] Pusher event received on ${channelName} — fetching room`);
-            fetchRoom();
+            console.log(`[useRoom] Pusher event received on ${channelName}`);
+            fetchRoom('pusher');
         });
+
+        // Polling fallback toutes les 3 secondes pendant que le jeu est en cours
+        // Ceci garantit que les mises à jour sont reçues même si Pusher échoue
+        const pollingInterval = setInterval(() => {
+            if (roomRef.current?.gameStarted && !roomRef.current?.gameStopped) {
+                console.log('[useRoom] Polling fallback');
+                fetchRoom('polling');
+            }
+        }, 3000);
 
         return () => {
             console.log(`[useRoom] Unsubscribing from Pusher channel: ${channelName}`);
             pusher.unsubscribe(channelName);
+            clearInterval(pollingInterval);
         };
     }, [roomCode, error, fetchRoom]);
 
@@ -162,6 +180,6 @@ export function useRoom(roomCode: string | null) {
         loading,
         error,
         notification,
-        refetch: fetchRoom,
+        refetch: () => fetchRoom('manual'),
     };
 }
