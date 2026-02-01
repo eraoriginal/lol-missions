@@ -40,8 +40,8 @@ const games: Game[] = [
         available: false,
     },
     {
-        id: 'coming-soon',
-        name: 'À venir',
+        id: 'coming-game',
+        name: 'Coming Game',
         description: 'Un nouveau jeu bientôt disponible...',
         icon: '🎮',
         color: 'from-gray-400 to-gray-600',

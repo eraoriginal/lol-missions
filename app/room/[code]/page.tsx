@@ -4,7 +4,7 @@ import { use, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRoom } from '@/app/hooks/useRoom';
 import { RoomLobby } from '@/app/components/RoomLobby';
-import { GameView } from '@/app/components/GameView';
+import { GameView } from '@/app/games/aram-missions/components/GameView';
 import { Toast } from '@/app/components/Toast';
 import {ComingSoonGame} from "@/app/components/ComingSoonGame";
 
@@ -76,22 +76,22 @@ export default function RoomPage({
         }
     };
 
-    // Modal de join
+    // Modal de join - Style LoL
     if (showJoinModal) {
         return (
-            <main className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 flex items-center justify-center p-4">
-                <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full">
-                    <h1 className="text-2xl font-bold text-gray-800 mb-2">
+            <main className="lol-bg flex items-center justify-center p-4">
+                <div className="lol-card rounded-lg p-8 max-w-md w-full">
+                    <h1 className="text-2xl font-bold lol-title-gold mb-2 text-center">
                         Rejoindre la room
                     </h1>
-                    <p className="text-gray-600 mb-6">
-                        Code de la room : <span className="font-mono font-bold">{code}</span>
+                    <p className="lol-text text-center mb-6">
+                        Code : <span className="font-mono font-bold lol-text-gold">{code}</span>
                     </p>
 
                     <form onSubmit={handleJoinRoom} className="space-y-4">
                         <div>
-                            <label htmlFor="player-name" className="block text-sm font-medium text-gray-700 mb-2">
-                                Ton pseudo
+                            <label htmlFor="player-name" className="block text-sm font-medium lol-text-gold mb-2">
+                                Ton pseudo d'invocateur
                             </label>
                             <input
                                 id="player-name"
@@ -101,13 +101,13 @@ export default function RoomPage({
                                 required
                                 maxLength={50}
                                 autoFocus
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 bg-white"
+                                className="lol-input w-full px-4 py-3 rounded-lg"
                                 placeholder="Entre ton pseudo"
                             />
                         </div>
 
                         {joinError && (
-                            <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+                            <div className="p-3 bg-red-900/50 border border-red-500 text-red-300 rounded-lg text-sm">
                                 {joinError}
                             </div>
                         )}
@@ -115,13 +115,13 @@ export default function RoomPage({
                         <button
                             type="submit"
                             disabled={joining || !playerName.trim()}
-                            className="w-full py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="lol-button-hextech w-full py-3 rounded-lg transition-all"
                         >
                             {joining ? 'Connexion...' : 'Rejoindre la partie'}
                         </button>
                     </form>
 
-                    <a href="/" className="block text-center mt-4 text-sm text-gray-500 hover:text-gray-700">
+                    <a href="/" className="block text-center mt-4 text-sm lol-text hover:text-[#C8AA6E] transition-colors">
                         ← Retour à l'accueil
                     </a>
                 </div>
@@ -214,7 +214,7 @@ export default function RoomPage({
                 />
             )}
 
-            <main className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 p-4">
+            <main className="lol-bg p-4">
                 <div className="max-w-6xl mx-auto py-8">
                     {/* Si le jeu n'est pas ARAM Missions, affiche "En construction" */}
                     {room.gameType !== 'aram-missions' ? (
@@ -223,6 +223,7 @@ export default function RoomPage({
                             gameName={
                                 room.gameType === 'codename-ceo' ? 'Codename du CEO' :
                                     room.gameType === 'break-room-quiz' ? 'Quiz de la salle de pause' :
+                                    room.gameType === 'coming-game' ? 'Coming Game' :
                                         'À venir'
                             }
                         />

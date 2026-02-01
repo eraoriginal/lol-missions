@@ -47,8 +47,8 @@ function DelayRow({
                         {emoji}
                     </span>
                     <div>
-                        <p className="text-sm font-semibold text-gray-700">{label}</p>
-                        <p className="text-xs text-gray-400">Apparaît après</p>
+                        <p className="text-sm font-semibold lol-text-light">{label}</p>
+                        <p className="text-xs lol-text">Apparaît après</p>
                     </div>
                 </div>
 
@@ -64,21 +64,21 @@ function DelayRow({
                                     onBlur={onBlur}
                                     onKeyDown={onKeyDown}
                                     maxLength={2}
-                                    className={`w-14 text-center text-lg font-bold rounded-l-lg border-2 py-1.5 outline-none transition-colors
+                                    className={`w-14 text-center text-lg font-bold rounded-l-lg border-2 py-1.5 outline-none transition-colors bg-[#010A13]
                                         ${error
-                                        ? 'border-red-400 bg-red-50 text-red-700'
+                                        ? 'border-red-500 text-red-400'
                                         : isDirty
-                                            ? 'border-blue-400 bg-blue-50 text-blue-700'
-                                            : 'border-gray-200 bg-white text-gray-800 focus:border-blue-400 focus:bg-blue-50'
+                                            ? 'border-[#0AC8B9] text-[#0AC8B9]'
+                                            : 'border-[#C8AA6E]/30 text-[#C8AA6E] focus:border-[#0AC8B9]'
                                     }
                                     `}
                                 />
                                 <span className={`text-sm font-medium rounded-r-lg border-2 border-l-0 py-1.5 px-2
                                     ${error
-                                    ? 'border-red-400 bg-red-50 text-red-600'
+                                    ? 'border-red-500 bg-red-900/30 text-red-400'
                                     : isDirty
-                                        ? 'border-blue-400 bg-blue-50 text-blue-500'
-                                        : 'border-gray-200 bg-gray-50 text-gray-500'
+                                        ? 'border-[#0AC8B9] bg-[#0AC8B9]/20 text-[#0AC8B9]'
+                                        : 'border-[#C8AA6E]/30 bg-[#1E2328] text-[#A09B8C]'
                                 }
                                 `}>
                                     min
@@ -89,8 +89,8 @@ function DelayRow({
                                 disabled={!isDirty}
                                 className={`w-8 h-8 rounded-full flex items-center justify-center text-base font-bold transition-all
                                     ${isDirty
-                                    ? 'bg-blue-500 text-white hover:bg-blue-600 active:scale-90 shadow-sm'
-                                    : 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                                    ? 'bg-[#0AC8B9] text-[#010A13] hover:bg-[#0AC8B9]/80 active:scale-90 shadow-sm shadow-[#0AC8B9]/30'
+                                    : 'bg-[#1E2328] text-[#5B5A56] cursor-not-allowed'
                                 }
                                 `}
                             >
@@ -98,15 +98,15 @@ function DelayRow({
                             </button>
                         </>
                     ) : (
-                        <span className="text-lg font-bold text-gray-800 tabular-nums">
-                            {value}<span className="text-xs font-normal text-gray-400 ml-1">min</span>
+                        <span className="text-lg font-bold lol-text-gold tabular-nums">
+                            {value}<span className="text-xs font-normal lol-text ml-1">min</span>
                         </span>
                     )}
                 </div>
             </div>
 
             {error && (
-                <p className="text-xs text-red-500 text-right">{error}</p>
+                <p className="text-xs text-red-400 text-right">{error}</p>
             )}
         </div>
     );
@@ -194,7 +194,7 @@ export function MissionDelayPicker({
 
         try {
             const key = field === 'mid' ? 'midMissionDelay' : 'lateMissionDelay';
-            const res = await fetch(`/api/rooms/${roomCode}/settings`, {
+            const res = await fetch(`/api/games/aram-missions/${roomCode}/settings`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ creatorToken: token, [key]: parsed * 60 }),
@@ -215,11 +215,11 @@ export function MissionDelayPicker({
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-lg p-6">
+        <div className="lol-card rounded-lg p-6">
             <div className="flex items-center justify-between mb-5">
-                <h3 className="text-xl font-bold text-gray-800">⏱️ Délais des missions</h3>
+                <h3 className="text-xl font-bold lol-title-gold">⏱️ Délais des missions</h3>
                 {!isCreator && (
-                    <span className="text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">
+                    <span className="text-xs bg-[#1E2328] lol-text px-2.5 py-1 rounded-full border border-[#C8AA6E]/20">
                         Défini par le créateur
                     </span>
                 )}
@@ -229,7 +229,7 @@ export function MissionDelayPicker({
                 <DelayRow
                     label="Mission MID"
                     emoji="⚡"
-                    color="bg-purple-100 text-purple-600"
+                    color="bg-purple-900/50 text-purple-400 border border-purple-500/30"
                     value={midInput}
                     saved={savedMidMin}
                     isCreator={isCreator}
@@ -246,15 +246,15 @@ export function MissionDelayPicker({
                 />
 
                 <div className="flex items-center justify-center">
-                    <div className="flex-1 h-px bg-gray-100"></div>
-                    <span className="px-3 text-gray-300 text-sm">↓</span>
-                    <div className="flex-1 h-px bg-gray-100"></div>
+                    <div className="flex-1 h-px bg-[#C8AA6E]/20"></div>
+                    <span className="px-3 lol-text text-sm">↓</span>
+                    <div className="flex-1 h-px bg-[#C8AA6E]/20"></div>
                 </div>
 
                 <DelayRow
                     label="Mission Finale"
                     emoji="🔥"
-                    color="bg-red-100 text-red-600"
+                    color="bg-red-900/50 text-red-400 border border-red-500/30"
                     value={lateInput}
                     saved={savedLateMin}
                     isCreator={isCreator}
@@ -272,8 +272,8 @@ export function MissionDelayPicker({
             </div>
 
             {isCreator && (
-                <p className="text-xs text-gray-400 mt-5 text-center">
-                    Les changements sont visibles en temps réel pour tous les joueurs
+                <p className="text-xs lol-text mt-5 text-center">
+                    Les changements sont visibles en temps réel pour tous les invocateurs
                 </p>
             )}
         </div>
