@@ -76,7 +76,7 @@ export function LeaveRoomButton({ roomCode }: LeaveRoomButtonProps) {
             <button
                 onClick={() => setShowConfirm(true)}
                 disabled={leaving}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="lol-button-danger px-4 py-2 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
                 {leaving ? 'Départ...' : '🚪 Quitter'}
             </button>
@@ -86,7 +86,7 @@ export function LeaveRoomButton({ roomCode }: LeaveRoomButtonProps) {
                     title={isCreator ? "⚠️ Tu es le créateur !" : "Quitter la room ?"}
                     message={
                         isCreator
-                            ? "Si tu quittes, la room sera supprimée et tous les joueurs seront déconnectés. Es-tu sûr ?"
+                            ? "Si tu quittes, la room sera supprimée et tous les invocateurs seront déconnectés. Es-tu sûr ?"
                             : "Es-tu sûr de vouloir quitter cette room ?"
                     }
                     confirmText="Quitter"

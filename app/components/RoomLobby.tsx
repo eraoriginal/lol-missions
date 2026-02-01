@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { PlayerList } from './PlayerList';
 import { TeamSelector } from './TeamSelector';
-import { MissionDelayPicker } from './MissionDelayPicker';
+import { MissionDelayPicker } from '@/app/games/aram-missions/components/MissionDelayPicker';
 import { LeaveRoomButton } from './LeaveRoomButton';
 
 interface Room {
@@ -22,10 +22,10 @@ interface RoomLobbyProps {
 const RULES = [
     {
         id: 'teams',
-        icon: '🔴🔵',
+        icon: '⚔️',
         title: 'Équipes',
         content: (
-            <p className="text-gray-600 text-sm leading-relaxed">
+            <p className="lol-text text-sm leading-relaxed">
                 Choisissez l'équipe Rouge ou Bleue avant le démarrage. Chaque équipe peut avoir au plus 5 joueurs.
                 Vous pouvez changer d'équipe ou retour en spectateur à tout moment avant que le créateur ne lance la partie.
             </p>
@@ -33,23 +33,23 @@ const RULES = [
     },
     {
         id: 'missions',
-        icon: '📋',
+        icon: '📜',
         title: 'Missions',
         content: (
             <div className="space-y-3">
-                <p className="text-gray-600 text-sm leading-relaxed">
-                    Chaque joueur reçoit 3 missions au fil de la partie :
+                <p className="lol-text text-sm leading-relaxed">
+                    Chaque invocateur reçoit 3 missions au fil de la partie :
                 </p>
                 <div className="space-y-2">
                     {[
-                        { color: 'bg-blue-500', label: 'Mission Début', desc: 'Disponible dès que le créateur lance la partie. Vous pouvez la voir avant même que le compteur ne tourne.' },
-                        { color: 'bg-purple-500', label: 'Mission MID', desc: 'Apparaît après le délai configuré par le créateur une fois le compteur lancé.' },
-                        { color: 'bg-red-500', label: 'Mission Finale', desc: 'Apparaît en fin de partie. Accomplissez-la avant que le créateur ne stop le compteur !' },
+                        { color: 'bg-blue-500', label: 'Mission Début', desc: 'Disponible dès que le créateur lance la partie.' },
+                        { color: 'bg-purple-500', label: 'Mission MID', desc: 'Apparaît après le délai configuré.' },
+                        { color: 'bg-red-500', label: 'Mission Finale', desc: 'Apparaît en fin de partie.' },
                     ].map(m => (
                         <div key={m.label} className="flex items-start gap-2.5">
                             <span className={`inline-block mt-1.5 w-2.5 h-2.5 rounded-full ${m.color} flex-shrink-0`}></span>
-                            <p className="text-gray-600 text-sm leading-relaxed">
-                                <span className="font-semibold text-gray-700">{m.label}</span> — {m.desc}
+                            <p className="lol-text text-sm leading-relaxed">
+                                <span className="font-semibold lol-text-gold">{m.label}</span> — {m.desc}
                             </p>
                         </div>
                     ))}
@@ -62,9 +62,9 @@ const RULES = [
         icon: '🔒',
         title: 'Missions secrètes',
         content: (
-            <p className="text-gray-600 text-sm leading-relaxed">
-                Certaines missions sont secrètes : seul le joueur concerné voit le texte et la difficulté pendant la partie.
-                Les autres joueurs ne voient qu'un bloc flou avec le badge 🔒. Tout est révélé à tous lors de la validation à la fin.
+            <p className="lol-text text-sm leading-relaxed">
+                Certaines missions sont secrètes : seul l'invocateur concerné voit le texte pendant la partie.
+                Les autres ne voient qu'un bloc flou avec le badge 🔒. Tout est révélé lors de la validation.
             </p>
         ),
     },
@@ -74,17 +74,16 @@ const RULES = [
         title: 'Points',
         content: (
             <div className="space-y-3">
-                <p className="text-gray-600 text-sm leading-relaxed">
+                <p className="lol-text text-sm leading-relaxed">
                     Chaque mission validée rapporte des points selon sa difficulté :
                 </p>
                 <div className="flex gap-2 flex-wrap">
                     {[
-                        { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700', dot: 'bg-green-400', label: 'Facile — 100 pts' },
-                        { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700', dot: 'bg-yellow-400', label: 'Moyen — 200 pts' },
-                        { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', dot: 'bg-red-400', label: 'Difficile — 500 pts' },
+                        { bg: 'from-green-600 to-green-800', label: 'Facile — 100 pts' },
+                        { bg: 'from-yellow-600 to-yellow-800', label: 'Moyen — 200 pts' },
+                        { bg: 'from-red-600 to-red-800', label: 'Difficile — 500 pts' },
                     ].map(p => (
-                        <span key={p.label} className={`inline-flex items-center gap-1.5 ${p.bg} border ${p.border} ${p.text} text-sm font-semibold px-3 py-1 rounded-full`}>
-                            <span className={`w-2.5 h-2.5 rounded-full ${p.dot}`}></span>
+                        <span key={p.label} className={`inline-flex items-center gap-1.5 bg-gradient-to-b ${p.bg} border border-[#C8AA6E]/50 text-[#F0E6D2] text-sm font-semibold px-3 py-1 rounded`}>
                             {p.label}
                         </span>
                     ))}
@@ -97,10 +96,9 @@ const RULES = [
         icon: '✅',
         title: 'Validation',
         content: (
-            <p className="text-gray-600 text-sm leading-relaxed">
+            <p className="lol-text text-sm leading-relaxed">
                 Quand le créateur arrête le compteur, la phase de validation commence.
-                Il vérifie chaque mission joueur par joueur, devant tout le monde en temps réel.
-                Chaque mission est soit validée ✅ (vous gagnez les points), soit échouée ❌ (0 point).
+                Il vérifie chaque mission invocateur par invocateur, devant tout le monde.
             </p>
         ),
     },
@@ -109,9 +107,8 @@ const RULES = [
         icon: '🏆',
         title: 'Victoire',
         content: (
-            <p className="text-gray-600 text-sm leading-relaxed">
-                À la fin, les points de chaque joueur sont additionnés par équipe.
-                Les joueurs sont classés par ordre décroissant de points au sein de leur équipe.
+            <p className="lol-text text-sm leading-relaxed">
+                À la fin, les points sont additionnés par équipe.
                 L'équipe avec le plus grand total remporte la partie !
             </p>
         ),
@@ -139,7 +136,7 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
         setError(null);
 
         try {
-            const response = await fetch(`/api/rooms/${roomCode}/start`, {
+            const response = await fetch(`/api/games/aram-missions/${roomCode}/start`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ creatorToken }),
@@ -172,40 +169,41 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="lol-card rounded-lg p-6">
                 <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
-                        <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                            Room: {roomCode}
+                        <h1 className="text-3xl font-bold lol-title mb-2">
+                            <span className="lol-title-gold">ARAM</span> Missions
                         </h1>
-                        <p className="text-gray-600">
-                            En attente que le créateur lance la partie...
+                        <p className="lol-text">
+                            Room : <span className="font-mono font-bold lol-text-gold">{roomCode}</span>
                         </p>
                     </div>
                     <LeaveRoomButton roomCode={roomCode} />
                 </div>
 
+                <div className="lol-divider my-4"></div>
+
                 <div className="max-w-2xl mx-auto">
+                    <p className="text-sm lol-text mb-2">Partage ce lien avec tes alliés :</p>
                     <div className="flex gap-2">
                         <input
                             type="text"
                             value={shareUrl}
                             readOnly
-                            className="flex-1 px-4 py-2 border rounded-lg bg-gray-50 text-gray-700"
+                            className="lol-input flex-1 px-4 py-2 rounded-lg text-sm"
                         />
                         <button
                             onClick={copyToClipboard}
-                            className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                                copied
-                                    ? 'bg-green-600 text-white'
-                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                            className={`lol-button px-6 py-2 rounded-lg transition-all ${
+                                copied ? 'border-[#0AC8B9] text-[#0AC8B9]' : ''
                             }`}
                         >
                             {copied ? '✓ Copié !' : '📋 Copier'}
                         </button>
                     </div>
                     {copied && (
-                        <div className="mt-3 p-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
+                        <div className="mt-3 p-2 bg-[#0AC8B9]/20 border border-[#0AC8B9] text-[#0AC8B9] rounded-lg text-sm font-medium text-center">
                             ✓ Lien copié dans le presse-papier !
                         </div>
                     )}
@@ -222,7 +220,7 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
                 currentPlayerToken={playerToken}
             />
 
-            {/* Délais des missions — editable créateur, lecture seule autres */}
+            {/* Délais des missions */}
             <MissionDelayPicker
                 midMissionDelay={room.midMissionDelay}
                 lateMissionDelay={room.lateMissionDelay}
@@ -233,9 +231,9 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
 
             {/* Start button (creator only) */}
             {isCreator && (
-                <div className="bg-white rounded-xl shadow-lg p-6">
+                <div className="lol-card rounded-lg p-6">
                     {error && (
-                        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+                        <div className="mb-4 p-3 bg-red-900/50 border border-red-500 text-red-300 rounded-lg text-sm">
                             {error}
                         </div>
                     )}
@@ -243,59 +241,58 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
                     <button
                         onClick={handleStart}
                         disabled={starting || room.players.length < 2}
-                        className="w-full py-4 bg-green-600 text-white rounded-lg font-bold text-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="lol-button-hextech w-full py-4 rounded-lg font-bold text-xl transition-all hextech-pulse"
                     >
-                        {starting ? '🚀 Démarrage...' : '🎮 LANCER LA PARTIE'}
+                        {starting ? '⚔️ Préparation...' : '⚔️ LANCER LA BATAILLE'}
                     </button>
 
                     {room.players.length < 2 && (
-                        <p className="mt-3 text-center text-sm text-gray-500">
-                            Il faut au moins 2 joueurs pour commencer
+                        <p className="mt-3 text-center text-sm lol-text">
+                            Il faut au moins 2 invocateurs pour commencer
                         </p>
                     )}
                 </div>
             )}
 
             {!isCreator && (
-                <div className="bg-blue-50 rounded-xl p-6 text-center">
-                    <p className="text-blue-800">
-                        ⏳ Attente du créateur pour lancer la partie...
+                <div className="lol-card rounded-lg p-6 text-center">
+                    <div className="text-4xl mb-2">⏳</div>
+                    <p className="lol-text-gold">
+                        En attente que le créateur lance la bataille...
                     </p>
                 </div>
             )}
 
-            {/* ========== ACCORDÉON RÈGLES — EN BAS ========== */}
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                        <span>📜</span> Règles du jeu
+            {/* Règles du jeu */}
+            <div className="lol-card rounded-lg overflow-hidden">
+                <div className="px-6 py-4 border-b border-[#C8AA6E]/30">
+                    <h3 className="text-lg font-bold lol-title-gold flex items-center gap-2">
+                        <span>📜</span> Règles du combat
                     </h3>
                 </div>
 
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-[#C8AA6E]/20">
                     {RULES.map((rule) => {
                         const isOpen = openRule === rule.id;
                         return (
                             <div key={rule.id}>
-                                {/* Ligne cliquable */}
                                 <button
                                     onClick={() => setOpenRule(isOpen ? null : rule.id)}
-                                    className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-gray-50 transition-colors text-left"
+                                    className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-[#C8AA6E]/10 transition-colors text-left"
                                 >
                                     <div className="flex items-center gap-3">
                                         <span className="text-lg">{rule.icon}</span>
-                                        <span className={`font-semibold ${isOpen ? 'text-blue-700' : 'text-gray-700'}`}>
+                                        <span className={`font-semibold ${isOpen ? 'lol-text-gold' : 'lol-text-light'}`}>
                                             {rule.title}
                                         </span>
                                     </div>
-                                    <span className={`text-gray-400 text-xs transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
+                                    <span className={`lol-text text-xs transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
                                         ▼
                                     </span>
                                 </button>
 
-                                {/* Contenu dépliable */}
                                 {isOpen && (
-                                    <div className="px-6 pb-4 pt-1">
+                                    <div className="px-6 pb-4 pt-1 bg-[#010A13]/50">
                                         {rule.content}
                                     </div>
                                 )}

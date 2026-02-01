@@ -44,7 +44,6 @@ export function TeamSelector({ players, roomCode, currentPlayerToken }: TeamSele
                 setError(data.error || 'Erreur');
                 return;
             }
-            // Le polling met à jour automatiquement
         } catch (e) {
             setError('Erreur de connexion');
         } finally {
@@ -52,67 +51,65 @@ export function TeamSelector({ players, roomCode, currentPlayerToken }: TeamSele
         }
     };
 
-    // Composant réutilisé pour afficher une case joueur dans une équipe
     const PlayerSlot = ({ player }: { player: Player }) => (
-        <div className="flex items-center gap-2 bg-white/20 rounded-lg p-2">
+        <div className="flex items-center gap-2 bg-black/30 rounded-lg p-2 border border-white/10">
             {player.avatar ? (
-                <img src={player.avatar} alt={player.name} className="w-8 h-8 rounded-full" />
+                <img src={player.avatar} alt={player.name} className="w-8 h-8 rounded-full border border-[#C8AA6E]" />
             ) : (
-                <div className="w-8 h-8 bg-white/30 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                <div className="w-8 h-8 bg-gradient-to-br from-[#C8AA6E] to-[#785A28] rounded-full flex items-center justify-center text-[#010A13] font-bold text-sm">
                     {player.name.charAt(0).toUpperCase()}
                 </div>
             )}
-            <span className="text-white text-sm font-medium truncate">{player.name}</span>
+            <span className="lol-text-light text-sm font-medium truncate">{player.name}</span>
         </div>
     );
 
-    // Cases vides pour montrer les slots disponibles
     const EmptySlot = () => (
-        <div className="flex items-center gap-2 bg-white/10 border border-dashed border-white/30 rounded-lg p-2">
-            <div className="w-8 h-8 rounded-full border border-dashed border-white/40 flex items-center justify-center">
-                <span className="text-white/30 text-lg">+</span>
+        <div className="flex items-center gap-2 bg-black/20 border border-dashed border-white/20 rounded-lg p-2">
+            <div className="w-8 h-8 rounded-full border border-dashed border-white/30 flex items-center justify-center">
+                <span className="text-white/20 text-lg">+</span>
             </div>
-            <span className="text-white/30 text-sm italic">Libre</span>
+            <span className="text-white/20 text-sm italic">Libre</span>
         </div>
     );
 
     return (
         <div className="space-y-4">
-            {/* Boutons de sélection d'équipe pour le joueur courant */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">Choisis ton équipe</h3>
+            {/* Boutons de sélection d'équipe */}
+            <div className="lol-card rounded-lg p-6">
+                <h3 className="text-xl font-bold lol-title-gold mb-4 text-center">Choisis ton camp</h3>
                 <div className="flex gap-3 justify-center flex-wrap">
                     <button
                         onClick={() => selectTeam('red')}
                         disabled={loading || myTeam === 'red'}
-                        className={`px-6 py-3 rounded-xl font-bold text-lg transition-all ${
+                        className={`px-6 py-3 rounded-lg font-bold text-lg transition-all uppercase tracking-wide ${
                             myTeam === 'red'
-                                ? 'bg-red-600 text-white shadow-lg scale-105 ring-4 ring-red-300'
-                                : 'bg-red-100 text-red-700 hover:bg-red-200 border-2 border-red-300'
+                                ? 'bg-gradient-to-b from-red-500 to-red-700 text-white shadow-lg shadow-red-500/50 scale-105 border-2 border-red-400'
+                                : 'bg-[#1E2328] text-red-400 hover:bg-red-900/50 border-2 border-red-500/50 hover:border-red-500'
                         } disabled:opacity-60 disabled:cursor-not-allowed`}
                     >
-                        🔴 Équipe Rouge ({redTeam.length}/5)
+                        🔴 Rouge ({redTeam.length}/5)
                     </button>
 
                     <button
                         onClick={() => selectTeam('blue')}
                         disabled={loading || myTeam === 'blue'}
-                        className={`px-6 py-3 rounded-xl font-bold text-lg transition-all ${
+                        className={`px-6 py-3 rounded-lg font-bold text-lg transition-all uppercase tracking-wide ${
                             myTeam === 'blue'
-                                ? 'bg-blue-600 text-white shadow-lg scale-105 ring-4 ring-blue-300'
-                                : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border-2 border-blue-300'
+                                ? 'bg-gradient-to-b from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-500/50 scale-105 border-2 border-blue-400'
+                                : 'bg-[#1E2328] text-blue-400 hover:bg-blue-900/50 border-2 border-blue-500/50 hover:border-blue-500'
                         } disabled:opacity-60 disabled:cursor-not-allowed`}
                     >
-                        🔵 Équipe Bleue ({blueTeam.length}/5)
+                        🔵 Bleue ({blueTeam.length}/5)
                     </button>
 
                     <button
                         onClick={() => selectTeam('')}
                         disabled={loading || myTeam === ''}
-                        className={`px-6 py-3 rounded-xl font-bold text-lg transition-all ${
+                        className={`px-6 py-3 rounded-lg font-bold text-lg transition-all uppercase tracking-wide ${
                             myTeam === ''
-                                ? 'bg-gray-600 text-white shadow-lg scale-105 ring-4 ring-gray-300'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-gray-300'
+                                ? 'bg-gradient-to-b from-gray-500 to-gray-700 text-white shadow-lg shadow-gray-500/50 scale-105 border-2 border-gray-400'
+                                : 'bg-[#1E2328] text-gray-400 hover:bg-gray-800/50 border-2 border-gray-500/50 hover:border-gray-500'
                         } disabled:opacity-60 disabled:cursor-not-allowed`}
                     >
                         👁️ Spectateur
@@ -120,8 +117,8 @@ export function TeamSelector({ players, roomCode, currentPlayerToken }: TeamSele
                 </div>
 
                 {error && (
-                    <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg text-center">
-                        <p className="text-red-700 text-sm font-medium">{error}</p>
+                    <div className="mt-4 p-3 bg-red-900/50 border border-red-500 rounded-lg text-center">
+                        <p className="text-red-300 text-sm font-medium">{error}</p>
                     </div>
                 )}
             </div>
@@ -129,12 +126,12 @@ export function TeamSelector({ players, roomCode, currentPlayerToken }: TeamSele
             {/* Composition des équipes */}
             <div className="grid grid-cols-2 gap-4">
                 {/* Équipe Rouge */}
-                <div className="bg-gradient-to-br from-red-700 to-red-900 rounded-xl shadow-lg p-5">
+                <div className="bg-gradient-to-br from-red-900/80 to-red-950 rounded-lg p-5 border border-red-500/30">
                     <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-white font-bold text-lg flex items-center gap-2">
-                            🔴 Équipe Rouge
+                        <h4 className="text-red-300 font-bold text-lg flex items-center gap-2 uppercase tracking-wide">
+                            🔴 Rouge
                         </h4>
-                        <span className="text-red-200 text-sm font-semibold bg-red-800/50 px-2 py-0.5 rounded-full">
+                        <span className="text-red-400 text-sm font-semibold bg-red-950 px-2 py-0.5 rounded-full border border-red-500/30">
                             {redTeam.length}/5
                         </span>
                     </div>
@@ -147,12 +144,12 @@ export function TeamSelector({ players, roomCode, currentPlayerToken }: TeamSele
                 </div>
 
                 {/* Équipe Bleue */}
-                <div className="bg-gradient-to-br from-blue-700 to-blue-900 rounded-xl shadow-lg p-5">
+                <div className="bg-gradient-to-br from-blue-900/80 to-blue-950 rounded-lg p-5 border border-blue-500/30">
                     <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-white font-bold text-lg flex items-center gap-2">
-                            🔵 Équipe Bleue
+                        <h4 className="text-blue-300 font-bold text-lg flex items-center gap-2 uppercase tracking-wide">
+                            🔵 Bleue
                         </h4>
-                        <span className="text-blue-200 text-sm font-semibold bg-blue-800/50 px-2 py-0.5 rounded-full">
+                        <span className="text-blue-400 text-sm font-semibold bg-blue-950 px-2 py-0.5 rounded-full border border-blue-500/30">
                             {blueTeam.length}/5
                         </span>
                     </div>
@@ -167,21 +164,21 @@ export function TeamSelector({ players, roomCode, currentPlayerToken }: TeamSele
 
             {/* Spectateurs */}
             {spectators.length > 0 && (
-                <div className="bg-white rounded-xl shadow-lg p-5">
-                    <h4 className="text-gray-700 font-bold text-sm uppercase tracking-wide mb-3 flex items-center gap-2">
+                <div className="lol-card rounded-lg p-5">
+                    <h4 className="lol-text font-bold text-sm uppercase tracking-wide mb-3 flex items-center gap-2">
                         👁️ Spectateurs ({spectators.length})
                     </h4>
                     <div className="flex flex-wrap gap-2">
                         {spectators.map(p => (
-                            <div key={p.id} className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-1.5">
+                            <div key={p.id} className="flex items-center gap-2 bg-[#010A13] rounded-lg px-3 py-1.5 border border-[#C8AA6E]/20">
                                 {p.avatar ? (
                                     <img src={p.avatar} alt={p.name} className="w-6 h-6 rounded-full" />
                                 ) : (
-                                    <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold text-xs">
+                                    <div className="w-6 h-6 bg-gradient-to-br from-[#C8AA6E] to-[#785A28] rounded-full flex items-center justify-center text-[#010A13] font-bold text-xs">
                                         {p.name.charAt(0).toUpperCase()}
                                     </div>
                                 )}
-                                <span className="text-gray-600 text-sm">{p.name}</span>
+                                <span className="lol-text text-sm">{p.name}</span>
                             </div>
                         ))}
                     </div>
