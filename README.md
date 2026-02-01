@@ -70,19 +70,67 @@ Les missions sont révélées progressivement au cours de la partie :
 ### Architecture
 
 ```
-src/
-├── app/                    # Pages et routes Next.js (App Router)
-│   ├── api/               # API Routes
-│   │   ├── missions/      # CRUD missions
-│   │   ├── rooms/         # Gestion des rooms
-│   │   └── players/       # Gestion des joueurs
-│   └── games/             # Pages des jeux
-│       └── aram-missions/ # Interface du jeu ARAM
-├── components/            # Composants React réutilisables
-├── lib/                   # Utilitaires et configurations
-│   ├── prisma.ts         # Client Prisma
-│   └── pusher.ts         # Configuration Pusher
-└── generated/            # Types Prisma générés
+app/
+├── api/
+│   ├── rooms/                          # API Routes communes
+│   │   ├── create/                     # Créer une room
+│   │   └── [code]/                     # Routes par room
+│   │       ├── route.ts                # GET room
+│   │       ├── join/                   # Rejoindre une room
+│   │       ├── leave/                  # Quitter une room
+│   │       └── team/                   # Changer d'équipe
+│   └── games/
+│       ├── aram-missions/              # API spécifique ARAM Missions
+│       │   └── [code]/
+│       │       ├── start/              # Démarrer la partie
+│       │       ├── stop/               # Arrêter la partie
+│       │       ├── launch/             # Lancer le countdown
+│       │       ├── restart/            # Relancer une partie
+│       │       ├── check-mid-missions/ # Vérifier missions MID
+│       │       ├── check-late-missions/# Vérifier missions LATE
+│       │       ├── validate/           # Valider les missions
+│       │       └── settings/           # Paramètres du jeu
+│       ├── codename-ceo/               # API Codename CEO (à venir)
+│       ├── break-room-quiz/            # API Quiz (à venir)
+│       └── coming-game/                # API Coming Game (à venir)
+├── games/
+│   ├── aram-missions/
+│   │   └── components/                 # Composants spécifiques ARAM
+│   │       ├── GameView.tsx
+│   │       ├── MissionCard.tsx
+│   │       ├── MissionDelayPicker.tsx
+│   │       ├── OtherPlayersMissions.tsx
+│   │       ├── ValidationScreen.tsx
+│   │       └── ValidationSpectator.tsx
+│   ├── codename-ceo/
+│   │   └── components/                 # Composants Codename CEO
+│   ├── break-room-quiz/
+│   │   └── components/                 # Composants Quiz
+│   └── coming-game/
+│       └── components/                 # Composants Coming Game
+├── components/                         # Composants partagés
+│   ├── CreateRoomForm.tsx
+│   ├── JoinRoomForm.tsx
+│   ├── GameSelector.tsx
+│   ├── RoomLobby.tsx
+│   ├── GameEndScreen.tsx
+│   ├── PlayerList.tsx
+│   ├── Timer.tsx
+│   └── ...
+├── hooks/
+│   └── useRoom.ts                      # Hook partagé
+├── types/
+│   └── room.ts                         # Types partagés
+├── room/
+│   └── [code]/
+│       └── page.tsx                    # Page dynamique de room
+├── layout.tsx
+└── page.tsx                            # Page d'accueil
+lib/
+├── prisma.ts                           # Client Prisma
+├── pusher.ts                           # Configuration Pusher
+├── types.ts                            # Types générés
+└── utils.ts                            # Utilitaires
 ```
 
 ### Modèle de données
@@ -208,8 +256,18 @@ L'application peut être déployée sur [Vercel](https://vercel.com) avec une ba
 vercel deploy
 ```
 
+## Jeux disponibles
+
+| Jeu | Status | Description |
+|-----|--------|-------------|
+| **ARAM Missions** | Disponible | Missions secrètes pendant vos parties ARAM |
+| **Codename du CEO** | En développement | Devinez qui est le CEO parmi vous |
+| **Quiz de la salle de pause** | En développement | Questions amusantes entre collègues |
+| **Coming Game** | En développement | Un nouveau jeu bientôt disponible |
+
 ## Roadmap
 
-- [x] ARAM Missions
-- [ ] Codename CEO
-- [ ] Break Room Quiz
+- [x] ARAM Missions - Jeu complet avec missions START/MID/LATE
+- [ ] Codename du CEO - Jeu d'identité cachée
+- [ ] Quiz de la salle de pause - Quiz multijoueur
+- [ ] Coming Game - À définir
