@@ -30,3 +30,25 @@ export async function pushRoomUpdate(roomCode: string): Promise<void> {
         console.error(`[Pusher] Failed to push room-updated for room ${roomCode}:`, error);
     }
 }
+
+/**
+ * Pushes an "interest-updated" event with the interest data directly.
+ * This avoids the need for a full room refetch for interest changes.
+ */
+export async function pushInterestUpdate(
+    roomCode: string,
+    cardId: string,
+    playerName: string,
+    added: boolean
+): Promise<void> {
+    try {
+        await pusher.trigger(`room-${roomCode}`, 'interest-updated', {
+            cardId,
+            playerName,
+            added,
+            timestamp: Date.now(),
+        });
+    } catch (error) {
+        console.error(`[Pusher] Failed to push interest-updated for room ${roomCode}:`, error);
+    }
+}

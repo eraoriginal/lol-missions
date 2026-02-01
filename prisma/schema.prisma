@@ -116,6 +116,20 @@ model CodenameCard {
   revealed  Boolean       @default(false)
   position  Int           // 0-24 for grid position
 
+  interests CardInterest[]
+
   @@unique([gameId, position])
   @@index([gameId])
+}
+
+// Codename du CEO - Player interest/pre-selection on cards
+model CardInterest {
+  id         String       @id @default(cuid())
+  cardId     String
+  card       CodenameCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  playerName String
+  createdAt  DateTime     @default(now())
+
+  @@unique([cardId, playerName])
+  @@index([cardId])
 }

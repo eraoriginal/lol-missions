@@ -28,6 +28,9 @@ export async function GET(
                     include: {
                         cards: {
                             orderBy: { position: 'asc' },
+                            include: {
+                                interests: true,
+                            },
                         },
                     },
                 },

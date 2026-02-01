@@ -2,6 +2,12 @@
 
 import { CodenameCard } from './CodenameCard';
 
+interface CardInterest {
+  id: string;
+  cardId: string;
+  playerName: string;
+}
+
 interface Card {
   id: string;
   word: string;
@@ -9,6 +15,7 @@ interface Card {
   category?: string | null;
   revealed: boolean;
   position: number;
+  interests?: CardInterest[];
 }
 
 interface GameBoardProps {
@@ -17,8 +24,6 @@ interface GameBoardProps {
   isClickable: boolean;
   onGuess?: (cardId: string) => void;
   onToggleInterest?: (cardId: string) => void;
-  interestedCards?: Set<string>;
-  playerName?: string;
 }
 
 export function GameBoard({
@@ -27,8 +32,6 @@ export function GameBoard({
   isClickable,
   onGuess,
   onToggleInterest,
-  interestedCards,
-  playerName,
 }: GameBoardProps) {
   // Sort cards by position
   const sortedCards = [...cards].sort((a, b) => a.position - b.position);
@@ -43,8 +46,7 @@ export function GameBoard({
           isClickable={isClickable}
           onGuess={onGuess}
           onToggleInterest={onToggleInterest}
-          isInterested={interestedCards?.has(card.id) || false}
-          playerName={playerName}
+          interestedPlayers={card.interests?.map((i) => i.playerName) || []}
         />
       ))}
     </div>

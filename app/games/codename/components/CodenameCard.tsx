@@ -17,8 +17,7 @@ interface CodenameCardProps {
   isClickable: boolean;
   onGuess?: (cardId: string) => void;
   onToggleInterest?: (cardId: string) => void;
-  isInterested?: boolean;
-  playerName?: string;
+  interestedPlayers?: string[];
 }
 
 const colorStyles: Record<string, { bg: string; border: string; text: string; shadow: string }> = {
@@ -54,8 +53,7 @@ export function CodenameCard({
   isClickable,
   onGuess,
   onToggleInterest,
-  isInterested = false,
-  playerName,
+  interestedPlayers = [],
 }: CodenameCardProps) {
   const [isFlipping, setIsFlipping] = useState(false);
 
@@ -80,7 +78,7 @@ export function CodenameCard({
   const style = colorStyles[card.color] || colorStyles.neutral;
 
   const isRevealed = card.revealed || isFlipping;
-  const showInterest = isInterested && !isSpymaster && !card.revealed;
+  const hasInterests = interestedPlayers.length > 0 && !card.revealed;
   const showRevealButton = isClickable && !card.revealed && !isSpymaster;
 
   return (
@@ -97,8 +95,8 @@ export function CodenameCard({
           absolute inset-0 rounded-xl flex items-center justify-center
           ${isSpymaster ? 'bg-gradient-to-br from-slate-200 to-slate-300' : 'poki-card'} border-2
           ${isSpymaster ? style.border : 'border-amber-400/50'}
-          ${showInterest ? 'border-pink-400 shadow-lg shadow-pink-400/30' : ''}
-          ${isClickable && !card.revealed && !isSpymaster && !showInterest ? 'group-hover:border-pink-400/50' : ''}
+          ${hasInterests ? 'border-pink-400 shadow-lg shadow-pink-400/30' : ''}
+          ${isClickable && !card.revealed && !isSpymaster && !hasInterests ? 'group-hover:border-pink-400/50' : ''}
           transition-all duration-300
           ${isRevealed ? 'opacity-0 pointer-events-none' : 'opacity-100'}
         `}
@@ -148,12 +146,17 @@ export function CodenameCard({
           {card.word}
         </span>
 
-        {/* Player interest indicator (bottom) */}
-        {showInterest && playerName && (
-          <div className="absolute bottom-0.5 left-0.5 right-0.5 z-10">
-            <div className="bg-pink-500/90 text-white text-[8px] sm:text-[9px] px-1.5 py-0.5 rounded text-center truncate">
-              {playerName}
-            </div>
+        {/* Player interest indicators (bottom) */}
+        {hasInterests && (
+          <div className="absolute bottom-0.5 left-0.5 right-0.5 z-10 flex flex-wrap gap-0.5 justify-center">
+            {interestedPlayers.slice(0, 4).map((name) => (
+              <div
+                key={name}
+                className="bg-pink-500/90 text-white text-[7px] sm:text-[8px] px-1 py-0.5 rounded truncate max-w-[45%]"
+              >
+                {name}
+              </div>
+            ))}
           </div>
         )}
 

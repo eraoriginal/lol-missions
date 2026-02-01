@@ -61,6 +61,12 @@ export async function POST(
     // Switch to the other team
     const newCurrentTeam = game.currentTeam === 'red' ? 'blue' : 'red';
 
+    // Clear all card interests when turn ends
+    const cardIds = game.cards.map(c => c.id);
+    await prisma.cardInterest.deleteMany({
+      where: { cardId: { in: cardIds } },
+    });
+
     const updatedGame = await prisma.codenameGame.update({
       where: { id: game.id },
       data: {

@@ -3,6 +3,12 @@
 import { GameBoard } from './GameBoard';
 import { ClueInput } from './ClueInput';
 
+interface CardInterest {
+  id: string;
+  cardId: string;
+  playerName: string;
+}
+
 interface Card {
   id: string;
   word: string;
@@ -10,6 +16,7 @@ interface Card {
   category?: string | null;
   revealed: boolean;
   position: number;
+  interests?: CardInterest[];
 }
 
 interface SpymasterViewProps {

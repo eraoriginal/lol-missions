@@ -73,10 +73,15 @@ export async function POST(
       return Response.json({ error: 'Card already revealed' }, { status: 400 });
     }
 
-    // Reveal the card
+    // Reveal the card and clear its interests
     await prisma.codenameCard.update({
       where: { id: card.id },
       data: { revealed: true },
+    });
+
+    // Clear all interests on the revealed card
+    await prisma.cardInterest.deleteMany({
+      where: { cardId: card.id },
     });
 
     let newRedRemaining = game.redRemaining;
@@ -147,6 +152,14 @@ export async function POST(
         clearClue = true;
         console.log(`[CODENAME] Wrong team card! Turn ends, switching to team ${newCurrentTeam}`);
       }
+    }
+
+    // Clear ALL interests when turn ends or game over
+    if (clearClue || gameOver) {
+      const cardIds = game.cards.map(c => c.id);
+      await prisma.cardInterest.deleteMany({
+        where: { cardId: { in: cardIds } },
+      });
     }
 
     // Update game state

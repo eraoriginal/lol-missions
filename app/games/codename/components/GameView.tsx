@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { CodenameRoomLobby } from './CodenameRoomLobby';
 import { RoleSelection } from './RoleSelection';
@@ -10,6 +10,13 @@ import { GameStatus } from './GameStatus';
 import { GameBoard } from './GameBoard';
 import { RulesModal } from './RulesModal';
 import { useCodenameSound } from '../hooks/useCodenameSound';
+import { useCardInterests } from '../hooks/useCardInterests';
+
+interface CardInterest {
+  id: string;
+  cardId: string;
+  playerName: string;
+}
 
 interface Card {
   id: string;
@@ -18,6 +25,7 @@ interface Card {
   category?: string | null;
   revealed: boolean;
   position: number;
+  interests?: CardInterest[];
 }
 
 interface CodenameGame {
@@ -63,6 +71,10 @@ export function GameView({ room, roomCode }: GameViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  // Local cards state for real-time interest updates via Pusher
+  const [localCards, setLocalCards] = useState<Card[]>(room.codenameGame?.cards || []);
+  // Track current team to detect turn changes
+  const [lastKnownTeam, setLastKnownTeam] = useState<string | null>(room.codenameGame?.currentTeam || null);
   const { play } = useCodenameSound();
   const router = useRouter();
 
@@ -75,6 +87,46 @@ export function GameView({ room, roomCode }: GameViewProps) {
   const isCreator = !!creatorToken;
   const currentPlayer = room.players.find((p) => p.token === playerToken);
   const game = room.codenameGame;
+
+  // Sync local cards with server cards
+  useEffect(() => {
+    if (game?.cards) {
+      const turnChanged = game.currentTeam !== lastKnownTeam;
+
+      if (turnChanged) {
+        // Turn changed - use server data entirely (interests are cleared)
+        setLocalCards(game.cards);
+        setLastKnownTeam(game.currentTeam);
+      } else {
+        // Same turn - merge local interests with server data
+        setLocalCards(prevCards => {
+          return game.cards.map(serverCard => {
+            const localCard = prevCards.find(c => c.id === serverCard.id);
+            // If card was revealed, use server data
+            if (serverCard.revealed) {
+              return serverCard;
+            }
+            // Otherwise, preserve local interests (they may be more up-to-date via Pusher)
+            if (localCard && !serverCard.revealed) {
+              return {
+                ...serverCard,
+                interests: localCard.interests || serverCard.interests
+              };
+            }
+            return serverCard;
+          });
+        });
+      }
+    }
+  }, [game?.cards, game?.currentTeam, lastKnownTeam]);
+
+  // Handle real-time interest updates from Pusher
+  const handleCardsUpdate = useCallback((updatedCards: Card[]) => {
+    setLocalCards(updatedCards);
+  }, []);
+
+  // Subscribe to Pusher interest updates
+  useCardInterests(roomCode, localCards, handleCardsUpdate);
 
   // Game phases:
   // 1. Lobby: gameStarted = false, codenameGame = null
@@ -307,7 +359,7 @@ export function GameView({ room, roomCode }: GameViewProps) {
             <SpymasterView
               roomCode={roomCode}
               playerToken={playerToken || ''}
-              cards={game.cards}
+              cards={localCards}
               isMyTurn={isMyTurn}
               hasGivenClue={!!game.currentClue}
             />
@@ -316,7 +368,7 @@ export function GameView({ room, roomCode }: GameViewProps) {
               roomCode={roomCode}
               playerToken={playerToken || ''}
               playerName={currentPlayer?.name || ''}
-              cards={game.cards}
+              cards={localCards}
               isMyTurn={isMyTurn}
               hasClue={!!game.currentClue}
               guessesLeft={game.guessesLeft}
@@ -328,7 +380,7 @@ export function GameView({ room, roomCode }: GameViewProps) {
               <div className="text-center text-stone-400 text-sm">
                 👁️ Mode spectateur
               </div>
-              <GameBoard cards={game.cards} isSpymaster={false} isClickable={false} />
+              <GameBoard cards={localCards} isSpymaster={false} isClickable={false} />
             </div>
           )}
         </>
@@ -337,7 +389,7 @@ export function GameView({ room, roomCode }: GameViewProps) {
       {/* Game over - show final board */}
       {isGameOver && game && (
         <div className="space-y-4">
-          <GameBoard cards={game.cards} isSpymaster={true} isClickable={false} />
+          <GameBoard cards={localCards} isSpymaster={true} isClickable={false} />
 
           {isCreator && (
             <div className="text-center">

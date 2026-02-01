@@ -159,23 +159,22 @@ export function useRoom(roomCode: string | null) {
             fetchRoom('pusher');
         });
 
-        // Polling fallback - garantit que les mises à jour sont reçues même si Pusher échoue
-        // Pour ARAM: toutes les 3s pendant le jeu actif
-        // Pour Codename: toutes les 2s car les mises à jour de rôles sont importantes
+        // Polling fallback - only for ARAM during active game
+        // Codename uses direct Pusher events for interest updates, no polling needed
         const pollingInterval = setInterval(() => {
             const currentRoom = roomRef.current;
             if (!currentRoom) return;
 
-            // Codename: polling plus fréquent car les changements de rôle doivent être rapides
-            const isCodename = currentRoom.gameType === 'codename-ceo';
-            // ARAM: seulement pendant le jeu actif
-            const isActiveAramGame = currentRoom.gameStarted && !currentRoom.gameStopped;
+            // ARAM: polling during active game only
+            const isActiveAramGame = currentRoom.gameType === 'aram-missions' &&
+                                     currentRoom.gameStarted &&
+                                     !currentRoom.gameStopped;
 
-            if (isCodename || isActiveAramGame) {
-                console.log('[useRoom] Polling fallback');
+            if (isActiveAramGame) {
+                console.log('[useRoom] Polling fallback (ARAM)');
                 fetchRoom('polling');
             }
-        }, 2000);
+        }, 3000);
 
         return () => {
             console.log(`[useRoom] Unsubscribing from Pusher channel: ${channelName}`);
