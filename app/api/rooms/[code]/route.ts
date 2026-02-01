@@ -24,6 +24,13 @@ export async function GET(
                         },
                     },
                 },
+                codenameGame: {
+                    include: {
+                        cards: {
+                            orderBy: { position: 'asc' },
+                        },
+                    },
+                },
             },
         });
 

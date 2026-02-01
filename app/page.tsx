@@ -105,10 +105,10 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="text-2xl">👔</span>
+                  <span className="text-2xl">🕵️</span>
                   <div>
                     <h5 className="font-semibold mb-1">Codename du CEO</h5>
-                    <p className="text-sm text-gray-300">Devinez qui est le CEO parmi vous (bientôt disponible)</p>
+                    <p className="text-sm text-gray-300">Jeu d'équipe inspiré de Codenames avec thème LoL</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">

@@ -26,10 +26,10 @@ const games: Game[] = [
     {
         id: 'codename-ceo',
         name: 'Codename du CEO',
-        description: 'Devinez qui est le CEO parmi vous',
-        icon: '👔',
+        description: 'Jeu de mots en équipe inspiré de Codenames',
+        icon: '🕵️',
         color: 'from-green-500 to-teal-600',
-        available: false,
+        available: true,
     },
     {
         id: 'break-room-quiz',

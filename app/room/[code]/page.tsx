@@ -4,9 +4,10 @@ import { use, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRoom } from '@/app/hooks/useRoom';
 import { RoomLobby } from '@/app/components/RoomLobby';
-import { GameView } from '@/app/games/aram-missions/components/GameView';
+import { GameView as AramMissionsGameView } from '@/app/games/aram-missions/components/GameView';
+import { GameView as CodenameGameView } from '@/app/games/codename/components/GameView';
 import { Toast } from '@/app/components/Toast';
-import {ComingSoonGame} from "@/app/components/ComingSoonGame";
+import { ComingSoonGame } from "@/app/components/ComingSoonGame";
 
 export default function RoomPage({
                                      params
@@ -203,6 +204,9 @@ export default function RoomPage({
         );
     }
 
+    // Determine background class based on game type
+    const bgClass = room.gameType === 'codename-ceo' ? 'poki-bg' : 'lol-bg';
+
     return (
         <>
             {notification && (
@@ -214,27 +218,26 @@ export default function RoomPage({
                 />
             )}
 
-            <main className="lol-bg p-4">
+            <main className={`${bgClass} p-4`}>
                 <div className="max-w-6xl mx-auto py-8">
-                    {/* Si le jeu n'est pas ARAM Missions, affiche "En construction" */}
-                    {room.gameType !== 'aram-missions' ? (
+                    {/* Route to the correct game based on gameType */}
+                    {room.gameType === 'aram-missions' ? (
+                        room.gameStarted ? (
+                            <AramMissionsGameView room={room} roomCode={code} />
+                        ) : (
+                            <RoomLobby room={room} roomCode={code} />
+                        )
+                    ) : room.gameType === 'codename-ceo' ? (
+                        <CodenameGameView room={room} roomCode={code} />
+                    ) : (
                         <ComingSoonGame
                             roomCode={code}
                             gameName={
-                                room.gameType === 'codename-ceo' ? 'Codename du CEO' :
-                                    room.gameType === 'break-room-quiz' ? 'Quiz de la salle de pause' :
-                                    room.gameType === 'coming-game' ? 'Coming Game' :
-                                        'À venir'
+                                room.gameType === 'break-room-quiz' ? 'Quiz de la salle de pause' :
+                                room.gameType === 'coming-game' ? 'Coming Game' :
+                                'À venir'
                             }
                         />
-                    ) : (
-                        <>
-                            {room.gameStarted ? (
-                                <GameView room={room} roomCode={code} />
-                            ) : (
-                                <RoomLobby room={room} roomCode={code} />
-                            )}
-                        </>
                     )}
                 </div>
             </main>

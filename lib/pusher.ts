@@ -11,7 +11,7 @@ export const pusher: Pusher =
         key: process.env.PUSHER_APP_KEY!,
         secret: process.env.PUSHER_APP_SECRET!,
         cluster: process.env.PUSHER_APP_CLUSTER!,
-        encrypted: true,
+        useTLS: true,
     });
 
 if (process.env.NODE_ENV !== 'production') globalForPusher.pusher = pusher;

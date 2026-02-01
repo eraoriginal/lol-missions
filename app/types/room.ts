@@ -16,7 +16,31 @@ export interface Player {
     name: string;
     token: string;
     avatar: string;
+    team: string;
+    role: string | null;
     missions: any[];
+}
+
+export interface CodenameCard {
+    id: string;
+    word: string;
+    color: string;
+    category?: string | null;
+    revealed: boolean;
+    position: number;
+}
+
+export interface CodenameGame {
+    id: string;
+    currentTeam: string;
+    redRemaining: number;
+    blueRemaining: number;
+    gameOver: boolean;
+    winner: string | null;
+    currentClue: string | null;
+    currentNumber: number | null;
+    guessesLeft: number;
+    cards: CodenameCard[];
 }
 
 export interface Room {
@@ -30,4 +54,5 @@ export interface Room {
     lateMissionDelay: number;
     creatorToken?: string;
     players: Player[];
+    codenameGame?: CodenameGame | null;
 }

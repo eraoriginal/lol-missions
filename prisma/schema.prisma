@@ -23,19 +23,21 @@ model Mission {
 }
 
 model Room {
-  id               String    @id @default(cuid())
-  code             String    @unique
-  creatorToken     String
-  gameType         String    @default("aram-missions")
-  gameStarted      Boolean   @default(false)
-  gameStartTime    DateTime?
-  gameStopped      Boolean   @default(false)
-  validationStatus String    @default("not_started") // 'not_started', 'in_progress', 'completed'
-  midMissionDelay  Int       @default(480)            // en secondes, défaut 5 min
-  lateMissionDelay Int       @default(960)            // en secondes, défaut 10 min
-  createdAt        DateTime  @default(now())
+  id                  String    @id @default(cuid())
+  code                String    @unique
+  creatorToken        String
+  gameType            String    @default("aram-missions")
+  gameStarted         Boolean   @default(false)
+  gameStartTime       DateTime?
+  gameStopped         Boolean   @default(false)
+  validationStatus    String    @default("not_started") // 'not_started', 'in_progress', 'completed'
+  midMissionDelay     Int       @default(480)            // en secondes, défaut 5 min
+  lateMissionDelay    Int       @default(960)            // en secondes, défaut 10 min
+  selectedCategories  String[]  @default([])             // catégories sélectionnées pour Codename
+  createdAt           DateTime  @default(now())
 
   players          Player[]
+  codenameGame     CodenameGame?
 
   @@index([code])
 }
@@ -46,6 +48,7 @@ model Player {
   token     String   @unique
   avatar    String   @default("")
   team      String   @default("")   // "" = spectateur, "red" ou "blue"
+  role      String?  // "spymaster" or "operative" for Codenames
   roomId    String
   room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
@@ -70,4 +73,49 @@ model PlayerMission {
 
   @@unique([playerId, type])
   @@index([playerId])
+}
+
+// Codename du CEO - Word bank
+model CodenameWord {
+  id        String   @id @default(cuid())
+  word      String   @unique
+  category  String?  // optional categorization (champions, items, places, etc.)
+  createdAt DateTime @default(now())
+}
+
+// Codename du CEO - Game state
+model CodenameGame {
+  id            String   @id @default(cuid())
+  roomId        String   @unique
+  room          Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  currentTeam   String   @default("red")  // "red" or "blue"
+  redRemaining  Int      @default(9)
+  blueRemaining Int      @default(8)
+  gameOver      Boolean  @default(false)
+  winner        String?  // "red", "blue", or null
+
+  currentClue   String?
+  currentNumber Int?
+  guessesLeft   Int      @default(0)
+
+  cards         CodenameCard[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Codename du CEO - Individual cards on the board
+model CodenameCard {
+  id        String        @id @default(cuid())
+  gameId    String
+  game      CodenameGame  @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  word      String
+  category  String?       // category of the word
+  color     String        // "red", "blue", "neutral", "assassin"
+  revealed  Boolean       @default(false)
+  position  Int           // 0-24 for grid position
+
+  @@unique([gameId, position])
+  @@index([gameId])
 }
