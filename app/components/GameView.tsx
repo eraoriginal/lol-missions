@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MissionCard } from './MissionCard';
 import { Timer } from './Timer';
 import { LeaveRoomButton } from './LeaveRoomButton';
@@ -27,6 +27,10 @@ export function GameView({ room, roomCode }: GameViewProps) {
     const [launching, setLaunching] = useState(false);
     const [launchError, setLaunchError] = useState<string | null>(null);
 
+    // 🔊 Refs pour éviter de relire une mission déjà annoncée
+    const midAnnoncedRef = useRef(false);
+    const lateAnnoncedRef = useRef(false);
+
     const playerToken = typeof window !== 'undefined'
         ? localStorage.getItem(`room_${roomCode}_player`)
         : null;
@@ -38,13 +42,40 @@ export function GameView({ room, roomCode }: GameViewProps) {
     const isCreator = !!creatorToken;
     const currentPlayer = room.players.find((p: any) => p.token === playerToken);
 
-    if (room.gameStopped) {
-        return <GameEndScreen room={room} roomCode={roomCode} isCreator={isCreator} />;
-    }
-
     const startMission = currentPlayer?.missions.find((m: any) => m.type === 'START');
     const midMission = currentPlayer?.missions.find((m: any) => m.type === 'MID');
     const lateMission = currentPlayer?.missions.find((m: any) => m.type === 'LATE');
+
+    // 🔊 Lecture vocale — se déclenche quand une mission MID/LATE apparaît pour la première fois
+    useEffect(() => {
+        if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+        const announce = (text: string) => {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'fr-FR';
+            utterance.rate = 1;
+            utterance.volume = 0.9;
+            window.speechSynthesis.speak(utterance);
+            console.log('[GameView] 🔊 Annonce vocale :', text);
+        };
+
+        if (midMission && !midAnnoncedRef.current) {
+            midAnnoncedRef.current = true;
+            const prefix = midMission.mission.isPrivate ? 'Mission secrète : ' : '';
+            announce(prefix + midMission.mission.text);
+        }
+
+        if (lateMission && !lateAnnoncedRef.current) {
+            lateAnnoncedRef.current = true;
+            const prefix = lateMission.mission.isPrivate ? 'Mission secrète : ' : '';
+            announce(prefix + lateMission.mission.text);
+        }
+    }, [midMission, lateMission]);
+
+    if (room.gameStopped) {
+        return <GameEndScreen room={room} roomCode={roomCode} isCreator={isCreator} />;
+    }
 
     const handleLaunch = async () => {
         if (!creatorToken) return;
@@ -62,7 +93,6 @@ export function GameView({ room, roomCode }: GameViewProps) {
                 const data = await res.json();
                 throw new Error(data.error || 'Erreur');
             }
-            // Le polling détectera gameStartTime != null
         } catch (err) {
             setLaunchError(err instanceof Error ? err.message : 'Erreur');
             setLaunching(false);

@@ -31,8 +31,8 @@ model Room {
   gameStartTime    DateTime?
   gameStopped      Boolean   @default(false)
   validationStatus String    @default("not_started") // 'not_started', 'in_progress', 'completed'
-  midMissionDelay  Int       @default(300)            // en secondes, défaut 5 min
-  lateMissionDelay Int       @default(600)            // en secondes, défaut 10 min
+  midMissionDelay  Int       @default(480)            // en secondes, défaut 5 min
+  lateMissionDelay Int       @default(960)            // en secondes, défaut 10 min
   createdAt        DateTime  @default(now())
 
   players          Player[]
