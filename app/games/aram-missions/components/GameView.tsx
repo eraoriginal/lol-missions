@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { MissionCard } from './MissionCard';
 import { OtherPlayersMissions } from './OtherPlayersMissions';
 import { Timer } from '@/app/components/Timer';
 import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
@@ -226,62 +225,66 @@ export function GameView({ room, roomCode }: GameViewProps) {
                 </div>
             )}
 
-            {/* Missions */}
-            <div className="space-y-4">
-                <h2 className="text-2xl font-bold lol-title-gold text-center mb-6">
+            {/* Missions unifiées */}
+            <div className="lol-card rounded-lg p-5">
+                <h2 className="text-xl font-bold lol-title-gold mb-4 flex items-center gap-2">
                     📜 Tes missions
                 </h2>
 
-                {lateMission ? (
-                    <div className="relative">
-                        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
-                            <span className="bg-gradient-to-r from-red-600 to-red-800 text-white px-4 py-1 rounded-full text-sm font-bold shadow-lg shadow-red-500/50 animate-pulse uppercase tracking-wide">
-                                🔥 Mission Finale
-                            </span>
+                <div className="space-y-3">
+                    {startMission && (
+                        <div className={`flex items-start gap-3 p-4 rounded-lg border ${
+                            startMission.mission.isPrivate
+                                ? 'bg-purple-900/30 border-purple-500/40'
+                                : 'bg-[#1E2328] border-[#C8AA6E]/20'
+                        }`}>
+                            <span className="text-2xl flex-shrink-0">⚔️</span>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-sm font-semibold text-blue-400 uppercase">Début</span>
+                                    {startMission.mission.isPrivate && <span>🔒</span>}
+                                </div>
+                                <p className="lol-text-light leading-relaxed">{startMission.mission.text}</p>
+                            </div>
                         </div>
-                        <div className="absolute inset-0 bg-gradient-to-r from-red-500 via-orange-500 to-red-500 rounded-lg opacity-20 blur-xl animate-pulse"></div>
-                        <div className="relative transform hover:scale-[1.02] transition-transform">
-                            <MissionCard mission={lateMission.mission} type="LATE" showPoints={true} />
-                        </div>
-                    </div>
-                ) : midMission ? (
-                    <div className="lol-card rounded-lg p-6 text-center border-2 border-red-500/30">
-                        <div className="text-4xl mb-3">🔥</div>
-                        <p className="text-lg font-semibold text-red-400">
-                            Ta mission FINALE apparaîtra bientôt...
-                        </p>
-                    </div>
-                ) : null}
+                    )}
 
-                {midMission ? (
-                    <div className="relative">
-                        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
-                            <span className="bg-gradient-to-r from-purple-600 to-purple-800 text-white px-4 py-1 rounded-full text-sm font-bold shadow-lg shadow-purple-500/50 animate-pulse uppercase tracking-wide">
-                                ⚡ Nouvelle Mission
-                            </span>
+                    {midMission && (
+                        <div className={`flex items-start gap-3 p-4 rounded-lg border ${
+                            midMission.mission.isPrivate
+                                ? 'bg-purple-900/30 border-purple-500/40'
+                                : 'bg-gradient-to-r from-purple-900/40 to-purple-800/20 border-purple-500/40'
+                        }`}>
+                            <span className="text-2xl flex-shrink-0">⚡</span>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-sm font-semibold text-purple-400 uppercase">MID</span>
+                                    {midMission.mission.isPrivate && <span>🔒</span>}
+                                    <span className="text-sm px-2 py-0.5 bg-purple-500/30 text-purple-300 rounded animate-pulse">Nouveau</span>
+                                </div>
+                                <p className="lol-text-light leading-relaxed">{midMission.mission.text}</p>
+                            </div>
                         </div>
-                        <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 rounded-lg opacity-20 blur-xl animate-pulse"></div>
-                        <div className="relative transform hover:scale-[1.02] transition-transform">
-                            <MissionCard mission={midMission.mission} type="MID" showPoints={true} />
-                        </div>
-                    </div>
-                ) : (
-                    <div className="lol-card rounded-lg p-6 text-center border-2 border-purple-500/30">
-                        <div className="text-4xl mb-3">⏳</div>
-                        <p className="text-lg font-semibold text-purple-400">
-                            Ta mission MID apparaîtra dans...
-                        </p>
-                        <p className="text-3xl font-bold mt-2 lol-title-gold">
-                            {Math.round(room.midMissionDelay / 60)}min
-                        </p>
-                    </div>
-                )}
+                    )}
 
-                {startMission && (
-                    <div className="opacity-90 transform hover:scale-[1.02] transition-transform">
-                        <MissionCard mission={startMission.mission} type="START" showPoints={true} />
-                    </div>
-                )}
+                    {lateMission && (
+                        <div className={`flex items-start gap-3 p-4 rounded-lg border ${
+                            lateMission.mission.isPrivate
+                                ? 'bg-purple-900/30 border-purple-500/40'
+                                : 'bg-gradient-to-r from-red-900/40 to-orange-800/20 border-red-500/40'
+                        }`}>
+                            <span className="text-2xl flex-shrink-0">🔥</span>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-sm font-semibold text-red-400 uppercase">Finale</span>
+                                    {lateMission.mission.isPrivate && <span>🔒</span>}
+                                    <span className="text-sm px-2 py-0.5 bg-red-500/30 text-red-300 rounded animate-pulse">Nouveau</span>
+                                </div>
+                                <p className="lol-text-light leading-relaxed">{lateMission.mission.text}</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Missions des autres joueurs */}

@@ -1,12 +1,13 @@
 'use client';
 
-import { MissionCard } from './MissionCard';
+import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
 
 interface ValidationSpectatorProps {
     room: any;
+    roomCode: string;
 }
 
-export function ValidationSpectator({ room }: ValidationSpectatorProps) {
+export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps) {
     const players = room.players.filter((p: any) => p.missions.length > 0);
 
     // L'index du joueur courant vient directement du serveur via validationStatus
@@ -31,37 +32,87 @@ export function ValidationSpectator({ room }: ValidationSpectatorProps) {
     const midMission = currentPlayer?.missions.find((m: any) => m.type === 'MID');
     const lateMission = currentPlayer?.missions.find((m: any) => m.type === 'LATE');
 
-    const MissionRow = ({ pm, type }: { pm: any; type: string }) => (
-        <div className="space-y-3">
-            <MissionCard mission={pm.mission} type={type as any} showPoints={true} />
-            <div className="flex gap-3 justify-center h-12 items-center">
-                {pm.decided ? (
-                    pm.validated ? (
-                        <span className="px-6 py-3 rounded-lg font-semibold bg-green-600 border-2 border-green-400 text-white shadow-lg shadow-green-500/30">
-                            ✅ Validée ({pm.mission.points} pts)
-                        </span>
+    const getMissionIcon = (type: string) => {
+        if (type === 'START') return '⚔️';
+        if (type === 'MID') return '⚡';
+        return '🔥';
+    };
+
+    const getMissionLabel = (type: string) => {
+        if (type === 'START') return 'Début';
+        if (type === 'MID') return 'MID';
+        return 'Finale';
+    };
+
+    const getMissionColor = (type: string) => {
+        if (type === 'START') return 'blue';
+        if (type === 'MID') return 'purple';
+        return 'red';
+    };
+
+    const MissionRow = ({ pm, type }: { pm: any; type: string }) => {
+        const color = getMissionColor(type);
+        const validated = pm.decided && pm.validated;
+        const failed = pm.decided && !pm.validated;
+
+        return (
+            <div className={`flex items-start gap-4 p-4 rounded-lg border transition-all ${
+                validated
+                    ? 'bg-green-900/30 border-green-500/50'
+                    : failed
+                        ? 'bg-red-900/30 border-red-500/50'
+                        : pm.mission.isPrivate
+                            ? 'bg-purple-900/30 border-purple-500/40'
+                            : `bg-${color}-900/20 border-${color}-500/30`
+            }`}>
+                <span className="text-2xl flex-shrink-0 mt-0.5">{getMissionIcon(type)}</span>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-sm font-semibold uppercase ${
+                            color === 'blue' ? 'text-blue-400' :
+                            color === 'purple' ? 'text-purple-400' : 'text-red-400'
+                        }`}>{getMissionLabel(type)}</span>
+                        {pm.mission.isPrivate && <span>🔒</span>}
+                        <span className="text-sm lol-text-gold">+{pm.mission.points} pts</span>
+                    </div>
+                    <p className="lol-text-light leading-relaxed">{pm.mission.text}</p>
+                </div>
+                <div className="flex-shrink-0">
+                    {pm.decided ? (
+                        validated ? (
+                            <span className="px-4 py-2 rounded-lg font-semibold bg-green-600 border border-green-400 text-white">
+                                ✅ +{pm.mission.points}
+                            </span>
+                        ) : (
+                            <span className="px-4 py-2 rounded-lg font-semibold bg-red-600 border border-red-400 text-white">
+                                ❌ 0
+                            </span>
+                        )
                     ) : (
-                        <span className="px-6 py-3 rounded-lg font-semibold bg-red-600 border-2 border-red-400 text-white shadow-lg shadow-red-500/30">
-                            ❌ Échouée
+                        <span className="px-4 py-2 rounded-lg text-sm lol-text italic bg-[#1E2328] border border-[#C8AA6E]/20">
+                            En attente...
                         </span>
-                    )
-                ) : (
-                    <span className="lol-text italic text-sm">En attente de décision...</span>
-                )}
+                    )}
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="lol-card rounded-lg p-6 text-center">
-                <div className="text-4xl mb-2 animate-bounce">⏳</div>
-                <h1 className="text-3xl font-bold lol-title-gold mb-1 uppercase tracking-wide">Validation en cours...</h1>
-                <p className="lol-text">
-                    Invocateur <span className="font-bold lol-text-gold">{currentIndex + 1}</span> / {players.length}
-                </p>
-                <div className="flex gap-2 justify-center mt-4">
+            <div className="lol-card rounded-lg p-6">
+                <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1 text-center">
+                        <div className="text-4xl mb-2 animate-bounce">⏳</div>
+                        <h1 className="text-3xl font-bold lol-title-gold mb-1 uppercase tracking-wide">Validation en cours...</h1>
+                        <p className="lol-text">
+                            Invocateur <span className="font-bold lol-text-gold">{currentIndex + 1}</span> / {players.length}
+                        </p>
+                    </div>
+                    <LeaveRoomButton roomCode={roomCode} />
+                </div>
+                <div className="flex gap-2 justify-center">
                     {players.map((_: any, i: number) => (
                         <div
                             key={i}
@@ -77,26 +128,29 @@ export function ValidationSpectator({ room }: ValidationSpectatorProps) {
 
             {/* Current player */}
             {currentPlayer && (
-                <div className="lol-card rounded-lg p-8 border-2 border-[#0AC8B9]/50 shadow-lg shadow-[#0AC8B9]/20">
-                    <div className="flex items-center justify-center gap-4 mb-8">
+                <div className="lol-card rounded-lg p-5 border-2 border-[#0AC8B9]/50 shadow-lg shadow-[#0AC8B9]/20">
+                    <div className="flex items-center gap-3 mb-4">
                         {currentPlayer.avatar ? (
                             <img
                                 src={currentPlayer.avatar}
                                 alt={currentPlayer.name}
-                                className="w-16 h-16 rounded-full border-4 border-[#C8AA6E]"
+                                className="w-12 h-12 rounded-full border-2 border-[#C8AA6E]"
                             />
                         ) : (
-                            <div className="w-16 h-16 bg-gradient-to-br from-[#C8AA6E] to-[#785A28] rounded-full flex items-center justify-center text-[#010A13] font-bold text-2xl">
+                            <div className="w-12 h-12 bg-gradient-to-br from-[#C8AA6E] to-[#785A28] rounded-full flex items-center justify-center text-[#010A13] font-bold text-xl">
                                 {currentPlayer.name.charAt(0).toUpperCase()}
                             </div>
                         )}
-                        <h2 className="text-3xl font-bold lol-text-light">{currentPlayer.name}</h2>
+                        <div>
+                            <h2 className="text-xl font-bold lol-text-light">{currentPlayer.name}</h2>
+                            <p className="text-xs lol-text">{currentPlayer.missions.length} mission{currentPlayer.missions.length > 1 ? 's' : ''}</p>
+                        </div>
                     </div>
 
-                    <div className="space-y-8">
-                        {lateMission && <MissionRow pm={lateMission} type="LATE" />}
-                        {midMission && <MissionRow pm={midMission} type="MID" />}
+                    <div className="space-y-3">
                         {startMission && <MissionRow pm={startMission} type="START" />}
+                        {midMission && <MissionRow pm={midMission} type="MID" />}
+                        {lateMission && <MissionRow pm={lateMission} type="LATE" />}
                     </div>
                 </div>
             )}

@@ -31,10 +31,8 @@ export function JoinRoomForm() {
 
             const data = await response.json();
 
-            // Stocke le token du joueur
             localStorage.setItem(`room_${roomCode}_player`, data.player.token);
 
-            // Redirige vers la room
             router.push(`/room/${roomCode}`);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred');
@@ -45,7 +43,7 @@ export function JoinRoomForm() {
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-                <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="code" className="block text-xs font-semibold text-purple-300/70 uppercase tracking-wider mb-2">
                     Code de la room
                 </label>
                 <input
@@ -55,13 +53,13 @@ export function JoinRoomForm() {
                     onChange={(e) => setCode(e.target.value.toUpperCase())}
                     required
                     maxLength={6}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 uppercase text-gray-900 bg-white"
-                    placeholder="Ex: ABC123"
+                    className="arcane-input w-full px-4 py-3 text-sm uppercase tracking-widest font-mono text-center"
+                    placeholder="ABC123"
                 />
             </div>
 
             <div>
-                <label htmlFor="join-name" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="join-name" className="block text-xs font-semibold text-purple-300/70 uppercase tracking-wider mb-2">
                     Ton nom
                 </label>
                 <input
@@ -71,13 +69,13 @@ export function JoinRoomForm() {
                     onChange={(e) => setName(e.target.value)}
                     required
                     maxLength={50}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 bg-white"
+                    className="arcane-input w-full px-4 py-3 text-sm"
                     placeholder="Entre ton pseudo"
                 />
             </div>
 
             {error && (
-                <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+                <div className="p-3 bg-red-500/15 border border-red-500/30 text-red-400 rounded-lg text-sm">
                     {error}
                 </div>
             )}
@@ -85,9 +83,19 @@ export function JoinRoomForm() {
             <button
                 type="submit"
                 disabled={loading || !name.trim() || !code.trim()}
-                className="w-full py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="arcane-btn-cyan w-full py-3.5 px-4"
             >
-                {loading ? 'Connexion...' : 'Rejoindre la room'}
+                {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Connexion...
+                    </span>
+                ) : (
+                    'Rejoindre la room'
+                )}
             </button>
         </form>
     );

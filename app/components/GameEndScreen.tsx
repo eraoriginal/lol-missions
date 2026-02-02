@@ -19,7 +19,7 @@ export function GameEndScreen({ room, roomCode, isCreator }: GameEndScreenProps)
         if (isCreator) {
             return <ValidationScreen room={room} roomCode={roomCode} />;
         }
-        return <ValidationSpectator room={room} />;
+        return <ValidationSpectator room={room} roomCode={roomCode} />;
     }
 
     const handleRestart = async () => {

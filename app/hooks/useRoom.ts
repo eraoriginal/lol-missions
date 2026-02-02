@@ -144,7 +144,7 @@ export function useRoom(roomCode: string | null) {
         fetchRoom('initial');
     }, [roomCode]);
 
-    // Subscription Pusher + polling fallback
+    // Subscription Pusher (real-time updates)
     useEffect(() => {
         if (!roomCode || error) return;
 
@@ -159,27 +159,9 @@ export function useRoom(roomCode: string | null) {
             fetchRoom('pusher');
         });
 
-        // Polling fallback - only for ARAM during active game
-        // Codename uses direct Pusher events for interest updates, no polling needed
-        const pollingInterval = setInterval(() => {
-            const currentRoom = roomRef.current;
-            if (!currentRoom) return;
-
-            // ARAM: polling during active game only
-            const isActiveAramGame = currentRoom.gameType === 'aram-missions' &&
-                                     currentRoom.gameStarted &&
-                                     !currentRoom.gameStopped;
-
-            if (isActiveAramGame) {
-                console.log('[useRoom] Polling fallback (ARAM)');
-                fetchRoom('polling');
-            }
-        }, 3000);
-
         return () => {
             console.log(`[useRoom] Unsubscribing from Pusher channel: ${channelName}`);
             pusher.unsubscribe(channelName);
-            clearInterval(pollingInterval);
         };
     }, [roomCode, error, fetchRoom]);
 

@@ -18,6 +18,26 @@
   --lol-purple: #8559A5;
   --lol-text: #A09B8C;
   --lol-text-light: #F0E6D2;
+
+  /* Arcane Theme Colors - Fortiche Style */
+  --arcane-bg-deep: #1a0a1f;
+  --arcane-bg: #251432;
+  --arcane-bg-light: #3d2254;
+  --arcane-violet-deep: #2d1b4e;
+  --arcane-violet: #6b3fa0;
+  --arcane-violet-light: #9b6dcc;
+  --arcane-pink: #e91e63;
+  --arcane-pink-hot: #ff1493;
+  --arcane-pink-light: #f48fb1;
+  --arcane-cyan: #26c6da;
+  --arcane-cyan-bright: #4dd0e1;
+  --arcane-gold: #d4a03a;
+  --arcane-gold-light: #f0c060;
+  --arcane-bronze: #cd853f;
+  --arcane-green: #39ff14;
+  --arcane-green-dim: #2e7d32;
+  --arcane-text: #c9b8d4;
+  --arcane-text-light: #f3e5f5;
 }
 
 @theme inline {
@@ -594,4 +614,412 @@ body {
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(37, 99, 235, 0.3) 100%);
   border: 1px solid rgba(59, 130, 246, 0.5);
   color: #93c5fd;
+}
+
+/* ========== ARCANE THEME (Fortiche Style) ========== */
+
+/* Background - deep violet with atmospheric fog */
+.arcane-bg {
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(107, 63, 160, 0.25) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 80%, rgba(233, 30, 99, 0.15) 0%, transparent 45%),
+    radial-gradient(ellipse at 90% 30%, rgba(38, 198, 218, 0.1) 0%, transparent 40%),
+    radial-gradient(ellipse at 10% 70%, rgba(57, 255, 20, 0.05) 0%, transparent 35%),
+    linear-gradient(180deg, #1a0a1f 0%, #251432 40%, #3d2254 70%, #251432 100%);
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Fog/mist overlay */
+.arcane-bg::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(ellipse at 50% 100%, rgba(61, 34, 84, 0.4) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Card - dark violet glass */
+.arcane-card {
+  background: linear-gradient(135deg, rgba(37, 20, 50, 0.95) 0%, rgba(26, 10, 31, 0.95) 100%);
+  border: 1px solid rgba(107, 63, 160, 0.3);
+  border-radius: 16px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 0 60px rgba(107, 63, 160, 0.1),
+    inset 0 1px 0 rgba(155, 109, 204, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.arcane-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(233, 30, 99, 0.5), rgba(38, 198, 218, 0.4), transparent);
+}
+
+/* Game card for selector */
+.arcane-game-card {
+  background: linear-gradient(135deg, rgba(45, 27, 78, 0.6) 0%, rgba(37, 20, 50, 0.6) 100%);
+  border: 1px solid rgba(107, 63, 160, 0.25);
+  border-radius: 12px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.arcane-game-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(233, 30, 99, 0.08) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.arcane-game-card:hover::before {
+  opacity: 1;
+}
+
+.arcane-game-card:hover {
+  border-color: rgba(233, 30, 99, 0.5);
+  box-shadow:
+    0 0 30px rgba(233, 30, 99, 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.4);
+  transform: translateY(-2px);
+}
+
+.arcane-game-card.selected {
+  border-color: rgba(38, 198, 218, 0.6);
+  box-shadow:
+    0 0 25px rgba(38, 198, 218, 0.25),
+    0 0 50px rgba(38, 198, 218, 0.1);
+}
+
+.arcane-game-card.selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(38, 198, 218, 0.1) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* Title text */
+.arcane-title {
+  color: #f3e5f5;
+  font-weight: 300;
+  letter-spacing: 0.08em;
+}
+
+.arcane-title-accent {
+  background: linear-gradient(135deg, #ff1493 0%, #e91e63 40%, #9b6dcc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.arcane-title-glow {
+  color: #f3e5f5;
+  text-shadow:
+    0 0 20px rgba(233, 30, 99, 0.5),
+    0 0 40px rgba(107, 63, 160, 0.3);
+}
+
+/* Body text */
+.arcane-text {
+  color: #c9b8d4;
+}
+
+.arcane-text-dim {
+  color: #8b7a9e;
+}
+
+.arcane-text-light {
+  color: #f3e5f5;
+}
+
+/* Primary button - hot pink/magenta */
+.arcane-btn {
+  background: linear-gradient(135deg, #e91e63 0%, #9b6dcc 100%);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.arcane-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 20, 147, 0.4) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.arcane-btn:hover::before {
+  opacity: 1;
+}
+
+.arcane-btn:hover {
+  box-shadow:
+    0 0 30px rgba(233, 30, 99, 0.5),
+    0 0 60px rgba(233, 30, 99, 0.2);
+  transform: translateY(-2px);
+}
+
+.arcane-btn:active {
+  transform: translateY(0);
+}
+
+.arcane-btn:disabled {
+  background: linear-gradient(135deg, #3d2254 0%, #251432 100%);
+  color: #8b7a9e;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Secondary button */
+.arcane-btn-secondary {
+  background: rgba(45, 27, 78, 0.5);
+  border: 1px solid rgba(107, 63, 160, 0.4);
+  border-radius: 8px;
+  color: #c9b8d4;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  transition: all 0.3s;
+}
+
+.arcane-btn-secondary:hover {
+  border-color: rgba(233, 30, 99, 0.5);
+  color: #f3e5f5;
+  background: rgba(233, 30, 99, 0.15);
+}
+
+/* Cyan accent button (Jinx style) */
+.arcane-btn-cyan {
+  background: linear-gradient(135deg, #26c6da 0%, #4dd0e1 100%);
+  border: none;
+  border-radius: 8px;
+  color: #1a0a1f;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  transition: all 0.3s;
+}
+
+.arcane-btn-cyan:hover {
+  box-shadow:
+    0 0 30px rgba(38, 198, 218, 0.5),
+    0 0 60px rgba(38, 198, 218, 0.2);
+  transform: translateY(-2px);
+}
+
+.arcane-btn-cyan:disabled {
+  background: linear-gradient(135deg, #3d2254 0%, #251432 100%);
+  color: #8b7a9e;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Gold button (Piltover style) */
+.arcane-btn-gold {
+  background: linear-gradient(135deg, #d4a03a 0%, #f0c060 50%, #cd853f 100%);
+  border: none;
+  border-radius: 8px;
+  color: #1a0a1f;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  transition: all 0.3s;
+}
+
+.arcane-btn-gold:hover {
+  box-shadow:
+    0 0 30px rgba(212, 160, 58, 0.5),
+    0 0 60px rgba(212, 160, 58, 0.2);
+}
+
+/* Input field */
+.arcane-input {
+  background: rgba(26, 10, 31, 0.8);
+  border: 1px solid rgba(107, 63, 160, 0.3);
+  border-radius: 8px;
+  color: #f3e5f5;
+  transition: all 0.3s;
+}
+
+.arcane-input:focus {
+  border-color: rgba(233, 30, 99, 0.6);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(233, 30, 99, 0.15);
+}
+
+.arcane-input::placeholder {
+  color: #6b5b7a;
+}
+
+/* Badge - Pink */
+.arcane-badge {
+  background: rgba(233, 30, 99, 0.2);
+  border: 1px solid rgba(233, 30, 99, 0.4);
+  border-radius: 6px;
+  color: #ff1493;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Badge - Cyan (Jinx) */
+.arcane-badge-cyan {
+  background: rgba(38, 198, 218, 0.2);
+  border: 1px solid rgba(38, 198, 218, 0.4);
+  color: #4dd0e1;
+}
+
+/* Badge - Gold */
+.arcane-badge-gold {
+  background: rgba(212, 160, 58, 0.2);
+  border: 1px solid rgba(212, 160, 58, 0.4);
+  color: #f0c060;
+}
+
+/* Badge - Green (Shimmer) */
+.arcane-badge-green {
+  background: rgba(57, 255, 20, 0.15);
+  border: 1px solid rgba(57, 255, 20, 0.3);
+  color: #39ff14;
+}
+
+.arcane-badge-dim {
+  background: rgba(139, 122, 158, 0.2);
+  border: 1px solid rgba(139, 122, 158, 0.3);
+  color: #8b7a9e;
+}
+
+/* Divider */
+.arcane-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(107, 63, 160, 0.5), transparent);
+  border: none;
+}
+
+/* Icon container - Pink (Vi style) */
+.arcane-icon {
+  background: linear-gradient(135deg, rgba(233, 30, 99, 0.2) 0%, rgba(107, 63, 160, 0.2) 100%);
+  border: 1px solid rgba(233, 30, 99, 0.3);
+  border-radius: 12px;
+}
+
+/* Icon container - Cyan (Jinx style) */
+.arcane-icon-cyan {
+  background: linear-gradient(135deg, rgba(38, 198, 218, 0.2) 0%, rgba(77, 208, 225, 0.15) 100%);
+  border: 1px solid rgba(38, 198, 218, 0.3);
+}
+
+/* Icon container - Gold (Piltover style) */
+.arcane-icon-gold {
+  background: linear-gradient(135deg, rgba(212, 160, 58, 0.2) 0%, rgba(205, 133, 63, 0.15) 100%);
+  border: 1px solid rgba(212, 160, 58, 0.3);
+}
+
+/* Icon container - Green (Shimmer) */
+.arcane-icon-green {
+  background: linear-gradient(135deg, rgba(57, 255, 20, 0.15) 0%, rgba(46, 125, 50, 0.15) 100%);
+  border: 1px solid rgba(57, 255, 20, 0.25);
+}
+
+/* Glow effects */
+.arcane-glow-pink {
+  box-shadow: 0 0 40px rgba(233, 30, 99, 0.4);
+}
+
+.arcane-glow-cyan {
+  box-shadow: 0 0 40px rgba(38, 198, 218, 0.4);
+}
+
+.arcane-glow-gold {
+  box-shadow: 0 0 40px rgba(212, 160, 58, 0.4);
+}
+
+.arcane-glow-green {
+  box-shadow: 0 0 40px rgba(57, 255, 20, 0.3);
+}
+
+/* Shimmer pulse animation */
+@keyframes arcane-shimmer-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(57, 255, 20, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(57, 255, 20, 0.4);
+  }
+}
+
+.arcane-shimmer-pulse {
+  animation: arcane-shimmer-pulse 2s ease-in-out infinite;
+}
+
+/* Step indicator */
+.arcane-step {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1.25rem;
+  transition: all 0.3s;
+}
+
+.arcane-step-pink {
+  background: linear-gradient(135deg, rgba(233, 30, 99, 0.25) 0%, rgba(107, 63, 160, 0.2) 100%);
+  border: 1px solid rgba(233, 30, 99, 0.4);
+  color: #ff1493;
+}
+
+.arcane-step-violet {
+  background: linear-gradient(135deg, rgba(107, 63, 160, 0.25) 0%, rgba(45, 27, 78, 0.2) 100%);
+  border: 1px solid rgba(107, 63, 160, 0.4);
+  color: #9b6dcc;
+}
+
+.arcane-step-cyan {
+  background: linear-gradient(135deg, rgba(38, 198, 218, 0.2) 0%, rgba(77, 208, 225, 0.15) 100%);
+  border: 1px solid rgba(38, 198, 218, 0.4);
+  color: #4dd0e1;
+}
+
+.arcane-step-gold {
+  background: linear-gradient(135deg, rgba(212, 160, 58, 0.2) 0%, rgba(205, 133, 63, 0.15) 100%);
+  border: 1px solid rgba(212, 160, 58, 0.4);
+  color: #f0c060;
+}
+
+.arcane-step-green {
+  background: linear-gradient(135deg, rgba(57, 255, 20, 0.15) 0%, rgba(46, 125, 50, 0.1) 100%);
+  border: 1px solid rgba(57, 255, 20, 0.3);
+  color: #39ff14;
 }

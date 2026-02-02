@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TeamSelector } from '@/app/components/TeamSelector';
-import { PlayerList } from '@/app/components/PlayerList';
 import { RulesModal } from './RulesModal';
 
 interface Player {
@@ -30,7 +29,8 @@ interface CodenameRoomLobbyProps {
 export function CodenameRoomLobby({ room, roomCode }: CodenameRoomLobbyProps) {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const router = useRouter();
@@ -102,11 +102,21 @@ export function CodenameRoomLobby({ room, roomCode }: CodenameRoomLobbyProps) {
   const shareUrl =
     typeof window !== 'undefined' ? `${window.location.origin}/room/${roomCode}` : '';
 
-  const copyToClipboard = async () => {
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 3000);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
     }
@@ -114,16 +124,36 @@ export function CodenameRoomLobby({ room, roomCode }: CodenameRoomLobbyProps) {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="poki-panel p-5">
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold poki-title mb-1">
+      {/* Header compact */}
+      <div className="poki-panel p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold poki-title">
               🕵️ Codename du CEO
             </h1>
-            <p className="text-purple-300/70 text-sm">
-              Room : <span className="font-mono font-bold text-pink-400">{roomCode}</span>
-            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={copyCode}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-mono text-lg font-bold transition-all ${
+                  copiedCode
+                    ? 'bg-green-500/20 border border-green-500 text-green-400'
+                    : 'bg-[#1a0525] border border-pink-500/50 text-pink-400 hover:border-pink-500 hover:bg-pink-500/10'
+                }`}
+                title="Copier le code"
+              >
+                {roomCode}
+                <span className="text-sm">{copiedCode ? '✓' : '📋'}</span>
+              </button>
+              <button
+                onClick={copyLink}
+                className={`poki-btn-secondary px-3 py-1.5 rounded-lg text-sm ${
+                  copiedLink ? 'border-green-500 text-green-400' : ''
+                }`}
+                title="Copier le lien"
+              >
+                {copiedLink ? '✓' : '🔗'} Lien
+              </button>
+            </div>
           </div>
           <div className="flex gap-2">
             <RulesModal />
@@ -136,38 +166,7 @@ export function CodenameRoomLobby({ room, roomCode }: CodenameRoomLobbyProps) {
             </button>
           </div>
         </div>
-
-        <div className="poki-divider"></div>
-
-        {/* Share link */}
-        <div className="max-w-2xl mx-auto mt-4">
-          <p className="text-sm text-purple-300/70 mb-2">Partage ce lien avec tes amis :</p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={shareUrl}
-              readOnly
-              className="poki-input flex-1 px-3 py-2 text-sm"
-            />
-            <button
-              onClick={copyToClipboard}
-              className={`poki-btn-secondary px-4 py-2 transition-all ${
-                copied ? 'border-green-500 text-green-400' : ''
-              }`}
-            >
-              {copied ? '✓ Copié !' : '📋 Copier'}
-            </button>
-          </div>
-          {copied && (
-            <div className="mt-2 p-2 bg-green-500/20 border border-green-500/50 text-green-400 rounded-lg text-sm text-center">
-              ✓ Lien copié dans le presse-papier !
-            </div>
-          )}
-        </div>
       </div>
-
-      {/* Player list */}
-      <PlayerList players={room.players} />
 
       {/* Team selector */}
       <TeamSelector

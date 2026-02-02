@@ -3,132 +3,159 @@ import { JoinRoomForm } from './components/JoinRoomForm';
 
 export default function Home() {
   return (
-      <main className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 p-4">
-        <div className="max-w-6xl mx-auto py-12">
-          {/* Header */}
-          <div className="text-center mb-12">
-            <h1 className="text-5xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
-              🎮 Le bureau du Mari de Poki
-            </h1>
-            <p className="text-xl md:text-2xl text-gray-200 drop-shadow-md">
-              Des mini-jeux fun pour animer vos soirées entre amis !
-            </p>
+    <main className="arcane-bg min-h-screen p-4 relative overflow-hidden">
+      <div className="max-w-5xl mx-auto py-12 md:py-16 relative z-10">
+        {/* Header */}
+        <header className="text-center mb-12 md:mb-16">
+          <h1 className="text-4xl md:text-6xl font-light text-purple-100 mb-4 tracking-wide">
+            Le bureau du{' '}
+            <span className="arcane-title-accent block md:inline">Mari de Poki</span>
+          </h1>
+          <p className="text-lg text-purple-300/70 tracking-wide">
+            Mini-jeux pour vos soirées entre amis
+          </p>
+        </header>
+
+        {/* Forms Grid */}
+        <div className="grid lg:grid-cols-2 gap-6 mb-16">
+          {/* Create Room */}
+          <div className="arcane-card p-6 md:p-8">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="arcane-icon w-14 h-14 flex items-center justify-center">
+                <svg className="w-7 h-7 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-purple-100">
+                  Créer une room
+                </h2>
+                <p className="text-sm text-purple-300/60">
+                  Lance une nouvelle partie
+                </p>
+              </div>
+            </div>
+            <CreateRoomForm />
           </div>
 
-          {/* Forms Grid */}
-          <div className="grid lg:grid-cols-2 gap-8 mb-16">
-            {/* Create Room */}
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border-2 border-white/20 hover:shadow-3xl transition-all">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-2xl">
-                  ✨
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-800">
-                    Créer une room
-                  </h2>
-                  <p className="text-sm text-gray-500">
-                    Lance une nouvelle partie
-                  </p>
-                </div>
+          {/* Join Room */}
+          <div className="arcane-card p-6 md:p-8">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="arcane-icon-cyan w-14 h-14 flex items-center justify-center">
+                <svg className="w-7 h-7 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
               </div>
-              <CreateRoomForm />
-            </div>
-
-            {/* Join Room */}
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border-2 border-white/20 hover:shadow-3xl transition-all">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl flex items-center justify-center text-2xl">
-                  🚀
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-800">
-                    Rejoindre une room
-                  </h2>
-                  <p className="text-sm text-gray-500">
-                    Entre le code de ton ami
-                  </p>
-                </div>
-              </div>
-              <JoinRoomForm />
-            </div>
-          </div>
-
-          {/* How it works */}
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 md:p-12 border border-white/20">
-            <h3 className="text-3xl font-bold text-white mb-8 text-center">
-              💡 Comment ça marche ?
-            </h3>
-            <div className="grid md:grid-cols-3 gap-8">
-              {/* Étape 1 */}
-              <div className="text-center group">
-                <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center text-4xl font-bold text-white shadow-lg transform group-hover:scale-110 transition-transform">
-                  1
-                </div>
-                <h4 className="text-xl font-bold text-white mb-3">Choisis ton jeu</h4>
-                <p className="text-gray-200 leading-relaxed">
-                  Sélectionne parmi plusieurs mini-jeux disponibles et crée ta room
-                </p>
-              </div>
-
-              {/* Étape 2 */}
-              <div className="text-center group">
-                <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center text-4xl font-bold text-white shadow-lg transform group-hover:scale-110 transition-transform">
-                  2
-                </div>
-                <h4 className="text-xl font-bold text-white mb-3">Invite tes amis</h4>
-                <p className="text-gray-200 leading-relaxed">
-                  Partage le code de la room avec tes amis (jusqu'à 10 joueurs)
-                </p>
-              </div>
-
-              {/* Étape 3 */}
-              <div className="text-center group">
-                <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-pink-400 to-pink-600 rounded-2xl flex items-center justify-center text-4xl font-bold text-white shadow-lg transform group-hover:scale-110 transition-transform">
-                  3
-                </div>
-                <h4 className="text-xl font-bold text-white mb-3">Amusez-vous !</h4>
-                <p className="text-gray-200 leading-relaxed">
-                  Lancez la partie et profitez d'un moment fun entre amis
+              <div>
+                <h2 className="text-xl font-semibold text-purple-100">
+                  Rejoindre une room
+                </h2>
+                <p className="text-sm text-purple-300/60">
+                  Entre le code de ton ami
                 </p>
               </div>
             </div>
-
-            {/* Feature highlights */}
-            <div className="mt-12 pt-8 border-t border-white/20">
-              <div className="grid md:grid-cols-2 gap-6 text-white">
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">🎯</span>
-                  <div>
-                    <h5 className="font-semibold mb-1">ARAM Missions</h5>
-                    <p className="text-sm text-gray-300">Missions secrètes pour pimenter vos parties League of Legends</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">🕵️</span>
-                  <div>
-                    <h5 className="font-semibold mb-1">Codename du CEO</h5>
-                    <p className="text-sm text-gray-300">Jeu d'équipe inspiré de Codenames avec thème LoL</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">☕</span>
-                  <div>
-                    <h5 className="font-semibold mb-1">Quiz de la salle de pause</h5>
-                    <p className="text-sm text-gray-300">Questions amusantes entre collègues (bientôt disponible)</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">✨</span>
-                  <div>
-                    <h5 className="font-semibold mb-1">Et plus encore !</h5>
-                    <p className="text-sm text-gray-300">De nouveaux jeux arrivent régulièrement</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <JoinRoomForm />
           </div>
         </div>
-      </main>
+
+        {/* How it works */}
+        <section className="mb-16">
+          <h3 className="text-sm font-semibold text-purple-400/80 uppercase tracking-widest text-center mb-10">
+            Comment ça marche
+          </h3>
+          <div className="grid md:grid-cols-3 gap-6 md:gap-8">
+            {/* Step 1 */}
+            <div className="text-center group">
+              <div className="arcane-step arcane-step-pink mx-auto mb-4 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-pink-500/20 transition-all">
+                1
+              </div>
+              <h4 className="text-base font-semibold text-purple-100 mb-2">Choisis ton jeu</h4>
+              <p className="text-sm text-purple-300/60 leading-relaxed">
+                Sélectionne parmi les mini-jeux
+              </p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="text-center group">
+              <div className="arcane-step arcane-step-gold mx-auto mb-4 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-amber-500/20 transition-all">
+                2
+              </div>
+              <h4 className="text-base font-semibold text-purple-100 mb-2">Invite tes amis</h4>
+              <p className="text-sm text-purple-300/60 leading-relaxed">
+                Partage le code de la room
+              </p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="text-center group">
+              <div className="arcane-step arcane-step-cyan mx-auto mb-4 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-cyan-500/20 transition-all">
+                3
+              </div>
+              <h4 className="text-base font-semibold text-purple-100 mb-2">Jouez</h4>
+              <p className="text-sm text-purple-300/60 leading-relaxed">
+                Lancez la partie et amusez-vous
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Games list */}
+        <section>
+          <h3 className="text-sm font-semibold text-purple-400/80 uppercase tracking-widest text-center mb-8">
+            Jeux disponibles
+          </h3>
+          <div className="grid sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-purple-900/20 border border-purple-500/20 hover:border-pink-500/30 hover:bg-purple-900/30 transition-all">
+              <div className="arcane-step arcane-step-pink w-12 h-12 text-base">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <h5 className="text-sm font-semibold text-purple-100">ARAM Missions</h5>
+                <p className="text-xs text-purple-300/50">Missions secrètes pour vos parties LoL</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-purple-900/20 border border-purple-500/20 hover:border-cyan-500/30 hover:bg-purple-900/30 transition-all">
+              <div className="arcane-step arcane-step-cyan w-12 h-12 text-base">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <div>
+                <h5 className="text-sm font-semibold text-purple-100">Codename du CEO</h5>
+                <p className="text-xs text-purple-300/50">Jeu de mots en équipe</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-purple-900/10 border border-purple-500/10 opacity-50">
+              <div className="arcane-step arcane-step-gold w-12 h-12 text-base opacity-50">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <h5 className="text-sm font-medium text-purple-300/50">Quiz de la salle de pause</h5>
+                <p className="text-xs text-purple-400/30">Bientôt disponible</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-purple-900/10 border border-purple-500/10 opacity-50">
+              <div className="arcane-step arcane-step-green w-12 h-12 text-base opacity-50">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+              </div>
+              <div>
+                <h5 className="text-sm font-medium text-purple-300/50">Plus à venir</h5>
+                <p className="text-xs text-purple-400/30">De nouveaux jeux arrivent</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }

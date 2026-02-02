@@ -22,7 +22,7 @@ export function CreateRoomForm() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     creatorName: name,
-                    gameType: selectedGame, // 🆕 Envoie le type de jeu
+                    gameType: selectedGame,
                 }),
             });
 
@@ -32,11 +32,9 @@ export function CreateRoomForm() {
 
             const data = await response.json();
 
-            // Stocke les tokens dans localStorage
             localStorage.setItem(`room_${data.room.code}_creator`, data.creatorToken);
             localStorage.setItem(`room_${data.room.code}_player`, data.playerToken);
 
-            // Redirige vers la room
             router.push(`/room/${data.room.code}`);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred');
@@ -46,9 +44,8 @@ export function CreateRoomForm() {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Nom du joueur */}
             <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="name" className="block text-xs font-semibold text-purple-300/70 uppercase tracking-wider mb-2">
                     Ton nom
                 </label>
                 <input
@@ -58,19 +55,18 @@ export function CreateRoomForm() {
                     onChange={(e) => setName(e.target.value)}
                     required
                     maxLength={50}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                    className="arcane-input w-full px-4 py-3 text-sm"
                     placeholder="Entre ton pseudo"
                 />
             </div>
 
-            {/* 🆕 Sélection du jeu */}
             <GameSelector
                 selectedGame={selectedGame}
                 onSelectGame={setSelectedGame}
             />
 
             {error && (
-                <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+                <div className="p-3 bg-red-500/15 border border-red-500/30 text-red-400 rounded-lg text-sm">
                     {error}
                 </div>
             )}
@@ -78,9 +74,19 @@ export function CreateRoomForm() {
             <button
                 type="submit"
                 disabled={loading || !name.trim()}
-                className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="arcane-btn w-full py-3.5 px-4"
             >
-                {loading ? 'Création...' : 'Créer une room'}
+                {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Création...
+                    </span>
+                ) : (
+                    'Créer une room'
+                )}
             </button>
         </form>
     );

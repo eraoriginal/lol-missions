@@ -27,6 +27,9 @@ export function TeamSelector({ players, roomCode, currentPlayerToken }: TeamSele
     const currentPlayer = players.find(p => p.token === currentPlayerToken);
     const myTeam = currentPlayer?.team || '';
 
+    // Le créateur est toujours le premier joueur de la liste
+    const creatorId = players[0]?.id;
+
     const selectTeam = async (team: string) => {
         if (!currentPlayerToken || team === myTeam) return;
         setLoading(true);
@@ -51,7 +54,7 @@ export function TeamSelector({ players, roomCode, currentPlayerToken }: TeamSele
         }
     };
 
-    const PlayerSlot = ({ player }: { player: Player }) => (
+    const PlayerSlot = ({ player, showCrown = false }: { player: Player; showCrown?: boolean }) => (
         <div className="flex items-center gap-2 bg-black/30 rounded-lg p-2 border border-white/10">
             {player.avatar ? (
                 <img src={player.avatar} alt={player.name} className="w-8 h-8 rounded-full border border-[#C8AA6E]" />
@@ -60,66 +63,86 @@ export function TeamSelector({ players, roomCode, currentPlayerToken }: TeamSele
                     {player.name.charAt(0).toUpperCase()}
                 </div>
             )}
-            <span className="lol-text-light text-sm font-medium truncate">{player.name}</span>
+            <span className="lol-text-light text-sm font-medium truncate flex-1">{player.name}</span>
+            {showCrown && (
+                <span className="lol-badge px-1.5 py-0.5 rounded text-xs">👑</span>
+            )}
         </div>
     );
 
-    const EmptySlot = () => (
-        <div className="flex items-center gap-2 bg-black/20 border border-dashed border-white/20 rounded-lg p-2">
-            <div className="w-8 h-8 rounded-full border border-dashed border-white/30 flex items-center justify-center">
-                <span className="text-white/20 text-lg">+</span>
+    const EmptySlot = ({ team, disabled }: { team: string; disabled?: boolean }) => (
+        <button
+            onClick={() => !disabled && selectTeam(team)}
+            disabled={disabled || loading}
+            className={`flex items-center gap-2 w-full rounded-lg p-2 border border-dashed transition-all text-left ${
+                disabled
+                    ? 'bg-black/10 border-white/10 cursor-not-allowed opacity-50'
+                    : team === 'red'
+                        ? 'bg-black/20 border-red-500/30 hover:border-red-500/60 hover:bg-red-900/30 cursor-pointer'
+                        : 'bg-black/20 border-blue-500/30 hover:border-blue-500/60 hover:bg-blue-900/30 cursor-pointer'
+            }`}
+        >
+            <div className={`w-8 h-8 rounded-full border border-dashed flex items-center justify-center ${
+                team === 'red' ? 'border-red-500/40' : 'border-blue-500/40'
+            }`}>
+                <span className={`text-lg ${team === 'red' ? 'text-red-500/40' : 'text-blue-500/40'}`}>+</span>
             </div>
-            <span className="text-white/20 text-sm italic">Libre</span>
-        </div>
+            <span className={`text-sm italic ${team === 'red' ? 'text-red-400/50' : 'text-blue-400/50'}`}>
+                {disabled ? 'Complet' : 'Rejoindre'}
+            </span>
+        </button>
     );
 
     return (
         <div className="space-y-4">
-            {/* Boutons de sélection d'équipe */}
-            <div className="lol-card rounded-lg p-6">
-                <h3 className="text-xl font-bold lol-title-gold mb-4 text-center">Choisis ton camp</h3>
-                <div className="flex gap-3 justify-center flex-wrap">
-                    <button
-                        onClick={() => selectTeam('red')}
-                        disabled={loading || myTeam === 'red'}
-                        className={`px-6 py-3 rounded-lg font-bold text-lg transition-all uppercase tracking-wide ${
-                            myTeam === 'red'
-                                ? 'bg-gradient-to-b from-red-500 to-red-700 text-white shadow-lg shadow-red-500/50 scale-105 border-2 border-red-400'
-                                : 'bg-[#1E2328] text-red-400 hover:bg-red-900/50 border-2 border-red-500/50 hover:border-red-500'
-                        } disabled:opacity-60 disabled:cursor-not-allowed`}
-                    >
-                        🔴 Rouge ({redTeam.length}/5)
-                    </button>
+            {/* Erreur */}
+            {error && (
+                <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-center">
+                    <p className="text-red-300 text-sm font-medium">{error}</p>
+                </div>
+            )}
 
-                    <button
-                        onClick={() => selectTeam('blue')}
-                        disabled={loading || myTeam === 'blue'}
-                        className={`px-6 py-3 rounded-lg font-bold text-lg transition-all uppercase tracking-wide ${
-                            myTeam === 'blue'
-                                ? 'bg-gradient-to-b from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-500/50 scale-105 border-2 border-blue-400'
-                                : 'bg-[#1E2328] text-blue-400 hover:bg-blue-900/50 border-2 border-blue-500/50 hover:border-blue-500'
-                        } disabled:opacity-60 disabled:cursor-not-allowed`}
-                    >
-                        🔵 Bleue ({blueTeam.length}/5)
-                    </button>
-
-                    <button
-                        onClick={() => selectTeam('')}
-                        disabled={loading || myTeam === ''}
-                        className={`px-6 py-3 rounded-lg font-bold text-lg transition-all uppercase tracking-wide ${
-                            myTeam === ''
-                                ? 'bg-gradient-to-b from-gray-500 to-gray-700 text-white shadow-lg shadow-gray-500/50 scale-105 border-2 border-gray-400'
-                                : 'bg-[#1E2328] text-gray-400 hover:bg-gray-800/50 border-2 border-gray-500/50 hover:border-gray-500'
-                        } disabled:opacity-60 disabled:cursor-not-allowed`}
-                    >
-                        👁️ Spectateur
-                    </button>
+            {/* Bloc fusionné : Invocateurs & Spectateurs */}
+            <div className="lol-card rounded-lg p-5">
+                <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-lg font-bold lol-title-gold flex items-center gap-2">
+                        👥 Invocateurs ({players.length}/10)
+                    </h4>
+                    {myTeam !== '' && (
+                        <button
+                            onClick={() => selectTeam('')}
+                            disabled={loading}
+                            className="lol-button px-4 py-1.5 rounded-lg text-sm font-medium transition-all hover:scale-105 disabled:opacity-50"
+                        >
+                            👁️ Devenir spectateur
+                        </button>
+                    )}
                 </div>
 
-                {error && (
-                    <div className="mt-4 p-3 bg-red-900/50 border border-red-500 rounded-lg text-center">
-                        <p className="text-red-300 text-sm font-medium">{error}</p>
+                {/* Liste des spectateurs */}
+                {spectators.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                        {spectators.map((p) => (
+                            <div key={p.id} className="flex items-center gap-2 bg-[#010A13] rounded-lg px-3 py-2 border border-[#C8AA6E]/20">
+                                {p.avatar ? (
+                                    <img src={p.avatar} alt={p.name} className="w-8 h-8 rounded-full border border-[#C8AA6E]" />
+                                ) : (
+                                    <div className="w-8 h-8 bg-gradient-to-br from-[#0AC8B9] to-[#0397AB] rounded-full flex items-center justify-center text-[#010A13] font-bold text-sm border border-[#C8AA6E]">
+                                        {p.name.charAt(0).toUpperCase()}
+                                    </div>
+                                )}
+                                <div className="flex flex-col">
+                                    <span className="lol-text-light text-sm font-medium">{p.name}</span>
+                                    <span className="text-xs lol-text">👁️ Spectateur</span>
+                                </div>
+                                {p.id === creatorId && (
+                                    <span className="lol-badge px-2 py-0.5 rounded text-xs ml-1">👑</span>
+                                )}
+                            </div>
+                        ))}
                     </div>
+                ) : (
+                    <p className="text-sm lol-text italic">Tous les joueurs sont dans une équipe</p>
                 )}
             </div>
 
@@ -136,9 +159,11 @@ export function TeamSelector({ players, roomCode, currentPlayerToken }: TeamSele
                         </span>
                     </div>
                     <div className="space-y-2">
-                        {redTeam.map(p => <PlayerSlot key={p.id} player={p} />)}
+                        {redTeam.map((p) => (
+                            <PlayerSlot key={p.id} player={p} showCrown={p.id === creatorId} />
+                        ))}
                         {Array.from({ length: 5 - redTeam.length }).map((_, i) => (
-                            <EmptySlot key={`red-empty-${i}`} />
+                            <EmptySlot key={`red-empty-${i}`} team="red" disabled={myTeam === 'red'} />
                         ))}
                     </div>
                 </div>
@@ -154,36 +179,15 @@ export function TeamSelector({ players, roomCode, currentPlayerToken }: TeamSele
                         </span>
                     </div>
                     <div className="space-y-2">
-                        {blueTeam.map(p => <PlayerSlot key={p.id} player={p} />)}
+                        {blueTeam.map((p) => (
+                            <PlayerSlot key={p.id} player={p} showCrown={p.id === creatorId} />
+                        ))}
                         {Array.from({ length: 5 - blueTeam.length }).map((_, i) => (
-                            <EmptySlot key={`blue-empty-${i}`} />
+                            <EmptySlot key={`blue-empty-${i}`} team="blue" disabled={myTeam === 'blue'} />
                         ))}
                     </div>
                 </div>
             </div>
-
-            {/* Spectateurs */}
-            {spectators.length > 0 && (
-                <div className="lol-card rounded-lg p-5">
-                    <h4 className="lol-text font-bold text-sm uppercase tracking-wide mb-3 flex items-center gap-2">
-                        👁️ Spectateurs ({spectators.length})
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                        {spectators.map(p => (
-                            <div key={p.id} className="flex items-center gap-2 bg-[#010A13] rounded-lg px-3 py-1.5 border border-[#C8AA6E]/20">
-                                {p.avatar ? (
-                                    <img src={p.avatar} alt={p.name} className="w-6 h-6 rounded-full" />
-                                ) : (
-                                    <div className="w-6 h-6 bg-gradient-to-br from-[#C8AA6E] to-[#785A28] rounded-full flex items-center justify-center text-[#010A13] font-bold text-xs">
-                                        {p.name.charAt(0).toUpperCase()}
-                                    </div>
-                                )}
-                                <span className="lol-text text-sm">{p.name}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
