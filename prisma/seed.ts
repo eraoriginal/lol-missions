@@ -66,7 +66,7 @@ async function main() {
         { text: "Acheter uniquement des objets qui commencent par la lettre de ton champion (hors bottes)",     type: "START", category: "items",        difficulty: "hard", points: 500, isPrivate: true },
         { text: "Acheter les mêmes items qu'un adversaire unique pendant toute la partie",                                      type: "START", category: "items",        difficulty: "hard", points: 500, isPrivate: true },
         { text: "Ne pas faire plus de 4 kills",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 500, isPrivate: true  },
-        { text: "Encenser le mode ARAM toutes les 3 minutes en finissant par \"N'est ce pas Thomas?\"",                                     type: "START", category: "Vocal",   difficulty: "easy",   points: 100, isPrivate: true  },
+        { text: "Encenser le mode ARAM toutes les 3 minutes en finissant par \"N'est ce pas Thomas?\". Si tu es Thomas, demande pardon à tout le monde.",                                     type: "START", category: "Vocal",   difficulty: "easy",   points: 100, isPrivate: true  },
         { text: "Être le joueur avec le plus de morts de la partie",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 500, isPrivate: true  },
         { text: "Être le joueur avec le moins de morts de la partie",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 500, isPrivate: true  },
         { text: "Faire danser tout le monde en début de partie",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 500, isPrivate: true  },
