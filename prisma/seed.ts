@@ -66,11 +66,14 @@ async function main() {
         { text: "Acheter uniquement des objets qui commencent par la lettre de ton champion (hors bottes)",     type: "START", category: "items",        difficulty: "hard", points: 500, isPrivate: true },
         { text: "Acheter les mêmes items qu'un adversaire unique pendant toute la partie",                                      type: "START", category: "items",        difficulty: "hard", points: 500, isPrivate: true },
         { text: "Ne pas faire plus de 4 kills",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 500, isPrivate: true  },
+        { text: "Encenser le mode ARAM toutes les 3 minutes en finissant par \"N'est ce pas Thomas?\"",                                     type: "START", category: "Vocal",   difficulty: "easy",   points: 100, isPrivate: true  },
         { text: "Être le joueur avec le plus de morts de la partie",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 500, isPrivate: true  },
         { text: "Être le joueur avec le moins de morts de la partie",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 500, isPrivate: true  },
         { text: "Faire danser tout le monde en début de partie",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 500, isPrivate: true  },
         { text: "Au début de la partie, insulter l'équipe adverse",    type: "START", category: "Troll",        difficulty: "easy", points: 100, isPrivate: true },
-        { text: "Dicter les builds de tes coéquipiers comme Al4r1c. Si tu es Al4r1c, achète 2 sceptres de Rylai", type: "START", category: "Vocal", difficulty: "medium", points: 300, isPrivate: true }
+        { text: "Dicter les builds de tes coéquipiers comme Al4r1c. Si tu es Al4r1c, achète 2 sceptres de Rylai", type: "START", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true },
+        { text: "Écrire '???' dans le chat après chaque mort ennemie", type: "START", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true }
+
     ];
 
     // ========================================
@@ -78,6 +81,9 @@ async function main() {
     // ========================================
     const midMissions = [
         // Missions publiques
+        { text: "Acheter une Rédemption",                            type: "MID", category: "Build",        difficulty: "easy", points: 100, isPrivate: false },
+        { text: "Acheter un médaillon de Solari",                            type: "MID", category: "Build",        difficulty: "easy", points: 100, isPrivate: false },
+        { text: "Acheter une Protobelt",                            type: "MID", category: "Build",        difficulty: "easy", points: 100, isPrivate: false },
         { text: "Acheter uniquement des objets défensifs jusqu'à la fin",                            type: "MID", category: "Build",        difficulty: "medium", points: 200, isPrivate: false },
         { text: "Construire full objets critiques jusqu'à la fin",                            type: "MID", category: "Build",        difficulty: "medium", points: 200, isPrivate: false },
         { text: "Acheter uniquement des objets AP jusqu'à la fin",                        type: "MID", category: "Build",        difficulty: "medium", points: 200, isPrivate: false },
@@ -92,6 +98,8 @@ async function main() {
         { text: "Retourne à la fontaine à pied, puis retourne auprès de tes coéquipiers sans utiliser de téléportation",                                  type: "MID", category: "Troll",       difficulty: "easy", points: 100, isPrivate: false },
         { text: "Ne pas mourir pendant 5 minutes, tu dois annoncer la mission en vocal",        type: "MID", category: "Survie",        difficulty: "hard", points: 500, isPrivate: false },
         { text: "Se faire exécuter d'ici la fin de la partie, tu dois annoncer la mission en vocal",        type: "MID", category: "Suicide",        difficulty: "hard", points: 500, isPrivate: false },
+        { text: "Vendre un objet complet (hors bottes) et ne pas utiliser la fonction Annuler",                 type: "MID", category: "Troll",         difficulty: "medium", points: 200, isPrivate: false  },
+        { text: "Flash dans un mur, si pas de flash alors utilise tes 2 sorts d'invocateur immédiatement",                                  type: "MID", category: "Troll",         difficulty: "easy",   points: 100, isPrivate: false  },
 
 
         // 🔒 Missions secrètes
@@ -102,16 +110,17 @@ async function main() {
         { text: "Mourir sous la tour ennemie volontairement",                             type: "MID", category: "Suicide",      difficulty: "easy",   points: 100, isPrivate: true },
         { text: "Mourir intentionnellement dans les 30 prochaines secondes",                     type: "MID", category: "Suicide",       difficulty: "easy",   points: 100, isPrivate: true  },
         { text: "Mourir intentionnellement 3 fois dès que tu spawn",                     type: "MID", category: "Suicide",       difficulty: "medium",   points: 200, isPrivate: true  },
-        { text: "Vendre un objet complet (hors bottes) et ne pas utiliser la fonction Annuler",                 type: "MID", category: "Troll",         difficulty: "medium", points: 200, isPrivate: true  },
-        { text: "Flash dans un mur, si pas de flash alors utilise tes 2 sorts d'invocateur immédiatement",                                  type: "MID", category: "Troll",         difficulty: "easy",   points: 100, isPrivate: true  },
         { text: "Suivre un coéquipier partout pendant 3 minutes (jamais à plus de 500 unités)",  type: "MID", category: "Troll",         difficulty: "easy",   points: 100, isPrivate: true  },
         { text: "Imiter le rire de Eikichi 3 fois de suite",  type: "MID", category: "Troll",         difficulty: "easy",   points: 100, isPrivate: true  },
         { text: "Gémir de plaisir et faire en sorte que ce soit mémorable",  type: "MID", category: "Troll",         difficulty: "easy",   points: 100, isPrivate: true  },
         { text: "Lancer tout les sons de la soundboard Discord toutes les 3 minutes jusqu'à la fin de la partie",  type: "MID", category: "Troll",         difficulty: "easy",   points: 100, isPrivate: true  },
-        { text: "Communiquer uniquement en ping pendant 3 minutes",                             type: "MID", category: "Communication", difficulty: "easy",   points: 100, isPrivate: true  },
+        { text: "Communiquer uniquement en ping pendant 5 minutes",                             type: "MID", category: "Communication", difficulty: "easy",   points: 100, isPrivate: true  },
         { text: "Commente toutes tes actions pendant 3 minutes (sorts, déplacements, achat, absolument tout)",                             type: "MID", category: "Communication", difficulty: "easy",   points: 100, isPrivate: true  },
         { text: "Se plaindre d'un coéquipier avec véhémence pendant 1 minute",                             type: "MID", category: "Toxic", difficulty: "easy",   points: 100, isPrivate: true  },
         { text: "Regarder ses coéquipiers mourir et taunt avec au moins 80% de barre de vie",                             type: "MID", category: "Combat", difficulty: "easy",   points: 100, isPrivate: true  },
+        { text: "Alft F4 en plein teamfight",                             type: "MID", category: "Combat", difficulty: "easy",   points: 100, isPrivate: true  },
+        { text: "Remercier Era pour ce jeu incroyable", type: "MID", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true }
+
     ];
 
     // ========================================
@@ -154,7 +163,6 @@ async function main() {
         { text: "Écrire 'ez' à chaque kill", type: "LATE", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true },
         { text: "Acheter un objet totalement inutile et l'annoncer comme OP auprès d'Al4r1c. Le débat doit durer 1 minute. Si tu es Al4r1c, achète un sceptre de Rylai", type: "LATE", category: "Troll", difficulty: "easy", points: 100, isPrivate: true },
         { text: "Annoncer un repli collectif et engager seul. Une réaction d'incompréhension de tes coéquipiers doit être audible", type: "LATE", category: "Combat", difficulty: "medium", points: 200, isPrivate: true },
-        { text: "Écrire '???' dans le chat après chaque mort ennemie", type: "LATE", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true },
         { text: "Te plaindre du manque de dégâts du joueur le plus fort de ton équipe", type: "LATE", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true },
         { text: "Finir la partie avec exactement 69 de farm",                                     type: "LATE", category: "Précision",   difficulty: "hard",   points: 500, isPrivate: true  },
         { text: "Finir la partie avec exactement 21 kills",                                     type: "LATE", category: "Précision",   difficulty: "hard",   points: 500, isPrivate: true  },
@@ -164,7 +172,7 @@ async function main() {
         { text: "Spam ping '?' sur le joueur avec le plus de kills pendant 3 minutes", type: "LATE", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true },
         { text: "Spam ping '?' sur tes alliés pendant 4 minutes",                                  type: "LATE", category: "Toxic",       difficulty: "easy",   points: 100, isPrivate: true  },
         { text: "Accuser le lag après chaque mort", type: "LATE", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true },
-        { text: "Après chaque kill de ta part, crier le nom de ta ville bien fort",                                  type: "LATE", category: "Toxic",       difficulty: "easy",   points: 100, isPrivate: true  },
+        { text: "Après chaque kill de ta part, crier le nom de ta ville bien fort",                                  type: "LATE", category: "Toxic",       difficulty: "easy",   points: 100, isPrivate: true  }
     ];
 
     // ========================================
