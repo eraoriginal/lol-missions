@@ -66,6 +66,29 @@ export function RoleSelection({
     }
   };
 
+  const handleBecomeOperative = async () => {
+    if (!currentPlayerToken || !currentPlayer?.team) return;
+    setSelecting(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/games/codename/${roomCode}/role`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerToken: currentPlayerToken, role: 'operative' }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erreur');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur');
+    } finally {
+      setSelecting(false);
+    }
+  };
+
   const TeamColumn = ({
     team,
     teamPlayers,
@@ -99,21 +122,32 @@ export function RoleSelection({
           </div>
 
           {spymaster ? (
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-black/30 border border-purple-500/30">
-              <img
-                src={spymaster.avatar}
-                alt={spymaster.name}
-                className="w-10 h-10 rounded-lg border-2 border-pink-500"
-              />
-              <div className="flex-1">
-                <span className="text-pink-400 font-bold">{spymaster.name}</span>
-                {spymaster.token === currentPlayerToken && (
-                  <span className="ml-2 text-xs bg-pink-500 text-white px-2 py-0.5 rounded-full">
-                    Vous
-                  </span>
-                )}
+            <div>
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-black/30 border border-purple-500/30">
+                <img
+                  src={spymaster.avatar}
+                  alt={spymaster.name}
+                  className="w-10 h-10 rounded-lg border-2 border-pink-500"
+                />
+                <div className="flex-1">
+                  <span className="text-pink-400 font-bold">{spymaster.name}</span>
+                  {spymaster.token === currentPlayerToken && (
+                    <span className="ml-2 text-xs bg-pink-500 text-white px-2 py-0.5 rounded-full">
+                      Vous
+                    </span>
+                  )}
+                </div>
+                <span className="text-green-400 text-xl">✓</span>
               </div>
-              <span className="text-green-400 text-xl">✓</span>
+              {spymaster.token === currentPlayerToken && (
+                <button
+                  onClick={handleBecomeOperative}
+                  disabled={selecting}
+                  className="w-full mt-2 py-2 rounded-lg font-medium text-sm transition-all bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 disabled:opacity-50"
+                >
+                  {selecting ? '⏳...' : '🎯 Redevenir Agent'}
+                </button>
+              )}
             </div>
           ) : (
             <div className="text-center py-3">

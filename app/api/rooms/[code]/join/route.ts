@@ -30,8 +30,8 @@ export async function POST(
             );
         }
 
-        // Vérifie que la game n'a pas déjà commencé
-        if (room.gameStarted) {
+        // Vérifie que la game n'a pas déjà commencé (sauf pour Codename qui permet de rejoindre en cours)
+        if (room.gameStarted && room.gameType !== 'codename-ceo') {
             return Response.json(
                 { error: 'Game already started' },
                 { status: 400 }

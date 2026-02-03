@@ -199,11 +199,14 @@ export async function POST(
 
     // Push sound event to all players
     const isVictory = gameOver && winner;
-    if (isVictory && resultType === 'correct') {
+    if (isVictory && resultType === 'assassin') {
+      // Assassin - only play assassin sound (no victory sound)
+      await pushSoundEvent(code, 'assassin');
+    } else if (isVictory && resultType === 'correct') {
       // Only play victory sound when winning by finding all cards
       await pushSoundEvent(code, 'victory');
     } else if (isVictory) {
-      // Other game over scenarios (assassin, opponent helped us win)
+      // Other game over scenarios (opponent helped us win via wrong_team)
       await pushSoundEvent(code, resultType);
       // Victory sound will be played after a delay on client side
       setTimeout(() => pushSoundEvent(code, 'victory'), 500);

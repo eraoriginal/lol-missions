@@ -29,11 +29,15 @@ function getPusherClient(): Pusher {
  * so all players hear sounds when any card is revealed.
  */
 export function useCodenameSocket(roomCode: string | null) {
-  const { play } = useCodenameSound();
+  const { play, stopAll } = useCodenameSound();
 
   const handleSoundEvent = useCallback((data: SoundEvent) => {
     play(data.soundType);
   }, [play]);
+
+  const handleStopSounds = useCallback(() => {
+    stopAll();
+  }, [stopAll]);
 
   useEffect(() => {
     if (!roomCode) return;
@@ -43,9 +47,11 @@ export function useCodenameSocket(roomCode: string | null) {
     const channel = pusher.subscribe(channelName);
 
     channel.bind('sound-event', handleSoundEvent);
+    channel.bind('stop-sounds', handleStopSounds);
 
     return () => {
       channel.unbind('sound-event', handleSoundEvent);
+      channel.unbind('stop-sounds', handleStopSounds);
     };
-  }, [roomCode, handleSoundEvent]);
+  }, [roomCode, handleSoundEvent, handleStopSounds]);
 }

@@ -69,3 +69,17 @@ export async function pushSoundEvent(
         console.error(`[Pusher] Failed to push sound-event for room ${roomCode}:`, error);
     }
 }
+
+/**
+ * Pushes a "stop-sounds" event to all clients to stop all playing sounds.
+ * Used when starting a new game.
+ */
+export async function pushStopSounds(roomCode: string): Promise<void> {
+    try {
+        await pusher.trigger(`room-${roomCode}`, 'stop-sounds', {
+            timestamp: Date.now(),
+        });
+    } catch (error) {
+        console.error(`[Pusher] Failed to push stop-sounds for room ${roomCode}:`, error);
+    }
+}

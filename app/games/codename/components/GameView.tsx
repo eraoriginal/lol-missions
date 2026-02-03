@@ -81,8 +81,11 @@ interface GameViewProps {
 export function GameView({ room, roomCode }: GameViewProps) {
   const [generating, setGenerating] = useState(false);
   const [restarting, setRestarting] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [joiningTeam, setJoiningTeam] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [leaving, setLeaving] = useState(false);
   // Local cards state for real-time interest updates via Pusher
   const [localCards, setLocalCards] = useState<Card[]>(room.codenameGame?.cards || []);
@@ -159,6 +162,7 @@ export function GameView({ room, roomCode }: GameViewProps) {
   const isOperative = currentPlayer?.role === 'operative';
   const isOnCurrentTeam = currentPlayer?.team === game?.currentTeam;
   const isMyTurn = isOnCurrentTeam && !!game;
+  const isSpectator = currentPlayer && (!currentPlayer.team || currentPlayer.team === '');
 
   // Team info
   const redPlayers = room.players.filter((p) => p.team === 'red');
@@ -210,6 +214,53 @@ export function GameView({ room, roomCode }: GameViewProps) {
     }
   };
 
+  const handleResetToLobby = async () => {
+    if (!creatorToken) return;
+    setShowResetConfirm(false);
+    setResetting(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/games/codename/${roomCode}/reset-to-lobby`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creatorToken }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erreur');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur');
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  const handleRegenerateBoard = async () => {
+    if (!creatorToken) return;
+    setGenerating(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/games/codename/${roomCode}/regenerate-board`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creatorToken }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erreur');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const handleLeaveClick = () => {
     if (isCreator) {
       setShowLeaveConfirm(true);
@@ -239,10 +290,82 @@ export function GameView({ room, roomCode }: GameViewProps) {
     }
   };
 
+  const handleJoinTeam = async (team: 'red' | 'blue') => {
+    if (!playerToken) return;
+    setJoiningTeam(true);
+    setError(null);
+
+    try {
+      // Join the team
+      const teamRes = await fetch(`/api/rooms/${roomCode}/team`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerToken, team }),
+      });
+
+      if (!teamRes.ok) {
+        const data = await teamRes.json();
+        throw new Error(data.error || 'Erreur');
+      }
+
+      // If game is already playing (cards generated), automatically set role to operative
+      if (game && game.cards.length > 0) {
+        const roleRes = await fetch(`/api/games/codename/${roomCode}/role`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ playerToken, role: 'operative' }),
+        });
+
+        if (!roleRes.ok) {
+          const data = await roleRes.json();
+          throw new Error(data.error || 'Erreur');
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur');
+    } finally {
+      setJoiningTeam(false);
+    }
+  };
+
   // Phase 1: Lobby - team selection
   if (isLobby) {
     return <CodenameRoomLobby room={room} roomCode={roomCode} />;
   }
+
+  // Spectator join panel component
+  const SpectatorJoinPanel = () => (
+    <div className="poki-panel p-4 border-2 border-yellow-500/50">
+      <div className="text-center mb-4">
+        <div className="text-3xl mb-2">👁️</div>
+        <h3 className="text-lg font-bold text-yellow-400">Mode Spectateur</h3>
+        <p className="text-purple-300/70 text-sm mt-1">
+          Rejoins une équipe pour participer !
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          onClick={() => handleJoinTeam('red')}
+          disabled={joiningTeam || redPlayers.length >= 5}
+          className="py-3 px-4 rounded-xl font-bold text-white transition-all bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 shadow-lg shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {joiningTeam ? '⏳...' : `🔴 Rouge (${redPlayers.length}/5)`}
+        </button>
+        <button
+          onClick={() => handleJoinTeam('blue')}
+          disabled={joiningTeam || bluePlayers.length >= 5}
+          className="py-3 px-4 rounded-xl font-bold text-white transition-all bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {joiningTeam ? '⏳...' : `🔵 Bleu (${bluePlayers.length}/5)`}
+        </button>
+      </div>
+      {game && game.cards.length > 0 && (
+        <p className="text-center text-purple-300/60 text-xs mt-3">
+          Tu rejoindras en tant qu'Agent
+        </p>
+      )}
+    </div>
+  );
 
   // Phase 2: Role Selection
   if (isRoleSelection) {
@@ -262,6 +385,15 @@ export function GameView({ room, roomCode }: GameViewProps) {
               </div>
               <div className="flex gap-2">
                 <RulesModal />
+                {isCreator && (
+                  <button
+                    onClick={handleResetToLobby}
+                    disabled={resetting}
+                    className="poki-btn-secondary px-3 py-1.5 text-sm disabled:opacity-50"
+                  >
+                    {resetting ? '⏳...' : '⬅️ Équipes'}
+                  </button>
+                )}
                 <button
                   onClick={handleLeaveClick}
                   disabled={leaving}
@@ -275,15 +407,36 @@ export function GameView({ room, roomCode }: GameViewProps) {
 
           {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
-          <RoleSelection
-            roomCode={roomCode}
-            players={room.players}
-            currentPlayerToken={playerToken || ''}
-            isCreator={isCreator}
-            onGenerateBoard={handleGenerateBoard}
-            generating={generating}
-            selectedCategories={room.selectedCategories || []}
-          />
+          {/* Spectator panel */}
+          {isSpectator && <SpectatorJoinPanel />}
+
+          {/* Role selection (only show if player has a team) */}
+          {!isSpectator && (
+            <RoleSelection
+              roomCode={roomCode}
+              players={room.players}
+              currentPlayerToken={playerToken || ''}
+              isCreator={isCreator}
+              onGenerateBoard={handleGenerateBoard}
+              generating={generating}
+              selectedCategories={room.selectedCategories || []}
+            />
+          )}
+
+          {/* Show role selection to spectators as read-only */}
+          {isSpectator && (
+            <div className="opacity-70">
+              <RoleSelection
+                roomCode={roomCode}
+                players={room.players}
+                currentPlayerToken={playerToken || ''}
+                isCreator={false}
+                onGenerateBoard={handleGenerateBoard}
+                generating={generating}
+                selectedCategories={room.selectedCategories || []}
+              />
+            </div>
+          )}
         </div>
 
         {/* Leave confirmation modal for creator */}
@@ -319,17 +472,17 @@ export function GameView({ room, roomCode }: GameViewProps) {
   const getTeamBackgroundClass = () => {
     if (!game || game.gameOver) return '';
     if (game.currentTeam === 'red') {
-      return 'bg-gradient-to-b from-red-950/40 via-transparent to-transparent';
+      return 'codename-bg-red';
     }
     if (game.currentTeam === 'blue') {
-      return 'bg-gradient-to-b from-blue-950/40 via-transparent to-transparent';
+      return 'codename-bg-blue';
     }
     return '';
   };
 
   // Phase 3 & 4: Playing / Game Over
   return (
-    <div className={`space-y-4 min-h-screen transition-all duration-500 ${getTeamBackgroundClass()}`}>
+    <div className={`space-y-4 transition-all duration-500 ${getTeamBackgroundClass()}`}>
       {/* Header */}
       <div className="poki-panel p-3">
         <div className="flex justify-between items-center">
@@ -351,6 +504,24 @@ export function GameView({ room, roomCode }: GameViewProps) {
               >
                 {restarting ? '⏳...' : '🔄 Rejouer'}
               </button>
+            )}
+            {isCreator && isPlaying && (
+              <>
+                <button
+                  onClick={handleRegenerateBoard}
+                  disabled={generating}
+                  className="poki-btn-secondary px-3 py-1.5 text-sm disabled:opacity-50"
+                >
+                  {generating ? '⏳...' : '🔄 Plateau'}
+                </button>
+                <button
+                  onClick={handleRestart}
+                  disabled={restarting}
+                  className="poki-btn-secondary px-3 py-1.5 text-sm disabled:opacity-50"
+                >
+                  {restarting ? '⏳...' : '🎭 Rôles'}
+                </button>
+              </>
             )}
             <button
               onClick={handleLeaveClick}
@@ -379,6 +550,9 @@ export function GameView({ room, roomCode }: GameViewProps) {
         />
       )}
 
+      {/* Spectator join panel during game */}
+      {isPlaying && isSpectator && <SpectatorJoinPanel />}
+
       {/* Playing phase */}
       {isPlaying && currentPlayer && game && (
         <>
@@ -402,16 +576,16 @@ export function GameView({ room, roomCode }: GameViewProps) {
               currentTeam={game.currentTeam}
             />
           ) : (
-            // Spectator view
+            // Spectator view (player without team or role)
             <div className="space-y-4">
-              <div className="text-center text-stone-400 text-sm">
-                👁️ Mode spectateur
-              </div>
               <GameBoard cards={localCards} isSpymaster={false} isClickable={false} />
             </div>
           )}
         </>
       )}
+
+      {/* Spectator join panel during game over */}
+      {isGameOver && isSpectator && <SpectatorJoinPanel />}
 
       {/* Game over - show final board */}
       {isGameOver && game && (
@@ -434,42 +608,63 @@ export function GameView({ room, roomCode }: GameViewProps) {
 
       {/* Team rosters during game - compact */}
       {(isPlaying || isGameOver) && (
-        <div className="grid grid-cols-2 gap-3">
-          {/* Red team */}
-          <div className="poki-panel p-2 border border-red-500/30">
-            <h4 className="text-xs font-bold text-red-400 mb-1.5">🔴 Rouge</h4>
-            <div className="space-y-0.5 text-xs">
-              {redPlayers.map((p) => (
-                <div key={p.id} className={`flex items-center gap-1 ${p.token === playerToken ? 'text-pink-300 font-medium' : 'text-purple-200/80'}`}>
-                  <span className="truncate">{p.name}</span>
-                  {p.token === playerToken && (
-                    <span className="text-[10px] text-pink-400">(vous)</span>
-                  )}
-                  <span className={`text-[10px] ml-auto whitespace-nowrap ${p.role === 'spymaster' ? 'text-pink-400' : 'text-purple-400/60'}`}>
-                    {p.role === 'spymaster' ? '🔮 Espion' : '🎯 Agent'}
-                  </span>
-                </div>
-              ))}
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            {/* Red team */}
+            <div className="poki-panel p-2 border border-red-500/30">
+              <h4 className="text-xs font-bold text-red-400 mb-1.5">🔴 Rouge</h4>
+              <div className="space-y-0.5 text-xs">
+                {redPlayers.map((p) => (
+                  <div key={p.id} className={`flex items-center gap-1 ${p.token === playerToken ? 'text-pink-300 font-medium' : 'text-purple-200/80'}`}>
+                    <span className="truncate">{p.name}</span>
+                    {p.token === playerToken && (
+                      <span className="text-[10px] text-pink-400">(vous)</span>
+                    )}
+                    <span className={`text-[10px] ml-auto whitespace-nowrap ${p.role === 'spymaster' ? 'text-pink-400' : 'text-purple-400/60'}`}>
+                      {p.role === 'spymaster' ? '🔮 Espion' : '🎯 Agent'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Blue team */}
+            <div className="poki-panel p-2 border border-blue-500/30">
+              <h4 className="text-xs font-bold text-blue-400 mb-1.5">🔵 Bleu</h4>
+              <div className="space-y-0.5 text-xs">
+                {bluePlayers.map((p) => (
+                  <div key={p.id} className={`flex items-center gap-1 ${p.token === playerToken ? 'text-cyan-300 font-medium' : 'text-purple-200/80'}`}>
+                    <span className="truncate">{p.name}</span>
+                    {p.token === playerToken && (
+                      <span className="text-[10px] text-cyan-400">(vous)</span>
+                    )}
+                    <span className={`text-[10px] ml-auto whitespace-nowrap ${p.role === 'spymaster' ? 'text-cyan-400' : 'text-purple-400/60'}`}>
+                      {p.role === 'spymaster' ? '🔮 Espion' : '🎯 Agent'}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Blue team */}
-          <div className="poki-panel p-2 border border-blue-500/30">
-            <h4 className="text-xs font-bold text-blue-400 mb-1.5">🔵 Bleu</h4>
-            <div className="space-y-0.5 text-xs">
-              {bluePlayers.map((p) => (
-                <div key={p.id} className={`flex items-center gap-1 ${p.token === playerToken ? 'text-cyan-300 font-medium' : 'text-purple-200/80'}`}>
-                  <span className="truncate">{p.name}</span>
-                  {p.token === playerToken && (
-                    <span className="text-[10px] text-cyan-400">(vous)</span>
-                  )}
-                  <span className={`text-[10px] ml-auto whitespace-nowrap ${p.role === 'spymaster' ? 'text-cyan-400' : 'text-purple-400/60'}`}>
-                    {p.role === 'spymaster' ? '🔮 Espion' : '🎯 Agent'}
-                  </span>
-                </div>
-              ))}
+          {/* Spectators */}
+          {room.players.filter((p) => !p.team || p.team === '').length > 0 && (
+            <div className="poki-panel p-2 border border-yellow-500/30">
+              <h4 className="text-xs font-bold text-yellow-400 mb-1.5">👁️ Spectateurs</h4>
+              <div className="flex flex-wrap gap-2 text-xs">
+                {room.players
+                  .filter((p) => !p.team || p.team === '')
+                  .map((p) => (
+                    <div key={p.id} className={`flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-500/10 border border-yellow-500/20 ${p.token === playerToken ? 'text-yellow-300 font-medium' : 'text-purple-200/80'}`}>
+                      <span>{p.name}</span>
+                      {p.token === playerToken && (
+                        <span className="text-[10px] text-yellow-400">(vous)</span>
+                      )}
+                    </div>
+                  ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -498,6 +693,32 @@ export function GameView({ room, roomCode }: GameViewProps) {
                 className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-red-500/30"
               >
                 Quitter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset confirmation modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="poki-panel p-6 max-w-md w-full animate-scale-in">
+            <h2 className="text-xl font-bold poki-title mb-3">🔄 Recommencer la partie ?</h2>
+            <p className="text-purple-200/80 leading-relaxed mb-6">
+              La partie en cours sera annulée et tout le monde retournera à la sélection des équipes.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="flex-1 px-4 py-3 poki-btn-secondary font-medium"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleResetToLobby}
+                className="flex-1 px-4 py-3 poki-btn-primary font-medium"
+              >
+                Recommencer
               </button>
             </div>
           </div>

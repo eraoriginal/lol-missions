@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { pushRoomUpdate } from '@/lib/pusher';
+import { pushRoomUpdate, pushStopSounds } from '@/lib/pusher';
 import { isCreator } from '@/lib/utils';
 import { z } from 'zod';
 
@@ -42,8 +42,16 @@ export async function POST(
       return Response.json({ error: 'No game to restart' }, { status: 400 });
     }
 
+    // Stop all sounds on all clients before restarting
+    await pushStopSounds(code);
+
     // Delete old cards
     await prisma.codenameCard.deleteMany({
+      where: { gameId: room.codenameGame.id },
+    });
+
+    // Delete game history
+    await prisma.codenameHistory.deleteMany({
       where: { gameId: room.codenameGame.id },
     });
 

@@ -68,12 +68,14 @@ export async function POST(
 
     // Update game with clue
     // guessesLeft = number + 1 (extra guess allowed)
+    // If unlimited (0), limit to team's remaining words
+    const teamRemaining = game.currentTeam === 'red' ? game.redRemaining : game.blueRemaining;
     const updatedGame = await prisma.codenameGame.update({
       where: { id: game.id },
       data: {
         currentClue: clue,
         currentNumber: number,
-        guessesLeft: number === 0 ? 999 : number + 1, // 0 means unlimited guesses
+        guessesLeft: number === 0 ? teamRemaining : number + 1,
       },
       include: {
         cards: {
