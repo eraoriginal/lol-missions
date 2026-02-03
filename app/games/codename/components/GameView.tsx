@@ -94,7 +94,7 @@ export function GameView({ room, roomCode }: GameViewProps) {
   const router = useRouter();
 
   // Listen for sound events via Pusher (all players hear sounds)
-  useCodenameSocket(roomCode);
+  const { isMuted, toggleMute } = useCodenameSocket(roomCode);
 
   const playerToken =
     typeof window !== 'undefined' ? localStorage.getItem(`room_${roomCode}_player`) : null;
@@ -385,6 +385,13 @@ export function GameView({ room, roomCode }: GameViewProps) {
               </div>
               <div className="flex gap-2">
                 <RulesModal />
+                <button
+                  onClick={toggleMute}
+                  className="poki-btn-secondary px-3 py-1.5 text-sm"
+                  title={isMuted ? 'Activer le son' : 'Couper le son'}
+                >
+                  {isMuted ? '🔇' : '🔊'}
+                </button>
                 {isCreator && (
                   <button
                     onClick={handleResetToLobby}
@@ -496,6 +503,13 @@ export function GameView({ room, roomCode }: GameViewProps) {
           </div>
           <div className="flex gap-2">
             <RulesModal />
+            <button
+              onClick={toggleMute}
+              className="poki-btn-secondary px-3 py-1.5 text-sm"
+              title={isMuted ? 'Activer le son' : 'Couper le son'}
+            >
+              {isMuted ? '🔇' : '🔊'}
+            </button>
             {isCreator && isGameOver && (
               <button
                 onClick={handleRestart}

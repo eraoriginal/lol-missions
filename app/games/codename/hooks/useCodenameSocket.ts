@@ -27,9 +27,10 @@ function getPusherClient(): Pusher {
 /**
  * Hook to listen for real-time sound events via Pusher
  * so all players hear sounds when any card is revealed.
+ * Also provides mute controls.
  */
 export function useCodenameSocket(roomCode: string | null) {
-  const { play, stopAll } = useCodenameSound();
+  const { play, stopAll, isMuted, toggleMute } = useCodenameSound();
 
   const handleSoundEvent = useCallback((data: SoundEvent) => {
     play(data.soundType);
@@ -54,4 +55,6 @@ export function useCodenameSocket(roomCode: string | null) {
       channel.unbind('stop-sounds', handleStopSounds);
     };
   }, [roomCode, handleSoundEvent, handleStopSounds]);
+
+  return { isMuted, toggleMute };
 }
