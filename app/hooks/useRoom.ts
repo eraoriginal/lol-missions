@@ -44,22 +44,38 @@ export function useRoom(roomCode: string | null) {
         loadingRef.current = loading;
     }, [loading]);
 
-    const fetchRoom = useCallback(async (source: string = 'unknown') => {
+    const fetchRoom = useCallback(async (source: string = 'unknown', retryCount: number = 0) => {
         if (!roomCode) return;
 
-        // Anti-spam: pas plus d'un fetch toutes les 500ms
+        const MAX_RETRIES = 3;
+        const RETRY_DELAY = 1000; // 1 seconde entre les retries
+
+        // Anti-spam: pas plus d'un fetch toutes les 500ms (sauf pour les retries)
         const now = Date.now();
-        if (now - lastFetchTimeRef.current < 500) {
+        if (retryCount === 0 && now - lastFetchTimeRef.current < 500) {
             console.log(`[useRoom] Fetch skipped (too soon), source: ${source}`);
             return;
         }
-        lastFetchTimeRef.current = now;
+        if (retryCount === 0) {
+            lastFetchTimeRef.current = now;
+        }
 
         try {
             const isInitialLoad = loadingRef.current;
-            console.log(`[useRoom] Fetching room: ${roomCode}, source: ${source}`);
+            console.log(`[useRoom] Fetching room: ${roomCode}, source: ${source}${retryCount > 0 ? `, retry ${retryCount}/${MAX_RETRIES}` : ''}`);
 
-            const response = await fetch(`/api/rooms/${roomCode}?t=${now}`, {
+            // Récupère le token du joueur pour filtrer les missions secrètes
+            const playerToken = typeof window !== 'undefined'
+                ? localStorage.getItem(`room_${roomCode}_player`)
+                : null;
+
+            const url = new URL(`/api/rooms/${roomCode}`, window.location.origin);
+            url.searchParams.set('t', Date.now().toString());
+            if (playerToken) {
+                url.searchParams.set('playerToken', playerToken);
+            }
+
+            const response = await fetch(url.toString(), {
                 cache: 'no-store',
                 headers: {
                     'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -106,6 +122,45 @@ export function useRoom(roomCode: string | null) {
                 missions: p.missions?.map((m: any) => m.type) || []
             }));
             console.log(`[useRoom] Room fetched, missions:`, JSON.stringify(missionCounts));
+
+            // Retry logic pour les missions manquantes
+            // Si le jeu a démarré et qu'on attend des missions mais qu'elles ne sont pas là
+            if (newRoom.gameStarted && newRoom.gameStartTime && retryCount < MAX_RETRIES) {
+                const gameStartTime = new Date(newRoom.gameStartTime).getTime();
+                const elapsed = Date.now() - gameStartTime;
+                const midDelay = (newRoom.midMissionDelay || 5) * 60 * 1000;
+                const lateDelay = (newRoom.lateMissionDelay || 10) * 60 * 1000;
+
+                // Vérifie si des missions sont attendues mais manquantes pour au moins un joueur
+                const playerToken = typeof window !== 'undefined'
+                    ? localStorage.getItem(`room_${roomCode}_player`)
+                    : null;
+                const currentPlayer = newRoom.players.find((p: Player) => p.token === playerToken);
+
+                if (currentPlayer) {
+                    const hasMissions = currentPlayer.missions || [];
+                    const hasStart = hasMissions.some((m: any) => m.type === 'START');
+                    const hasMid = hasMissions.some((m: any) => m.type === 'MID');
+                    const hasLate = hasMissions.some((m: any) => m.type === 'LATE');
+
+                    const shouldHaveStart = true; // Toujours attendu au démarrage
+                    const shouldHaveMid = elapsed >= midDelay;
+                    const shouldHaveLate = elapsed >= lateDelay;
+
+                    const missingMissions =
+                        (shouldHaveStart && !hasStart) ||
+                        (shouldHaveMid && !hasMid) ||
+                        (shouldHaveLate && !hasLate);
+
+                    if (missingMissions) {
+                        console.log(`[useRoom] Missions manquantes détectées, retry dans ${RETRY_DELAY}ms...`);
+                        setTimeout(() => {
+                            fetchRoom(source, retryCount + 1);
+                        }, RETRY_DELAY);
+                        // Continue quand même pour afficher ce qu'on a
+                    }
+                }
+            }
 
             // Détecte si un joueur a quitté
             if (!isInitialLoad && roomRef.current && newRoom.players.length < previousPlayerCountRef.current) {

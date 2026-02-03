@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { pushRoomUpdate } from '@/lib/pusher';
+import { filterPrivateMissions } from '@/lib/filterPrivateMissions';
 
 export async function POST(
     request: NextRequest,
@@ -86,46 +87,85 @@ export async function POST(
             [shuffledMissions[i], shuffledMissions[j]] = [shuffledMissions[j], shuffledMissions[i]];
         }
 
-        // Assigne une mission LATE à chaque joueur
-        await Promise.all(
-            room.players.map((player, index) =>
-                prisma.playerMission.create({
-                    data: {
-                        playerId: player.id,
-                        missionId: shuffledMissions[index].id,
-                        type: 'LATE',
-                    },
-                })
-            )
-        );
+        // Assigne une mission LATE à chaque joueur (avec transaction pour atomicité)
+        let createdByUs = false;
+        try {
+            await prisma.$transaction(async (tx) => {
+                for (let i = 0; i < room.players.length; i++) {
+                    await tx.playerMission.create({
+                        data: {
+                            playerId: room.players[i].id,
+                            missionId: shuffledMissions[i].id,
+                            type: 'LATE',
+                        },
+                    });
+                }
+            });
+            createdByUs = true;
+            console.log(`[check-late-missions] LATE missions assigned to room ${code}`);
+        } catch (createError: any) {
+            // Erreur de contrainte unique = les missions ont été créées par une autre requête
+            const isUniqueConstraint = createError?.code === 'P2002' ||
+                (createError?.message && createError.message.includes('Unique constraint'));
 
-        console.log(`[check-late-missions] LATE missions assigned to room ${code}`);
+            if (isUniqueConstraint) {
+                console.log(`[check-late-missions] LATE missions already created by another request for room ${code}`);
+            } else {
+                console.error('[check-late-missions] Unexpected error:', createError);
+                throw createError;
+            }
+        }
 
-        // Récupère la room mise à jour
-        const updatedRoom = await prisma.room.findUnique({
-            where: { code },
-            include: {
-                players: {
-                    include: {
-                        missions: {
-                            include: {
-                                mission: true,
+        // Vérifie que les missions existent bien (créées par nous ou autre requête)
+        // Avec retry car une autre transaction peut être en cours
+        let roomAfterCreate = null;
+        let allPlayersHaveLateMission = false;
+
+        for (let attempt = 0; attempt < 3; attempt++) {
+            roomAfterCreate = await prisma.room.findUnique({
+                where: { code },
+                include: {
+                    players: {
+                        include: {
+                            missions: {
+                                include: {
+                                    mission: true,
+                                },
                             },
                         },
                     },
                 },
-            },
-        });
+            });
 
-        console.log(`[LATE] Late missions assigned in room ${code}`);
+            allPlayersHaveLateMission = roomAfterCreate?.players.every(p =>
+                p.missions.some((m: any) => m.type === 'LATE')
+            ) ?? false;
 
-        // Push : missions LATE assignées
+            if (allPlayersHaveLateMission) break;
+
+            // Attendre un peu avant de réessayer (autre transaction peut-être en cours)
+            if (attempt < 2) {
+                console.log(`[check-late-missions] Not all players have LATE missions yet, retry ${attempt + 1}/3`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+
+        if (!allPlayersHaveLateMission) {
+            console.error(`[check-late-missions] Not all players have LATE missions for room ${code} after retries`);
+            return Response.json(
+                { error: 'Failed to create LATE missions for all players' },
+                { status: 500 }
+            );
+        }
+
+        // Toujours pusher si les missions existent (le premier push gagne, les autres sont ignorés par les clients)
+        console.log(`[LATE] Late missions ready in room ${code}, pushing update (createdByUs=${createdByUs})`);
         await pushRoomUpdate(code);
 
         return Response.json({
             message: 'LATE missions assigned',
             shouldAssign: true,
-            room: updatedRoom,
+            room: filterPrivateMissions(roomAfterCreate, null), // Filtre toutes les missions secrètes
         });
     } catch (error) {
         console.error('Error checking late missions:', error);

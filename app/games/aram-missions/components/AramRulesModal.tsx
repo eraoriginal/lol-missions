@@ -26,7 +26,7 @@ export function AramRulesModal() {
           <div className="relative lol-card rounded-lg p-6 max-w-2xl max-h-[80vh] overflow-y-auto lol-scrollbar">
             <button
               onClick={() => setIsOpen(false)}
-              className="absolute top-3 right-3 text-xl lol-text hover:lol-text-gold transition-colors"
+              className="absolute top-3 right-3 text-xl lol-text hover:lol-text-gold transition-colors cursor-pointer"
             >
               ✕
             </button>

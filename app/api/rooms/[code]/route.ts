@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { filterPrivateMissions } from '@/lib/filterPrivateMissions';
 
 // Force dynamic rendering - pas de cache
 export const dynamic = 'force-dynamic';
@@ -11,6 +12,10 @@ export async function GET(
 ) {
     try {
         const { code } = await params;
+
+        // Récupère le token du joueur depuis les query params
+        const { searchParams } = new URL(request.url);
+        const playerToken = searchParams.get('playerToken');
 
         const room = await prisma.room.findUnique({
             where: { code },
@@ -47,8 +52,11 @@ export async function GET(
             );
         }
 
+        // Filtre les missions secrètes pendant la partie
+        const filteredRoom = filterPrivateMissions(room, playerToken);
+
         // Headers pour éviter le cache sur Vercel
-        return NextResponse.json({ room }, {
+        return NextResponse.json({ room: filteredRoom }, {
             headers: {
                 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
                 'Pragma': 'no-cache',

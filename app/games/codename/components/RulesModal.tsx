@@ -23,7 +23,7 @@ export function RulesModal() {
       <div className="relative z-10 poki-panel p-6 max-w-2xl max-h-[85vh] overflow-y-auto my-4">
             <button
               onClick={() => setIsOpen(false)}
-              className="absolute top-3 right-3 text-xl text-purple-400 hover:text-pink-400 transition-colors"
+              className="absolute top-3 right-3 text-xl text-purple-400 hover:text-pink-400 transition-colors cursor-pointer"
             >
               ✕
             </button>

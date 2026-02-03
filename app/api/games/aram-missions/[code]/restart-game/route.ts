@@ -1,13 +1,7 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { pushRoomUpdate } from '@/lib/pusher';
 import { isCreator } from '@/lib/utils';
-import { filterPrivateMissions } from '@/lib/filterPrivateMissions';
-import { z } from 'zod';
-
-const startGameSchema = z.object({
-    creatorToken: z.string(),
-});
 
 export async function POST(
     request: NextRequest,
@@ -16,7 +10,7 @@ export async function POST(
     try {
         const { code } = await params;
         const body = await request.json();
-        const { creatorToken } = startGameSchema.parse(body);
+        const { creatorToken } = body;
 
         const room = await prisma.room.findUnique({
             where: { code },
@@ -33,18 +27,17 @@ export async function POST(
 
         if (!isCreator(room, creatorToken)) {
             return Response.json(
-                { error: 'Only the room creator can start the game' },
+                { error: 'Only the creator can restart the game' },
                 { status: 403 }
             );
         }
 
-        if (room.gameStarted) {
-            return Response.json({ error: 'Game already started' }, { status: 400 });
-        }
-
-        if (room.players.length < 2) {
-            return Response.json({ error: 'Need at least 2 players to start' }, { status: 400 });
-        }
+        // Supprime toutes les missions existantes
+        await prisma.playerMission.deleteMany({
+            where: {
+                playerId: { in: room.players.map(p => p.id) },
+            },
+        });
 
         // Récupère et mélange les missions START
         const startMissions = await prisma.mission.findMany({ where: { type: 'START' } });
@@ -59,7 +52,7 @@ export async function POST(
             [shuffledMissions[i], shuffledMissions[j]] = [shuffledMissions[j], shuffledMissions[i]];
         }
 
-        // Assigne les missions START
+        // Assigne les nouvelles missions START
         await Promise.all(
             room.players.map((player, index) =>
                 prisma.playerMission.create({
@@ -72,32 +65,23 @@ export async function POST(
             )
         );
 
-        // gameStarted = true, mais gameStartTime reste null
-        // Le compteur ne démarre que quand le créateur clique "Lancer le compteur"
-        const updatedRoom = await prisma.room.update({
+        // Reset le timer mais garde gameStarted = true
+        await prisma.room.update({
             where: { id: room.id },
             data: {
-                gameStarted: true,
                 gameStartTime: null,
-            },
-            include: {
-                players: {
-                    include: { missions: { include: { mission: true } } },
-                },
+                gameStopped: false,
+                validationStatus: 'not_started',
             },
         });
 
-        console.log(`[START] Game started in room ${code} — waiting for countdown launch`);
+        console.log(`[RESTART-GAME] Game restarted in room ${code}, teams preserved, new START missions assigned`);
 
-        // Push : partie démarrée + missions START assignées
         await pushRoomUpdate(code);
 
-        return Response.json({ room: filterPrivateMissions(updatedRoom, null) });
+        return NextResponse.json({ success: true });
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return Response.json({ error: 'Invalid input', details: error.issues }, { status: 400 });
-        }
-        console.error('Error starting game:', error);
-        return Response.json({ error: 'Failed to start game' }, { status: 500 });
+        console.error('Error restarting game:', error);
+        return Response.json({ error: 'Failed to restart game' }, { status: 500 });
     }
 }

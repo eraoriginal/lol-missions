@@ -22,15 +22,123 @@ interface GameViewProps {
     roomCode: string;
 }
 
+// Set global pour tracker les missions déjà annoncées (persiste entre les re-renders)
+const announcedMissionsGlobal = new Set<string>();
+
+// Composant MissionCard qui gère son propre TTS à l'affichage
+function MissionCard({
+    mission,
+    type,
+    gameStopped,
+    getDifficultyStyle
+}: {
+    mission: any;
+    type: 'START' | 'MID' | 'LATE';
+    gameStopped: boolean;
+    getDifficultyStyle: (d: string) => { bg: string; text: string; label: string };
+}) {
+    const hasAnnouncedRef = useRef(false);
+
+    // TTS déclenché au montage du composant (= quand la mission s'affiche)
+    useEffect(() => {
+        // Ne pas annoncer si déjà fait ou si le jeu est arrêté
+        if (hasAnnouncedRef.current) return;
+        if (gameStopped) return;
+        if (!mission?.mission?.id || !mission?.mission?.text) return;
+
+        const missionId = mission.mission.id;
+
+        // Vérifier le Set global pour éviter les doublons (même entre composants)
+        if (announcedMissionsGlobal.has(missionId)) return;
+
+        // Marquer comme annoncé
+        hasAnnouncedRef.current = true;
+        announcedMissionsGlobal.add(missionId);
+
+        // TTS
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            const prefix = mission.mission.isPrivate ? 'Mission secrète : ' : '';
+            const fullText = prefix + mission.mission.text;
+
+            console.log(`[MissionCard TTS] Annonce ${type}:`, fullText);
+
+            // Petit délai pour s'assurer que le DOM est prêt
+            setTimeout(() => {
+                if (gameStopped) return;
+
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(fullText);
+                utterance.lang = 'fr-FR';
+                utterance.rate = 1;
+                utterance.volume = 0.9;
+
+                const voices = window.speechSynthesis.getVoices();
+                const frenchVoice = voices.find(v => v.lang.startsWith('fr'));
+                if (frenchVoice) {
+                    utterance.voice = frenchVoice;
+                }
+
+                window.speechSynthesis.speak(utterance);
+            }, 100);
+        }
+    }, [mission, type, gameStopped]);
+
+    const isPrivate = mission.mission.isPrivate;
+    const difficulty = mission.mission.difficulty;
+
+    // Styles selon le type
+    const typeStyles = {
+        START: {
+            bg: isPrivate ? 'secret-mission-full' : 'bg-slate-800/60 border border-slate-400/30',
+            label: 'Début',
+            labelColor: isPrivate ? 'text-white' : 'text-slate-300',
+            textColor: isPrivate ? 'text-white' : 'text-slate-200',
+            icon: isPrivate ? '🔒' : '⚔️',
+        },
+        MID: {
+            bg: isPrivate ? 'secret-mission-full' : 'bg-zinc-700/60 border border-zinc-400/30',
+            label: 'MID',
+            labelColor: isPrivate ? 'text-white' : 'text-zinc-300',
+            textColor: isPrivate ? 'text-white' : 'text-zinc-200',
+            icon: isPrivate ? '🔒' : '⚡',
+        },
+        LATE: {
+            bg: isPrivate ? 'secret-mission-full' : 'bg-gray-600/60 border border-gray-400/30',
+            label: 'Finale',
+            labelColor: isPrivate ? 'text-white' : 'text-gray-300',
+            textColor: isPrivate ? 'text-white' : 'text-gray-200',
+            icon: isPrivate ? '🔒' : '🔥',
+        },
+    };
+
+    const style = typeStyles[type];
+
+    return (
+        <div className={`flex items-start gap-3 p-4 rounded-lg ${style.bg}`}>
+            <span className="text-2xl flex-shrink-0">{style.icon}</span>
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className={`text-sm font-semibold uppercase ${style.labelColor}`}>{style.label}</span>
+                    {difficulty && (
+                        <span className={`text-xs px-2 py-0.5 rounded font-bold ${getDifficultyStyle(difficulty).bg} ${getDifficultyStyle(difficulty).text}`}>
+                            {getDifficultyStyle(difficulty).label}
+                        </span>
+                    )}
+                    {type !== 'START' && !isPrivate && (
+                        <span className="text-sm px-2 py-0.5 bg-gray-500/30 text-gray-300 rounded animate-pulse">Nouveau</span>
+                    )}
+                </div>
+                <p className={`leading-relaxed ${style.textColor}`}>{mission.mission.text}</p>
+            </div>
+        </div>
+    );
+}
+
 export function GameView({ room, roomCode }: GameViewProps) {
     const [launching, setLaunching] = useState(false);
     const [launchError, setLaunchError] = useState<string | null>(null);
-    const [voicesReady, setVoicesReady] = useState(false);
-
-    const midAnnoncedRef = useRef(false);
-    const lateAnnoncedRef = useRef(false);
-    const prevGameStartTimeRef = useRef<string | null>(null);
-    const gameStoppedRef = useRef(false);
+    const [restarting, setRestarting] = useState(false);
+    const [resettingToTeams, setResettingToTeams] = useState(false);
 
     const playerToken = typeof window !== 'undefined'
         ? localStorage.getItem(`room_${roomCode}_player`)
@@ -41,102 +149,46 @@ export function GameView({ room, roomCode }: GameViewProps) {
         : null;
 
     const isCreator = !!creatorToken;
+
+    // Cherche le joueur par playerToken
     const currentPlayer = room.players.find((p: any) => p.token === playerToken);
 
+    // Missions du joueur actuel
     const startMission = currentPlayer?.missions.find((m: any) => m.type === 'START');
     const midMission = currentPlayer?.missions.find((m: any) => m.type === 'MID');
     const lateMission = currentPlayer?.missions.find((m: any) => m.type === 'LATE');
 
-    // Track gameStopped state
+    // Reset le Set global quand la mission START change (nouvelles missions après restart)
+    const prevStartMissionIdRef = useRef<string | null>(null);
     useEffect(() => {
-        gameStoppedRef.current = room.gameStopped;
-    }, [room.gameStopped]);
+        const currentStartId = startMission?.mission?.id || null;
+        if (currentStartId && prevStartMissionIdRef.current && currentStartId !== prevStartMissionIdRef.current) {
+            console.log('[GameView] Nouvelles missions détectées, reset du Set global');
+            announcedMissionsGlobal.clear();
+        }
+        prevStartMissionIdRef.current = currentStartId;
+    }, [startMission]);
 
-    // Initialiser les voix du speechSynthesis
+    const getDifficultyStyle = (difficulty: string) => {
+        switch (difficulty) {
+            case 'easy':
+                return { bg: 'bg-green-600/80', text: 'text-green-100', label: 'Facile' };
+            case 'medium':
+                return { bg: 'bg-yellow-600/80', text: 'text-yellow-100', label: 'Moyen' };
+            case 'hard':
+                return { bg: 'bg-red-600/80', text: 'text-red-100', label: 'Difficile' };
+            default:
+                return { bg: 'bg-gray-600/80', text: 'text-gray-100', label: difficulty };
+        }
+    };
+
+    // Reset launching state when gameStartTime is reset (after restart)
     useEffect(() => {
-        if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
-        const checkVoices = () => {
-            const voices = window.speechSynthesis.getVoices();
-            if (voices.length > 0) {
-                setVoicesReady(true);
-                console.log('[GameView] Voix chargées:', voices.length);
-            }
-        };
-
-        // Vérifier immédiatement
-        checkVoices();
-
-        // Écouter l'événement voiceschanged (nécessaire sur certains navigateurs)
-        window.speechSynthesis.addEventListener('voiceschanged', checkVoices);
-
-        return () => {
-            window.speechSynthesis.removeEventListener('voiceschanged', checkVoices);
-        };
-    }, []);
-
-    // Réinitialiser les refs TTS quand une nouvelle partie commence
-    useEffect(() => {
-        if (room.gameStartTime && room.gameStartTime !== prevGameStartTimeRef.current) {
-            console.log('[GameView] Nouvelle partie détectée, réinitialisation TTS');
-            prevGameStartTimeRef.current = room.gameStartTime;
-            midAnnoncedRef.current = false;
-            lateAnnoncedRef.current = false;
+        if (!room.gameStartTime) {
+            setLaunching(false);
+            setLaunchError(null);
         }
     }, [room.gameStartTime]);
-
-    // Annoncer les missions via TTS - SEULEMENT si le jeu n'est pas arrêté
-    useEffect(() => {
-        // Ne pas déclencher le TTS si le jeu est arrêté
-        if (room.gameStopped) {
-            console.log('[GameView] Jeu arrêté, TTS désactivé');
-            return;
-        }
-
-        if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-        if (!voicesReady) {
-            console.log('[GameView] Voix pas encore prêtes, TTS reporté');
-            return;
-        }
-
-        const announce = (text: string) => {
-            // Double vérification que le jeu n'est pas arrêté
-            if (gameStoppedRef.current) {
-                console.log('[GameView] TTS annulé - jeu arrêté');
-                return;
-            }
-
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'fr-FR';
-            utterance.rate = 1;
-            utterance.volume = 0.9;
-
-            // Trouver une voix française si disponible
-            const voices = window.speechSynthesis.getVoices();
-            const frenchVoice = voices.find(v => v.lang.startsWith('fr'));
-            if (frenchVoice) {
-                utterance.voice = frenchVoice;
-            }
-
-            window.speechSynthesis.speak(utterance);
-            console.log('[GameView] Annonce vocale :', text);
-        };
-
-        if (midMission && !midAnnoncedRef.current) {
-            midAnnoncedRef.current = true;
-            const prefix = midMission.mission.isPrivate ? 'Mission secrète : ' : '';
-            console.log('[GameView] Déclenchement TTS MID');
-            announce(prefix + midMission.mission.text);
-        }
-
-        if (lateMission && !lateAnnoncedRef.current) {
-            lateAnnoncedRef.current = true;
-            const prefix = lateMission.mission.isPrivate ? 'Mission secrète : ' : '';
-            console.log('[GameView] Déclenchement TTS LATE');
-            announce(prefix + lateMission.mission.text);
-        }
-    }, [midMission, lateMission, voicesReady, room.gameStopped]);
 
     // Si le jeu est arrêté, afficher l'écran de fin
     if (room.gameStopped) {
@@ -165,6 +217,48 @@ export function GameView({ room, roomCode }: GameViewProps) {
         }
     };
 
+    const handleRestartGame = async () => {
+        if (!creatorToken) return;
+        setRestarting(true);
+
+        try {
+            const res = await fetch(`/api/games/aram-missions/${roomCode}/restart-game`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ creatorToken }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Erreur');
+            }
+        } catch (err) {
+            console.error('Erreur restart:', err);
+        }
+        setRestarting(false);
+    };
+
+    const handleResetToTeams = async () => {
+        if (!creatorToken) return;
+        setResettingToTeams(true);
+
+        try {
+            const res = await fetch(`/api/games/aram-missions/${roomCode}/reset-to-teams`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ creatorToken }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Erreur');
+            }
+        } catch (err) {
+            console.error('Erreur reset to teams:', err);
+        }
+        setResettingToTeams(false);
+    };
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -178,8 +272,28 @@ export function GameView({ room, roomCode }: GameViewProps) {
                             Room : <span className="font-mono font-bold lol-text-gold">{roomCode}</span>
                         </p>
                     </div>
-                    <div className="flex gap-2">
-                        {isCreator && room.gameStartTime && <StopGameButton roomCode={roomCode} />}
+                    <div className="flex gap-2 flex-wrap justify-end">
+                        {isCreator && (
+                            <>
+                                <button
+                                    onClick={handleRestartGame}
+                                    disabled={restarting}
+                                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg font-medium transition-colors disabled:opacity-50"
+                                    title="Recommencer avec de nouvelles missions"
+                                >
+                                    {restarting ? '⏳' : '🔄'} Recommencer
+                                </button>
+                                <button
+                                    onClick={handleResetToTeams}
+                                    disabled={resettingToTeams}
+                                    className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg font-medium transition-colors disabled:opacity-50"
+                                    title="Retourner à la sélection des équipes"
+                                >
+                                    {resettingToTeams ? '⏳' : '👥'} Équipes
+                                </button>
+                                {room.gameStartTime && <StopGameButton roomCode={roomCode} />}
+                            </>
+                        )}
                         <LeaveRoomButton roomCode={roomCode} />
                     </div>
                 </div>
@@ -233,56 +347,33 @@ export function GameView({ room, roomCode }: GameViewProps) {
 
                 <div className="space-y-3">
                     {startMission && (
-                        <div className={`flex items-start gap-3 p-4 rounded-lg border ${
-                            startMission.mission.isPrivate
-                                ? 'bg-purple-900/30 border-purple-500/40'
-                                : 'bg-[#1E2328] border-[#C8AA6E]/20'
-                        }`}>
-                            <span className="text-2xl flex-shrink-0">⚔️</span>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-sm font-semibold text-blue-400 uppercase">Début</span>
-                                    {startMission.mission.isPrivate && <span>🔒</span>}
-                                </div>
-                                <p className="lol-text-light leading-relaxed">{startMission.mission.text}</p>
-                            </div>
-                        </div>
+                        <MissionCard
+                            key={startMission.mission.id}
+                            mission={startMission}
+                            type="START"
+                            gameStopped={room.gameStopped}
+                            getDifficultyStyle={getDifficultyStyle}
+                        />
                     )}
 
                     {midMission && (
-                        <div className={`flex items-start gap-3 p-4 rounded-lg border ${
-                            midMission.mission.isPrivate
-                                ? 'bg-purple-900/30 border-purple-500/40'
-                                : 'bg-gradient-to-r from-purple-900/40 to-purple-800/20 border-purple-500/40'
-                        }`}>
-                            <span className="text-2xl flex-shrink-0">⚡</span>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-sm font-semibold text-purple-400 uppercase">MID</span>
-                                    {midMission.mission.isPrivate && <span>🔒</span>}
-                                    <span className="text-sm px-2 py-0.5 bg-purple-500/30 text-purple-300 rounded animate-pulse">Nouveau</span>
-                                </div>
-                                <p className="lol-text-light leading-relaxed">{midMission.mission.text}</p>
-                            </div>
-                        </div>
+                        <MissionCard
+                            key={midMission.mission.id}
+                            mission={midMission}
+                            type="MID"
+                            gameStopped={room.gameStopped}
+                            getDifficultyStyle={getDifficultyStyle}
+                        />
                     )}
 
                     {lateMission && (
-                        <div className={`flex items-start gap-3 p-4 rounded-lg border ${
-                            lateMission.mission.isPrivate
-                                ? 'bg-purple-900/30 border-purple-500/40'
-                                : 'bg-gradient-to-r from-red-900/40 to-orange-800/20 border-red-500/40'
-                        }`}>
-                            <span className="text-2xl flex-shrink-0">🔥</span>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-sm font-semibold text-red-400 uppercase">Finale</span>
-                                    {lateMission.mission.isPrivate && <span>🔒</span>}
-                                    <span className="text-sm px-2 py-0.5 bg-red-500/30 text-red-300 rounded animate-pulse">Nouveau</span>
-                                </div>
-                                <p className="lol-text-light leading-relaxed">{lateMission.mission.text}</p>
-                            </div>
-                        </div>
+                        <MissionCard
+                            key={lateMission.mission.id}
+                            mission={lateMission}
+                            type="LATE"
+                            gameStopped={room.gameStopped}
+                            getDifficultyStyle={getDifficultyStyle}
+                        />
                     )}
                 </div>
             </div>

@@ -309,6 +309,32 @@ body {
   animation: hextech-pulse 2s ease-in-out infinite;
 }
 
+/* Glow statique brillant pour missions secrètes (bordure seulement) */
+.secret-mission-glow {
+  border: 2px solid #C8AA6E !important;
+  background: linear-gradient(135deg, rgba(200, 170, 110, 0.2) 0%, rgba(120, 90, 40, 0.15) 100%) !important;
+  box-shadow: 0 0 15px rgba(200, 170, 110, 0.6), 0 0 30px rgba(200, 170, 110, 0.3), inset 0 0 15px rgba(200, 170, 110, 0.1);
+}
+
+/* Mission secrète entièrement dorée */
+.secret-mission-full {
+  border: 2px solid #C8AA6E !important;
+  background: linear-gradient(135deg, rgba(200, 170, 110, 0.4) 0%, rgba(120, 90, 40, 0.35) 50%, rgba(200, 170, 110, 0.3) 100%) !important;
+  box-shadow: 0 0 20px rgba(200, 170, 110, 0.7), 0 0 40px rgba(200, 170, 110, 0.4), inset 0 0 30px rgba(200, 170, 110, 0.2);
+}
+
+.secret-mission-badge {
+  background: linear-gradient(135deg, #C8AA6E 0%, #785A28 100%);
+  color: #010A13;
+  font-weight: bold;
+  box-shadow: 0 0 10px rgba(200, 170, 110, 0.5);
+}
+
+.secret-mission-text {
+  color: #C8AA6E;
+  text-shadow: 0 0 10px rgba(200, 170, 110, 0.5);
+}
+
 /* Scrollbar style LoL */
 .lol-scrollbar::-webkit-scrollbar {
   width: 8px;

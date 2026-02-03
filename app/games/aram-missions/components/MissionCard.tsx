@@ -65,7 +65,7 @@ export function MissionCard({ mission, type, showPoints = false }: MissionCardPr
     return (
         <div className={`relative rounded-lg overflow-hidden ${
             mission.isPrivate
-                ? 'bg-gradient-to-br from-purple-900/80 to-[#0A1428] border-2 border-purple-500'
+                ? 'secret-mission-full'
                 : 'lol-card'
         }`}>
             {/* Barre supérieure avec type de mission */}
@@ -76,7 +76,7 @@ export function MissionCard({ mission, type, showPoints = false }: MissionCardPr
                         Mission {typeStyle.label}
                     </span>
                     {mission.isPrivate && (
-                        <span className="bg-purple-600 text-white px-2 py-0.5 rounded text-xs font-bold animate-pulse">
+                        <span className="secret-mission-badge px-2 py-0.5 rounded text-xs">
                             🔒 SECRÈTE
                         </span>
                     )}
@@ -100,8 +100,8 @@ export function MissionCard({ mission, type, showPoints = false }: MissionCardPr
                 </p>
 
                 {mission.isPrivate && (
-                    <div className="mt-4 p-3 bg-purple-900/50 border border-purple-500/50 rounded-lg">
-                        <p className="text-sm text-purple-300 flex items-center gap-2">
+                    <div className="mt-4 p-3 bg-[#C8AA6E]/20 border border-[#C8AA6E]/50 rounded-lg">
+                        <p className="text-sm text-white flex items-center gap-2">
                             <span className="text-lg">🤫</span>
                             <span className="font-medium">
                                 Les autres invocateurs ne voient pas cette mission !

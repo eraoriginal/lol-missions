@@ -7,6 +7,7 @@ interface PlayerMission {
         type: string;
         isPrivate: boolean;
         points: number;
+        difficulty?: string;
     };
     type: string;
     validated: boolean;
@@ -26,6 +27,19 @@ interface GameSummaryProps {
 }
 
 export function GameSummary({ players }: GameSummaryProps) {
+    const getDifficultyStyle = (difficulty: string) => {
+        switch (difficulty) {
+            case 'easy':
+                return { bg: 'bg-green-600/80', text: 'text-green-100', label: 'Facile' };
+            case 'medium':
+                return { bg: 'bg-yellow-600/80', text: 'text-yellow-100', label: 'Moyen' };
+            case 'hard':
+                return { bg: 'bg-red-600/80', text: 'text-red-100', label: 'Difficile' };
+            default:
+                return { bg: 'bg-gray-600/80', text: 'text-gray-100', label: difficulty };
+        }
+    };
+
     const playersWithScores = players.map(p => ({
         ...p,
         totalPoints: p.missions.reduce((sum, m) => sum + m.pointsEarned, 0),
@@ -116,36 +130,51 @@ export function GameSummary({ players }: GameSummaryProps) {
                                 </div>
 
                                 <div className="space-y-1 pl-7">
-                                    {player.missions.map((pm) => (
-                                        <div
-                                            key={pm.mission.id}
-                                            className={`flex items-center justify-between text-xs rounded px-2 py-1 ${
-                                                pm.validated ? 'bg-green-900/40 border border-green-500/30' : 'bg-red-900/40 border border-red-500/30 opacity-60'
-                                            }`}
-                                        >
-                                            <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                                                <span>{pm.validated ? '✅' : '❌'}</span>
-                                                <span className={`lol-text-light truncate ${!pm.validated ? 'line-through opacity-60' : ''}`}>
-                                                    {pm.mission.text}
-                                                </span>
+                                    {player.missions.map((pm) => {
+                                        const isPrivate = pm.mission.isPrivate;
+                                        // Style de base selon validation
+                                        let bgStyle = pm.validated
+                                            ? 'bg-green-900/40 border border-green-500/30'
+                                            : 'bg-red-900/40 border border-red-500/30 opacity-60';
+                                        // Si mission secrète, override avec style doré
+                                        if (isPrivate) {
+                                            bgStyle = pm.validated
+                                                ? 'bg-gradient-to-r from-[#C8AA6E]/30 to-green-900/40 border border-[#C8AA6E]/50'
+                                                : 'bg-gradient-to-r from-[#C8AA6E]/20 to-red-900/30 border border-[#C8AA6E]/30 opacity-70';
+                                        }
+
+                                        return (
+                                            <div
+                                                key={pm.mission.id}
+                                                className={`flex items-center justify-between text-xs rounded px-2 py-1 ${bgStyle}`}
+                                            >
+                                                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                                    <span>{pm.validated ? '✅' : '❌'}</span>
+                                                    {isPrivate && <span className="text-[#C8AA6E]">🔒</span>}
+                                                    <span className={`truncate ${isPrivate ? 'text-[#F0E6D2]' : 'lol-text-light'} ${!pm.validated ? 'line-through opacity-60' : ''}`}>
+                                                        {pm.mission.text}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                                        pm.type === 'START' ? 'bg-blue-800/60 text-blue-300' :
+                                                            pm.type === 'MID'   ? 'bg-purple-800/60 text-purple-300' :
+                                                                'bg-red-800/60 text-red-300'
+                                                    }`}>
+                                                        {pm.type}
+                                                    </span>
+                                                    {pm.mission.difficulty && (
+                                                        <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${getDifficultyStyle(pm.mission.difficulty).bg} ${getDifficultyStyle(pm.mission.difficulty).text}`}>
+                                                            {getDifficultyStyle(pm.mission.difficulty).label}
+                                                        </span>
+                                                    )}
+                                                    <span className={`font-bold ${pm.validated ? 'lol-text-gold' : 'lol-text'}`}>
+                                                        {pm.pointsEarned}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                                                <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                                    pm.type === 'START' ? 'bg-blue-800/60 text-blue-300' :
-                                                        pm.type === 'MID'   ? 'bg-purple-800/60 text-purple-300' :
-                                                            'bg-red-800/60 text-red-300'
-                                                }`}>
-                                                    {pm.type}
-                                                </span>
-                                                {pm.mission.isPrivate && (
-                                                    <span className="text-xs text-purple-400">🔒</span>
-                                                )}
-                                                <span className={`font-bold ${pm.validated ? 'lol-text-gold' : 'lol-text'}`}>
-                                                    {pm.pointsEarned}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         ))

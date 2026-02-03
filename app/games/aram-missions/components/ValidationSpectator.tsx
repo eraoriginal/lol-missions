@@ -54,6 +54,7 @@ export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps
         const color = getMissionColor(type);
         const validated = pm.decided && pm.validated;
         const failed = pm.decided && !pm.validated;
+        const isPrivate = pm.mission.isPrivate;
 
         return (
             <div className={`flex items-start gap-4 p-4 rounded-lg border transition-all ${
@@ -61,21 +62,22 @@ export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps
                     ? 'bg-green-900/30 border-green-500/50'
                     : failed
                         ? 'bg-red-900/30 border-red-500/50'
-                        : pm.mission.isPrivate
-                            ? 'bg-purple-900/30 border-purple-500/40'
+                        : isPrivate
+                            ? 'secret-mission-full'
                             : `bg-${color}-900/20 border-${color}-500/30`
             }`}>
                 <span className="text-2xl flex-shrink-0 mt-0.5">{getMissionIcon(type)}</span>
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                         <span className={`text-sm font-semibold uppercase ${
+                            isPrivate ? 'text-white' :
                             color === 'blue' ? 'text-blue-400' :
                             color === 'purple' ? 'text-purple-400' : 'text-red-400'
                         }`}>{getMissionLabel(type)}</span>
-                        {pm.mission.isPrivate && <span>🔒</span>}
-                        <span className="text-sm lol-text-gold">+{pm.mission.points} pts</span>
+                        {isPrivate && <span className="text-white">🔒</span>}
+                        <span className={`text-sm ${isPrivate ? 'text-white' : 'lol-text-gold'}`}>+{pm.mission.points} pts</span>
                     </div>
-                    <p className="lol-text-light leading-relaxed">{pm.mission.text}</p>
+                    <p className={`leading-relaxed ${isPrivate ? 'text-white' : 'lol-text-light'}`}>{pm.mission.text}</p>
                 </div>
                 <div className="flex-shrink-0">
                     {pm.decided ? (

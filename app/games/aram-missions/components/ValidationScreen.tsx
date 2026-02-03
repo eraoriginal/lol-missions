@@ -13,6 +13,33 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [localDecisions, setLocalDecisions] = useState<Record<string, Record<string, boolean>>>({});
     const [finishing, setFinishing] = useState(false);
+    const [resettingToTeams, setResettingToTeams] = useState(false);
+
+    const creatorToken = typeof window !== 'undefined'
+        ? localStorage.getItem(`room_${roomCode}_creator`)
+        : null;
+    const isCreator = !!creatorToken;
+
+    const handleResetToTeams = async () => {
+        if (!creatorToken) return;
+        setResettingToTeams(true);
+
+        try {
+            const res = await fetch(`/api/games/aram-missions/${roomCode}/reset-to-teams`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ creatorToken }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Erreur');
+            }
+        } catch (err) {
+            console.error('Erreur reset to teams:', err);
+        }
+        setResettingToTeams(false);
+    };
 
     const player = players[currentIndex];
     const playerDecisions = localDecisions[player?.id] || {};
@@ -108,6 +135,19 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
         return 'red';
     };
 
+    const getDifficultyStyle = (difficulty: string) => {
+        switch (difficulty) {
+            case 'easy':
+                return { bg: 'bg-green-600/80', text: 'text-green-100', label: 'Facile' };
+            case 'medium':
+                return { bg: 'bg-yellow-600/80', text: 'text-yellow-100', label: 'Moyen' };
+            case 'hard':
+                return { bg: 'bg-red-600/80', text: 'text-red-100', label: 'Difficile' };
+            default:
+                return { bg: 'bg-gray-600/80', text: 'text-gray-100', label: difficulty };
+        }
+    };
+
     const MissionRow = ({ pm, type }: { pm: any; type: string }) => {
         const color = getMissionColor(type);
         const decided = playerDecisions[type] !== undefined;
@@ -121,20 +161,26 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
                     : failed
                         ? 'bg-red-900/30 border-red-500/50'
                         : pm.mission.isPrivate
-                            ? 'bg-purple-900/30 border-purple-500/40'
+                            ? 'secret-mission-full'
                             : `bg-${color}-900/20 border-${color}-500/30`
             }`}>
                 <span className="text-2xl flex-shrink-0 mt-0.5">{getMissionIcon(type)}</span>
                 <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className={`text-sm font-semibold uppercase ${
+                            pm.mission.isPrivate ? 'text-white' :
                             color === 'blue' ? 'text-blue-400' :
                             color === 'purple' ? 'text-purple-400' : 'text-red-400'
                         }`}>{getMissionLabel(type)}</span>
-                        {pm.mission.isPrivate && <span>🔒</span>}
-                        <span className="text-sm lol-text-gold">+{pm.mission.points} pts</span>
+                        {pm.mission.isPrivate && <span className="text-white">🔒</span>}
+                        {pm.mission.difficulty && (
+                            <span className={`text-xs px-2 py-0.5 rounded font-bold ${getDifficultyStyle(pm.mission.difficulty).bg} ${getDifficultyStyle(pm.mission.difficulty).text}`}>
+                                {getDifficultyStyle(pm.mission.difficulty).label}
+                            </span>
+                        )}
+                        <span className={`text-sm ${pm.mission.isPrivate ? 'text-white' : 'lol-text-gold'}`}>+{pm.mission.points} pts</span>
                     </div>
-                    <p className="lol-text-light leading-relaxed">{pm.mission.text}</p>
+                    <p className={`leading-relaxed ${pm.mission.isPrivate ? 'text-white' : 'lol-text-light'}`}>{pm.mission.text}</p>
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
                     <button
@@ -176,7 +222,19 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
                             Invocateur <span className="font-bold lol-text-gold">{currentIndex + 1}</span> / {players.length}
                         </p>
                     </div>
-                    <LeaveRoomButton roomCode={roomCode} />
+                    <div className="flex gap-2">
+                        {isCreator && (
+                            <button
+                                onClick={handleResetToTeams}
+                                disabled={resettingToTeams}
+                                className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg font-medium transition-colors disabled:opacity-50"
+                                title="Retourner à la sélection des équipes"
+                            >
+                                {resettingToTeams ? '⏳' : '👥'} Équipes
+                            </button>
+                        )}
+                        <LeaveRoomButton roomCode={roomCode} />
+                    </div>
                 </div>
                 <div className="flex gap-2 justify-center">
                     {players.map((_: any, i: number) => (
