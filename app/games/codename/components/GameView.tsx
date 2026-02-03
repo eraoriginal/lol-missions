@@ -9,8 +9,9 @@ import { OperativeView } from './OperativeView';
 import { GameStatus } from './GameStatus';
 import { GameBoard } from './GameBoard';
 import { RulesModal } from './RulesModal';
-import { useCodenameSound } from '../hooks/useCodenameSound';
+import { GameHistory } from './GameHistory';
 import { useCardInterests } from '../hooks/useCardInterests';
+import { useCodenameSocket } from '../hooks/useCodenameSocket';
 
 interface CardInterest {
   id: string;
@@ -28,6 +29,17 @@ interface Card {
   interests?: CardInterest[];
 }
 
+interface HistoryEntry {
+  id: string;
+  team: string;
+  type: string;
+  clue: string | null;
+  number: number | null;
+  cardWord: string | null;
+  cardColor: string | null;
+  createdAt: string;
+}
+
 interface CodenameGame {
   id: string;
   currentTeam: string;
@@ -39,6 +51,7 @@ interface CodenameGame {
   currentNumber: number | null;
   guessesLeft: number;
   cards: Card[];
+  history?: HistoryEntry[];
 }
 
 interface Player {
@@ -75,8 +88,10 @@ export function GameView({ room, roomCode }: GameViewProps) {
   const [localCards, setLocalCards] = useState<Card[]>(room.codenameGame?.cards || []);
   // Track current team to detect turn changes
   const [lastKnownTeam, setLastKnownTeam] = useState<string | null>(room.codenameGame?.currentTeam || null);
-  const { play } = useCodenameSound();
   const router = useRouter();
+
+  // Listen for sound events via Pusher (all players hear sounds)
+  useCodenameSocket(roomCode);
 
   const playerToken =
     typeof window !== 'undefined' ? localStorage.getItem(`room_${roomCode}_player`) : null;
@@ -300,9 +315,21 @@ export function GameView({ room, roomCode }: GameViewProps) {
     );
   }
 
+  // Determine background class based on current team
+  const getTeamBackgroundClass = () => {
+    if (!game || game.gameOver) return '';
+    if (game.currentTeam === 'red') {
+      return 'bg-gradient-to-b from-red-950/40 via-transparent to-transparent';
+    }
+    if (game.currentTeam === 'blue') {
+      return 'bg-gradient-to-b from-blue-950/40 via-transparent to-transparent';
+    }
+    return '';
+  };
+
   // Phase 3 & 4: Playing / Game Over
   return (
-    <div className="space-y-4">
+    <div className={`space-y-4 min-h-screen transition-all duration-500 ${getTeamBackgroundClass()}`}>
       {/* Header */}
       <div className="poki-panel p-3">
         <div className="flex justify-between items-center">
@@ -413,12 +440,14 @@ export function GameView({ room, roomCode }: GameViewProps) {
             <h4 className="text-xs font-bold text-red-400 mb-1.5">🔴 Rouge</h4>
             <div className="space-y-0.5 text-xs">
               {redPlayers.map((p) => (
-                <div key={p.id} className="flex items-center gap-1 text-purple-200/80">
-                  <span className="text-[10px]">{p.role === 'spymaster' ? '🔮' : '🎯'}</span>
+                <div key={p.id} className={`flex items-center gap-1 ${p.token === playerToken ? 'text-pink-300 font-medium' : 'text-purple-200/80'}`}>
                   <span className="truncate">{p.name}</span>
                   {p.token === playerToken && (
                     <span className="text-[10px] text-pink-400">(vous)</span>
                   )}
+                  <span className={`text-[10px] ml-auto whitespace-nowrap ${p.role === 'spymaster' ? 'text-pink-400' : 'text-purple-400/60'}`}>
+                    {p.role === 'spymaster' ? '🔮 Espion' : '🎯 Agent'}
+                  </span>
                 </div>
               ))}
             </div>
@@ -429,17 +458,24 @@ export function GameView({ room, roomCode }: GameViewProps) {
             <h4 className="text-xs font-bold text-blue-400 mb-1.5">🔵 Bleu</h4>
             <div className="space-y-0.5 text-xs">
               {bluePlayers.map((p) => (
-                <div key={p.id} className="flex items-center gap-1 text-purple-200/80">
-                  <span className="text-[10px]">{p.role === 'spymaster' ? '🔮' : '🎯'}</span>
+                <div key={p.id} className={`flex items-center gap-1 ${p.token === playerToken ? 'text-cyan-300 font-medium' : 'text-purple-200/80'}`}>
                   <span className="truncate">{p.name}</span>
                   {p.token === playerToken && (
-                    <span className="text-[10px] text-pink-400">(vous)</span>
+                    <span className="text-[10px] text-cyan-400">(vous)</span>
                   )}
+                  <span className={`text-[10px] ml-auto whitespace-nowrap ${p.role === 'spymaster' ? 'text-cyan-400' : 'text-purple-400/60'}`}>
+                    {p.role === 'spymaster' ? '🔮 Espion' : '🎯 Agent'}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
         </div>
+      )}
+
+      {/* Game history */}
+      {(isPlaying || isGameOver) && game?.history && game.history.length > 0 && (
+        <GameHistory history={game.history} />
       )}
 
       {/* Leave confirmation modal for creator */}

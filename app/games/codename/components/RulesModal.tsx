@@ -1,29 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 export function RulesModal() {
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  return (
-    <>
-      <button
-        onClick={() => setIsOpen(true)}
-        className="poki-btn-secondary px-3 py-1.5 text-sm"
-      >
-        📖 Règles
-      </button>
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            onClick={() => setIsOpen(false)}
-          />
+  const modalContent = isOpen ? (
+    <div className="fixed inset-0 z-[9999] flex items-start justify-center p-4 pt-8 overflow-y-auto">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={() => setIsOpen(false)}
+      />
 
-          {/* Modal */}
-          <div className="relative poki-panel p-6 max-w-2xl max-h-[80vh] overflow-y-auto">
+      {/* Modal */}
+      <div className="relative z-10 poki-panel p-6 max-w-2xl max-h-[85vh] overflow-y-auto my-4">
             <button
               onClick={() => setIsOpen(false)}
               className="absolute top-3 right-3 text-xl text-purple-400 hover:text-pink-400 transition-colors"
@@ -121,7 +118,18 @@ export function RulesModal() {
             </div>
           </div>
         </div>
-      )}
+  ) : null;
+
+  return (
+    <>
+      <button
+        onClick={() => setIsOpen(true)}
+        className="poki-btn-secondary px-3 py-1.5 text-sm"
+      >
+        📖 Règles
+      </button>
+
+      {mounted && modalContent && createPortal(modalContent, document.body)}
     </>
   );
 }

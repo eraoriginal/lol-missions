@@ -36,24 +36,6 @@ export function SpymasterView({
 }: SpymasterViewProps) {
   return (
     <div className="space-y-4">
-      {/* Small role badge */}
-      <div className="flex items-center justify-between">
-        <span className="inline-flex items-center gap-1.5 text-sm text-pink-400 bg-pink-500/20 px-3 py-1 rounded-full border border-pink-500/30">
-          <span>🔮</span>
-          <span>Maître-Espion</span>
-        </span>
-
-        {isMyTurn && !hasGivenClue && (
-          <span className="text-sm text-green-400 animate-pulse">→ Donnez un indice</span>
-        )}
-        {isMyTurn && hasGivenClue && (
-          <span className="text-sm text-purple-300/70">En attente des agents...</span>
-        )}
-        {!isMyTurn && (
-          <span className="text-sm text-purple-400/50">Tour adverse</span>
-        )}
-      </div>
-
       {/* Clue input (only if it's my turn and I haven't given a clue yet) */}
       {isMyTurn && !hasGivenClue && (
         <ClueInput roomCode={roomCode} playerToken={playerToken} />

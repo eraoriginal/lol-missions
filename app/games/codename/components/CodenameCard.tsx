@@ -34,10 +34,10 @@ const colorStyles: Record<string, { bg: string; border: string; text: string; sh
     shadow: 'shadow-blue-500/50',
   },
   neutral: {
-    bg: 'bg-gradient-to-br from-stone-300 to-stone-400',
-    border: 'border-stone-300',
-    text: 'text-stone-700',
-    shadow: 'shadow-stone-400/40',
+    bg: 'bg-gradient-to-br from-gray-100 to-gray-200',
+    border: 'border-gray-300',
+    text: 'text-gray-700',
+    shadow: 'shadow-gray-300/50',
   },
   assassin: {
     bg: 'bg-gradient-to-br from-gray-800 to-gray-950',
@@ -94,7 +94,7 @@ export function CodenameCard({
         className={`
           absolute inset-0 rounded-xl flex items-center justify-center
           ${isSpymaster ? 'bg-gradient-to-br from-slate-200 to-slate-300' : 'poki-card'} border-2
-          ${isSpymaster ? style.border : 'border-amber-400/50'}
+          ${isSpymaster ? style.border : 'border-purple-400/50'}
           ${hasInterests ? 'border-pink-400 shadow-lg shadow-pink-400/30' : ''}
           ${isClickable && !card.revealed && !isSpymaster && !hasInterests ? 'group-hover:border-pink-400/50' : ''}
           transition-all duration-300
@@ -128,7 +128,7 @@ export function CodenameCard({
             className={`absolute top-0.5 right-0.5 text-[8px] sm:text-[9px] px-1 py-0.5 rounded
               ${isSpymaster
                 ? 'bg-black/30 text-white/80'
-                : 'bg-amber-800/30 text-amber-700'
+                : 'bg-purple-800/30 text-purple-200'
               }
             `}
           >

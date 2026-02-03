@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { pushRoomUpdate } from '@/lib/pusher';
+import { pushRoomUpdate, pushSoundEvent } from '@/lib/pusher';
 import { z } from 'zod';
 
 const guessSchema = z.object({
@@ -82,6 +82,17 @@ export async function POST(
     // Clear all interests on the revealed card
     await prisma.cardInterest.deleteMany({
       where: { cardId: card.id },
+    });
+
+    // Add to history
+    await prisma.codenameHistory.create({
+      data: {
+        gameId: game.id,
+        team: game.currentTeam,
+        type: 'guess',
+        cardWord: card.word,
+        cardColor: card.color,
+      },
     });
 
     let newRedRemaining = game.redRemaining;
@@ -185,6 +196,21 @@ export async function POST(
     console.log(
       `[CODENAME] ${player.name} guessed "${card.word}" (${card.color}) - ${resultType}`
     );
+
+    // Push sound event to all players
+    const isVictory = gameOver && winner;
+    if (isVictory && resultType === 'correct') {
+      // Only play victory sound when winning by finding all cards
+      await pushSoundEvent(code, 'victory');
+    } else if (isVictory) {
+      // Other game over scenarios (assassin, opponent helped us win)
+      await pushSoundEvent(code, resultType);
+      // Victory sound will be played after a delay on client side
+      setTimeout(() => pushSoundEvent(code, 'victory'), 500);
+    } else {
+      // Normal guess, no victory
+      await pushSoundEvent(code, resultType);
+    }
 
     await pushRoomUpdate(code);
 

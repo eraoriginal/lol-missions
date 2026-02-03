@@ -90,52 +90,30 @@ export async function POST(
     // Get selected categories
     const selectedCategories = room.selectedCategories || [];
 
-    // Equitable distribution: default words count as a virtual category
-    // Total groups = selectedCategories.length + 1 (default words)
-    // Each group gets approximately 25 / totalGroups words
+    // Each category gets 1-3 random cards, the rest comes from default category
     let wordsToUse: { word: string; category: string | null }[] = [];
 
     // Always get default words (no category)
     const defaultWords = await prisma.codenameWord.findMany({
       where: { category: null },
     });
-    const defaultWordsList = defaultWords.map(w => ({ word: w.word, category: w.category }));
+    const shuffledDefaultWords = shuffle(defaultWords.map(w => ({ word: w.word, category: w.category })));
 
     if (selectedCategories.length > 0) {
-      // Calculate equitable distribution
-      const totalGroups = selectedCategories.length + 1; // +1 for default words
-      const baseWordsPerGroup = Math.floor(25 / totalGroups);
-      let remainder = 25 % totalGroups;
-
-      // Distribute words from default category
-      const defaultWordsCount = baseWordsPerGroup + (remainder > 0 ? 1 : 0);
-      if (remainder > 0) remainder--;
-
-      if (defaultWordsList.length < defaultWordsCount) {
-        return Response.json(
-          { error: `Pas assez de mots par défaut. Il en faut au moins ${defaultWordsCount}.` },
-          { status: 400 }
-        );
-      }
-
-      const selectedDefaultWords = shuffle(defaultWordsList).slice(0, defaultWordsCount);
-      wordsToUse.push(...selectedDefaultWords);
-
-      // Distribute words from each selected category
+      // Pick 1-3 random cards from each selected category
       for (const category of selectedCategories) {
         const categoryWords = await prisma.codenameWord.findMany({
           where: { category },
         });
 
-        const wordsForThisCategory = baseWordsPerGroup + (remainder > 0 ? 1 : 0);
-        if (remainder > 0) remainder--;
-
-        if (categoryWords.length < wordsForThisCategory) {
-          return Response.json(
-            { error: `Pas assez de mots dans la catégorie "${category}". Il en faut au moins ${wordsForThisCategory}.` },
-            { status: 400 }
-          );
+        if (categoryWords.length === 0) {
+          console.log(`[CODENAME] Category "${category}" has no words, skipping`);
+          continue;
         }
+
+        // Random number between 1 and 3 (but not more than available words)
+        const maxCards = Math.min(3, categoryWords.length);
+        const wordsForThisCategory = Math.floor(Math.random() * maxCards) + 1;
 
         const shuffledCategoryWords = shuffle(categoryWords);
         const selectedCategoryWords = shuffledCategoryWords
@@ -144,16 +122,28 @@ export async function POST(
 
         wordsToUse.push(...selectedCategoryWords);
       }
+
+      // Fill the rest with default words (25 total)
+      const remainingCount = 25 - wordsToUse.length;
+
+      if (shuffledDefaultWords.length < remainingCount) {
+        return Response.json(
+          { error: `Pas assez de mots par défaut. Il en faut au moins ${remainingCount}.` },
+          { status: 400 }
+        );
+      }
+
+      wordsToUse.push(...shuffledDefaultWords.slice(0, remainingCount));
     } else {
       // No categories selected - use only default words
-      if (defaultWordsList.length < 25) {
+      if (shuffledDefaultWords.length < 25) {
         return Response.json(
           { error: 'Pas assez de mots par défaut. Il faut au moins 25 mots.' },
           { status: 500 }
         );
       }
 
-      wordsToUse = shuffle(defaultWordsList).slice(0, 25);
+      wordsToUse = shuffledDefaultWords.slice(0, 25);
     }
 
     // Shuffle the final words

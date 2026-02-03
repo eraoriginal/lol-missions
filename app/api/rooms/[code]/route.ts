@@ -32,6 +32,9 @@ export async function GET(
                                 interests: true,
                             },
                         },
+                        history: {
+                            orderBy: { createdAt: 'asc' },
+                        },
                     },
                 },
             },

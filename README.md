@@ -261,13 +261,32 @@ vercel deploy
 | Jeu | Status | Description |
 |-----|--------|-------------|
 | **ARAM Missions** | Disponible | Missions secrètes pendant vos parties ARAM |
-| **Codename du CEO** | En développement | Devinez qui est le CEO parmi vous |
+| **Codename du CEO** | Disponible | Jeu de mots en équipes inspiré de Codenames |
 | **Quiz de la salle de pause** | En développement | Questions amusantes entre collègues |
 | **Coming Game** | En développement | Un nouveau jeu bientôt disponible |
+
+### Codename du CEO
+
+Jeu de mots en équipes inspiré du célèbre jeu Codenames :
+
+**Règles :**
+- Deux équipes (Rouge vs Bleu) s'affrontent
+- Chaque équipe a un Maître-Espion qui voit les couleurs des cartes
+- Le Maître-Espion donne un indice (un mot + un nombre) pour faire deviner les cartes de son équipe
+- Les Agents doivent deviner les bonnes cartes sans tomber sur l'Assassin
+
+**Fonctionnalités :**
+- Plateau de 25 cartes avec mots personnalisables
+- Catégories de mots bonus sélectionnables (1-3 cartes par catégorie)
+- Synchronisation temps réel des pré-sélections de cartes entre joueurs
+- Sons de jeu diffusés à tous les joueurs (bonne réponse, erreur, victoire, etc.)
+- Historique des indices et cartes retournées
+- Background dynamique selon l'équipe en cours (rouge/bleu)
+- Modale des règles du jeu
 
 ## Roadmap
 
 - [x] ARAM Missions - Jeu complet avec missions START/MID/LATE
-- [ ] Codename du CEO - Jeu d'identité cachée
+- [x] Codename du CEO - Jeu de mots en équipes
 - [ ] Quiz de la salle de pause - Quiz multijoueur
 - [ ] Coming Game - À définir

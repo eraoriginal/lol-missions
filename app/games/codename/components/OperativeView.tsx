@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { GameBoard } from './GameBoard';
-import { useCodenameSound } from '../hooks/useCodenameSound';
 
 interface CardInterest {
   id: string;
@@ -45,7 +44,6 @@ export function OperativeView({
   const [error, setError] = useState<string | null>(null);
   // Optimistic local state: cardId -> expected state (true = interested, false = not interested)
   const [optimisticInterests, setOptimisticInterests] = useState<Record<string, boolean>>({});
-  const { play } = useCodenameSound();
 
   const canGuess = isMyTurn && hasClue && guessesLeft > 0 && !guessing;
 
@@ -153,24 +151,7 @@ export function OperativeView({
       if (!res.ok) {
         throw new Error(data.error || 'Erreur');
       }
-
-      // Play appropriate sound based on result
-      if (data.result) {
-        const isVictory = data.game?.gameOver && data.game?.winner;
-        const isWinByCorrectGuess = isVictory && data.result.type === 'correct';
-
-        if (isWinByCorrectGuess) {
-          // Only play victory sound when winning by finding all cards
-          play('victory');
-        } else if (isVictory) {
-          // Other game over scenarios (assassin, opponent helped us win)
-          play(data.result.type as 'correct' | 'wrong_team' | 'neutral' | 'assassin');
-          setTimeout(() => play('victory'), 500);
-        } else {
-          // Normal guess, no victory
-          play(data.result.type as 'correct' | 'wrong_team' | 'neutral' | 'assassin');
-        }
-      }
+      // Sounds are now played via Pusher for all players
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur');
     } finally {
@@ -192,8 +173,7 @@ export function OperativeView({
         const data = await res.json();
         throw new Error(data.error || 'Erreur');
       }
-
-      play('turn_change');
+      // Turn change sound is now played via Pusher for all players
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur');
     }
@@ -201,35 +181,18 @@ export function OperativeView({
 
   return (
     <div className="space-y-4">
-      {/* Small role badge + action bar */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <span className="inline-flex items-center gap-1.5 text-sm text-purple-300 bg-purple-500/20 px-3 py-1 rounded-full border border-purple-500/30">
-          <span>🎯</span>
-          <span>Agent</span>
-        </span>
-
-        <div className="flex items-center gap-3">
-          {isMyTurn && hasClue && (
-            <>
-              <span className="text-sm text-green-400 animate-pulse">→ Cliquez ✓ pour révéler</span>
-              <button
-                onClick={handlePass}
-                className="text-sm poki-btn-secondary px-3 py-1"
-              >
-                ⏭️ Passer
-              </button>
-            </>
-          )}
-          {isMyTurn && !hasClue && (
-            <span className="text-sm text-purple-300/70">Attendez l'indice...</span>
-          )}
-          {!isMyTurn && (
-            <span className="text-sm text-purple-400/50">
-              Tour {currentTeam === 'red' ? 'Rouge' : 'Bleu'}
-            </span>
-          )}
+      {/* Action bar */}
+      {isMyTurn && hasClue && (
+        <div className="flex items-center justify-center gap-3">
+          <span className="text-sm text-green-400 animate-pulse">Cliquez ✓ pour révéler</span>
+          <button
+            onClick={handlePass}
+            className="text-sm poki-btn-secondary px-3 py-1"
+          >
+            ⏭️ Passer
+          </button>
         </div>
-      </div>
+      )}
 
       {error && (
         <div className="text-center text-red-400 text-sm bg-red-500/20 px-3 py-2 rounded-lg border border-red-500/50">

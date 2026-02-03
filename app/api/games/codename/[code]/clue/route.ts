@@ -82,6 +82,17 @@ export async function POST(
       },
     });
 
+    // Add to history
+    await prisma.codenameHistory.create({
+      data: {
+        gameId: game.id,
+        team: game.currentTeam,
+        type: 'clue',
+        clue,
+        number,
+      },
+    });
+
     console.log(
       `[CODENAME] Spymaster ${player.name} gave clue: "${clue}" for ${number} in room ${code}`
     );

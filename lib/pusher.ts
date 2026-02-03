@@ -52,3 +52,20 @@ export async function pushInterestUpdate(
         console.error(`[Pusher] Failed to push interest-updated for room ${roomCode}:`, error);
     }
 }
+
+/**
+ * Pushes a "sound-event" to all clients so everyone hears the game sounds.
+ */
+export async function pushSoundEvent(
+    roomCode: string,
+    soundType: 'correct' | 'wrong_team' | 'neutral' | 'assassin' | 'victory' | 'turn_change'
+): Promise<void> {
+    try {
+        await pusher.trigger(`room-${roomCode}`, 'sound-event', {
+            soundType,
+            timestamp: Date.now(),
+        });
+    } catch (error) {
+        console.error(`[Pusher] Failed to push sound-event for room ${roomCode}:`, error);
+    }
+}

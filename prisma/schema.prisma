@@ -100,8 +100,27 @@ model CodenameGame {
   guessesLeft   Int      @default(0)
 
   cards         CodenameCard[]
+  history       CodenameHistory[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+// Codename du CEO - Game history (clues and guesses)
+model CodenameHistory {
+  id         String       @id @default(cuid())
+  gameId     String
+  game       CodenameGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  team       String       // "red" or "blue"
+  type       String       // "clue" or "guess"
+  clue       String?      // if type is "clue"
+  number     Int?         // if type is "clue"
+  cardWord   String?      // if type is "guess"
+  cardColor  String?      // if type is "guess"
+
+  createdAt  DateTime     @default(now())
+
+  @@index([gameId])
 }
 
 // Codename du CEO - Individual cards on the board

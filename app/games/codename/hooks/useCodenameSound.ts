@@ -10,7 +10,7 @@ export function useCodenameSound() {
 
     try {
       const audio = new Audio(`/sounds/codename/${type}.mp3`);
-      audio.volume = 0.35;
+      audio.volume = 0.8;
       audio.play().catch((err) => {
         // Ignore autoplay errors (user hasn't interacted yet)
         console.log(`[Sound] Could not play ${type}:`, err.message);

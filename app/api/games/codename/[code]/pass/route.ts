@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { pushRoomUpdate } from '@/lib/pusher';
+import { pushRoomUpdate, pushSoundEvent } from '@/lib/pusher';
 import { z } from 'zod';
 
 const passSchema = z.object({
@@ -84,6 +84,8 @@ export async function POST(
 
     console.log(`[CODENAME] Team ${game.currentTeam} passed. Now team ${newCurrentTeam}'s turn.`);
 
+    // Push turn change sound to all players
+    await pushSoundEvent(code, 'turn_change');
     await pushRoomUpdate(code);
 
     return Response.json({ game: updatedGame });

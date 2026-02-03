@@ -49,28 +49,33 @@ export function ClueInput({ roomCode, playerToken, onClueGiven }: ClueInputProps
         🔮 Donnez un indice
       </h3>
       <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="flex gap-2">
+        <div className="flex justify-center">
           <input
             type="text"
             value={clue}
             onChange={(e) => setClue(e.target.value)}
             placeholder="Votre indice..."
-            className="poki-input flex-1 px-4 py-2"
+            className="poki-input w-1/2 px-4 py-2 text-center"
             maxLength={50}
             disabled={submitting}
           />
-          <select
-            value={number}
-            onChange={(e) => setNumber(parseInt(e.target.value))}
-            className="poki-select px-4 py-2 min-w-[80px] text-center"
-            disabled={submitting}
-          >
-            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-              <option key={n} value={n}>
-                {n === 0 ? '0 (∞)' : n}
-              </option>
-            ))}
-          </select>
+        </div>
+        <div className="flex flex-wrap justify-center gap-2">
+          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setNumber(n)}
+              disabled={submitting}
+              className={`w-10 h-10 rounded-lg font-bold text-lg transition-all ${
+                number === n
+                  ? 'bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white shadow-lg shadow-pink-500/30'
+                  : 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/40 border border-purple-500/30'
+              }`}
+            >
+              {n === 0 ? '∞' : n}
+            </button>
+          ))}
         </div>
         <button
           type="submit"
@@ -82,7 +87,7 @@ export function ClueInput({ roomCode, playerToken, onClueGiven }: ClueInputProps
         {error && <p className="text-red-400 text-sm text-center">{error}</p>}
       </form>
       <p className="text-xs text-purple-300/60 text-center mt-2">
-        0 = illimité • L'indice ne peut pas être un mot du plateau
+        ∞ = illimité • L'indice ne peut pas être un mot du plateau
       </p>
     </div>
   );
