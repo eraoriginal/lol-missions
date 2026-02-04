@@ -43,7 +43,6 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false, midMission
             console.log('[Timer] check-mid-missions response:', data);
         } catch (err) {
             console.error('[Timer] check-mid-missions error:', err);
-            // En cas d'erreur, permettre un nouvel essai
             midMissionsCheckedRef.current = false;
         }
     }, [roomCode]);
@@ -56,7 +55,6 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false, midMission
             console.log('[Timer] check-late-missions response:', data);
         } catch (err) {
             console.error('[Timer] check-late-missions error:', err);
-            // En cas d'erreur, permettre un nouvel essai
             lateMissionsCheckedRef.current = false;
         }
     }, [roomCode]);
@@ -122,57 +120,68 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false, midMission
         };
     }, [gameStartTime, gameStopped, midMissionDelay, lateMissionDelay, playSound, checkMidMissions, checkLateMissions]);
 
-    const minutes = Math.floor(elapsed / 60);
-    const seconds = elapsed % 60;
     const midDelayPassed = elapsed >= midMissionDelay;
     const lateDelayPassed = elapsed >= lateMissionDelay;
 
-    const timeUntilMid = Math.max(0, midMissionDelay - elapsed);
-    const timeUntilLate = Math.max(0, lateMissionDelay - elapsed);
+    // Décompte vers la prochaine mission
+    let countdown: number;
+    let nextMissionLabel: string;
+    let nextMissionEmoji: string;
+    let countdownColor: string;
 
-    const formatRemaining = (s: number) => {
-        const m = Math.floor(s / 60);
-        const sec = s % 60;
-        return sec === 0 ? `${m}min` : `${m}min ${sec}s`;
-    };
+    if (!midDelayPassed) {
+        countdown = Math.max(0, midMissionDelay - elapsed);
+        nextMissionLabel = 'Mission MID';
+        nextMissionEmoji = '⚡';
+        countdownColor = '';
+    } else if (!lateDelayPassed) {
+        countdown = Math.max(0, lateMissionDelay - elapsed);
+        nextMissionLabel = 'Mission Finale';
+        nextMissionEmoji = '🔥';
+        countdownColor = 'border-2 border-purple-500 shadow-lg shadow-purple-500/30';
+    } else {
+        countdown = 0;
+        nextMissionLabel = '';
+        nextMissionEmoji = '';
+        countdownColor = 'border-2 border-red-500 shadow-lg shadow-red-500/30';
+    }
+
+    const countdownMinutes = Math.floor(countdown / 60);
+    const countdownSeconds = countdown % 60;
 
     return (
-        <div className={`lol-card rounded-lg p-6 text-center transition-all duration-300 ${
-            lateDelayPassed
-                ? 'border-2 border-red-500 shadow-lg shadow-red-500/30'
-                : midDelayPassed
-                    ? 'border-2 border-purple-500 shadow-lg shadow-purple-500/30'
-                    : ''
-        }`}>
-            <h3 className="text-lg font-semibold lol-text-gold mb-2 uppercase tracking-wider">
-                ⏱️ Temps de combat
-            </h3>
-            <div className="text-5xl font-bold lol-title-gold mb-2 font-mono">
-                {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
-            </div>
+        <div className={`lol-card rounded-lg p-6 text-center transition-all duration-300 ${countdownColor}`}>
+            {lateDelayPassed ? (
+                <>
+                    <h3 className="text-lg font-semibold text-red-400 mb-2 uppercase tracking-wider">
+                        🔥 Toutes les missions débloquées
+                    </h3>
+                    <div className="text-3xl font-bold text-red-400 font-mono">
+                        00:00
+                    </div>
+                </>
+            ) : (
+                <>
+                    <h3 className="text-lg font-semibold lol-text-gold mb-2 uppercase tracking-wider">
+                        {nextMissionEmoji} {nextMissionLabel} dans
+                    </h3>
+                    <div className="text-5xl font-bold lol-title-gold mb-2 font-mono">
+                        {String(countdownMinutes).padStart(2, '0')}:{String(countdownSeconds).padStart(2, '0')}
+                    </div>
+                </>
+            )}
 
             <div className="space-y-2 mt-4">
-                {/* MID */}
-                {midDelayPassed ? (
+                {midDelayPassed && (
                     <div className="p-2 bg-purple-900/50 border border-purple-500 text-purple-300 rounded-lg text-sm font-medium">
                         ⚡ Missions MID débloquées !
                     </div>
-                ) : (
-                    <div className="text-sm lol-text">
-                        Missions MID dans <span className="lol-text-gold font-bold">{formatRemaining(timeUntilMid)}</span>
-                    </div>
                 )}
-
-                {/* LATE */}
-                {lateDelayPassed ? (
+                {lateDelayPassed && (
                     <div className="p-2 bg-red-900/50 border border-red-500 text-red-300 rounded-lg text-sm font-medium">
                         🔥 Missions FINALE débloquées !
                     </div>
-                ) : midDelayPassed ? (
-                    <div className="text-sm lol-text">
-                        Missions FINALE dans <span className="text-red-400 font-bold">{formatRemaining(timeUntilLate)}</span>
-                    </div>
-                ) : null}
+                )}
             </div>
         </div>
     );

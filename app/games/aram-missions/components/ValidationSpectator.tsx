@@ -100,6 +100,44 @@ export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps
         );
     };
 
+    // Écran bonus visible par les spectateurs
+    if (room.validationStatus === 'bonus_selection') {
+        const selectedTeam = room.winnerTeam;
+        return (
+            <div className="space-y-6">
+                <div className="lol-card rounded-lg p-6 text-center">
+                    <div className="text-4xl mb-2 animate-bounce">🏆</div>
+                    <h1 className="text-3xl font-bold lol-title-gold mb-1 uppercase tracking-wide">Bonus de victoire</h1>
+                    <p className="lol-text">Le créateur sélectionne l&apos;équipe gagnante...</p>
+                    <p className="lol-text text-sm mt-1 opacity-75">Un bonus mystère sera tiré au sort 🎲</p>
+                </div>
+
+                <div className="lol-card rounded-lg p-6">
+                    <h3 className="text-lg font-bold lol-title-gold mb-4 text-center">Équipe gagnante</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className={`p-4 rounded-lg font-bold text-lg text-center transition-all border-2 ${
+                            selectedTeam === 'red'
+                                ? 'bg-red-600 border-red-400 text-white shadow-lg shadow-red-500/30'
+                                : 'bg-red-900/20 border-red-500/20 text-red-400/50'
+                        }`}>
+                            🔴 Rouge
+                        </div>
+                        <div className={`p-4 rounded-lg font-bold text-lg text-center transition-all border-2 ${
+                            selectedTeam === 'blue'
+                                ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-500/30'
+                                : 'bg-blue-900/20 border-blue-500/20 text-blue-400/50'
+                        }`}>
+                            🔵 Bleue
+                        </div>
+                    </div>
+                    {!selectedTeam && (
+                        <p className="text-center lol-text text-sm mt-4 animate-pulse">En attente du choix...</p>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
             {/* Header */}

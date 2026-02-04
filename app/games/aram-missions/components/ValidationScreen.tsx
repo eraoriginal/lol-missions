@@ -14,6 +14,12 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
     const [localDecisions, setLocalDecisions] = useState<Record<string, Record<string, boolean>>>({});
     const [finishing, setFinishing] = useState(false);
     const [resettingToTeams, setResettingToTeams] = useState(false);
+    const [selectedWinnerTeam, setSelectedWinnerTeam] = useState<'red' | 'blue' | null>(
+        room.winnerTeam === 'red' || room.winnerTeam === 'blue' ? room.winnerTeam : null
+    );
+
+    // L'étape bonus est pilotée par le serveur pour que tous les joueurs la voient
+    const showBonusStep = room.validationStatus === 'bonus_selection';
 
     const creatorToken = typeof window !== 'undefined'
         ? localStorage.getItem(`room_${roomCode}_creator`)
@@ -84,19 +90,48 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
 
     // Avance au suivant ou termine — envoie le PATCH d'abord pour que les spectateurs
     // se synchronisent sur le bon index
+    const finishValidation = async (winnerTeam?: string) => {
+        setFinishing(true);
+        const creatorToken = localStorage.getItem(`room_${roomCode}_creator`);
+
+        try {
+            const res = await fetch(`/api/games/aram-missions/${roomCode}/validate`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    creatorToken,
+                    winnerTeam: winnerTeam || null,
+                }),
+            });
+            if (!res.ok) throw new Error('Finalisation échouée');
+        } catch (e) {
+            console.error(e);
+            alert('Erreur lors de la finalisation');
+        }
+
+        setFinishing(false);
+    };
+
     const goNext = async () => {
         setFinishing(true);
         const creatorToken = localStorage.getItem(`room_${roomCode}_creator`);
 
         try {
             if (currentIndex >= players.length - 1) {
-                // Dernier joueur — termine la validation
-                const res = await fetch(`/api/games/aram-missions/${roomCode}/validate`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ creatorToken }),
-                });
-                if (!res.ok) throw new Error('Finalisation échouée');
+                // Dernier joueur — vérifier si on doit afficher l'étape bonus
+                if (room.victoryBonus) {
+                    // PATCH pour passer en bonus_selection — tous les joueurs verront l'écran
+                    const res = await fetch(`/api/games/aram-missions/${roomCode}/validate`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ creatorToken, bonusSelection: true }),
+                    });
+                    if (!res.ok) throw new Error('Passage au bonus échoué');
+                    setFinishing(false);
+                    return;
+                }
+                // Pas de bonus — termine directement
+                await finishValidation();
             } else {
                 // Pas dernier joueur — PATCH pour avancer l'index
                 const nextIndex = currentIndex + 1;
@@ -115,6 +150,24 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
         }
 
         setFinishing(false);
+    };
+
+    const selectWinnerTeam = async (team: 'red' | 'blue') => {
+        setSelectedWinnerTeam(team);
+        const creatorToken = localStorage.getItem(`room_${roomCode}_creator`);
+        try {
+            await fetch(`/api/games/aram-missions/${roomCode}/validate`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ creatorToken, winnerTeam: team }),
+            });
+        } catch (e) {
+            console.error('Erreur sync winnerTeam:', e);
+        }
+    };
+
+    const finishWithBonus = async () => {
+        await finishValidation(selectedWinnerTeam || undefined);
     };
 
     const getMissionIcon = (type: string) => {
@@ -210,6 +263,55 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
         );
     };
 
+    if (showBonusStep) {
+        return (
+            <div className="space-y-6">
+                <div className="lol-card rounded-lg p-6 text-center">
+                    <div className="text-4xl mb-2">🏆</div>
+                    <h1 className="text-3xl font-bold lol-title-gold mb-1 uppercase tracking-wide">Bonus de victoire</h1>
+                    <p className="lol-text">Quelle équipe a remporté la partie ?</p>
+                    <p className="lol-text text-sm mt-1 opacity-75">Un bonus mystère sera tiré au sort pour l&apos;équipe gagnante 🎲</p>
+                </div>
+
+                <div className="lol-card rounded-lg p-6">
+                    <h3 className="text-lg font-bold lol-title-gold mb-4">Équipe gagnante</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <button
+                            onClick={() => selectWinnerTeam('red')}
+                            className={`p-4 rounded-lg font-bold text-lg transition-all border-2 ${
+                                selectedWinnerTeam === 'red'
+                                    ? 'bg-red-600 border-red-400 text-white shadow-lg shadow-red-500/30'
+                                    : 'bg-red-900/30 border-red-500/30 text-red-400 hover:bg-red-900/50 hover:border-red-500/50'
+                            }`}
+                        >
+                            🔴 Rouge
+                        </button>
+                        <button
+                            onClick={() => selectWinnerTeam('blue')}
+                            className={`p-4 rounded-lg font-bold text-lg transition-all border-2 ${
+                                selectedWinnerTeam === 'blue'
+                                    ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-500/30'
+                                    : 'bg-blue-900/30 border-blue-500/30 text-blue-400 hover:bg-blue-900/50 hover:border-blue-500/50'
+                            }`}
+                        >
+                            🔵 Bleue
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex justify-center">
+                    <button
+                        onClick={finishWithBonus}
+                        disabled={selectedWinnerTeam === null || finishing}
+                        className="lol-button-hextech px-6 py-3 rounded-lg font-bold transition-all hextech-pulse disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                        {finishing ? 'En cours...' : 'Valider et tirer le bonus'}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -283,10 +385,10 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
                         className="lol-button-hextech px-6 py-3 rounded-lg font-bold transition-all hextech-pulse disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         {finishing
-                            ? '⏳ En cours...'
+                            ? 'En cours...'
                             : currentIndex < players.length - 1
-                                ? '➡️ Invocateur suivant'
-                                : '🏁 Terminer la validation'
+                                ? 'Invocateur suivant'
+                                : 'Terminer la validation'
                         }
                     </button>
                 </div>

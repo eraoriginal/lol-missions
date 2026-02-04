@@ -7,6 +7,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Event {
+  id         String   @id @default(cuid())
+  text       String
+  type       String   // 'START', 'MID' ou 'LATE'
+  category   String
+  difficulty String   // 'easy', 'medium', 'hard'
+  points     Int
+  createdAt  DateTime @default(now())
+
+  @@index([type])
+}
+
 model Mission {
   id         String   @id @default(cuid())
   text       String
@@ -33,6 +45,11 @@ model Room {
   validationStatus    String    @default("not_started") // 'not_started', 'in_progress', 'completed'
   midMissionDelay     Int       @default(480)            // en secondes, défaut 5 min
   lateMissionDelay    Int       @default(960)            // en secondes, défaut 10 min
+  missionVisibility   String    @default("team")         // 'all', 'team', 'hidden'
+  gameMap             String    @default("howling_abyss") // 'howling_abyss', 'summoners_rift'
+  victoryBonus        Boolean   @default(true)            // bonus de 0-500 pts pour l'équipe victorieuse
+  winnerTeam          String?                             // "red" ou "blue", null si pas encore défini
+  victoryBonusPoints  Int       @default(0)              // points bonus attribués à l'équipe gagnante
   selectedCategories  String[]  @default([])             // catégories sélectionnées pour Codename
   createdAt           DateTime  @default(now())
 

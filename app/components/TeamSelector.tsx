@@ -14,11 +14,13 @@ interface TeamSelectorProps {
     players: Player[];
     roomCode: string;
     currentPlayerToken: string | null;
+    isCreator?: boolean;
 }
 
-export function TeamSelector({ players, roomCode, currentPlayerToken }: TeamSelectorProps) {
+export function TeamSelector({ players, roomCode, currentPlayerToken, isCreator = false }: TeamSelectorProps) {
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [randomizing, setRandomizing] = useState(false);
 
     const redTeam = players.filter(p => p.team === 'red');
     const blueTeam = players.filter(p => p.team === 'blue');
@@ -51,6 +53,33 @@ export function TeamSelector({ players, roomCode, currentPlayerToken }: TeamSele
             setError('Erreur de connexion');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const randomizeTeams = async () => {
+        const token = typeof window !== 'undefined'
+            ? localStorage.getItem(`room_${roomCode}_creator`)
+            : null;
+        if (!token) return;
+
+        setRandomizing(true);
+        setError(null);
+
+        try {
+            const res = await fetch(`/api/rooms/${roomCode}/random-teams`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ creatorToken: token }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                setError(data.error || 'Erreur');
+            }
+        } catch {
+            setError('Erreur de connexion');
+        } finally {
+            setRandomizing(false);
         }
     };
 
@@ -108,15 +137,26 @@ export function TeamSelector({ players, roomCode, currentPlayerToken }: TeamSele
                     <h4 className="text-lg font-bold lol-title-gold flex items-center gap-2">
                         👥 Invocateurs ({players.length}/10)
                     </h4>
-                    {myTeam !== '' && (
-                        <button
-                            onClick={() => selectTeam('')}
-                            disabled={loading}
-                            className="lol-button px-4 py-1.5 rounded-lg text-sm font-medium transition-all hover:scale-105 disabled:opacity-50"
-                        >
-                            👁️ Devenir spectateur
-                        </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                        {isCreator && players.length >= 2 && (
+                            <button
+                                onClick={randomizeTeams}
+                                disabled={randomizing || loading}
+                                className="lol-button px-4 py-1.5 rounded-lg text-sm font-medium transition-all hover:scale-105 disabled:opacity-50"
+                            >
+                                {randomizing ? '⏳' : '🎲'} Aléatoire
+                            </button>
+                        )}
+                        {myTeam !== '' && (
+                            <button
+                                onClick={() => selectTeam('')}
+                                disabled={loading}
+                                className="lol-button px-4 py-1.5 rounded-lg text-sm font-medium transition-all hover:scale-105 disabled:opacity-50"
+                            >
+                                👁️ Devenir spectateur
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Liste des spectateurs */}

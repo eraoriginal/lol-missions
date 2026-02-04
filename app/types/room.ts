@@ -52,6 +52,11 @@ export interface Room {
     gameStopped: boolean;
     midMissionDelay: number;
     lateMissionDelay: number;
+    missionVisibility: 'all' | 'team' | 'hidden';
+    gameMap: string;
+    victoryBonus: boolean;
+    winnerTeam?: string | null;
+    victoryBonusPoints: number;
     creatorToken?: string;
     players: Player[];
     codenameGame?: CodenameGame | null;

@@ -8,6 +8,9 @@ const settingsSchema = z.object({
     creatorToken: z.string(),
     midMissionDelay: z.number().int().min(60).max(3600).optional(),
     lateMissionDelay: z.number().int().min(60).max(3600).optional(),
+    missionVisibility: z.enum(['all', 'team', 'hidden']).optional(),
+    gameMap: z.enum(['howling_abyss', 'summoners_rift']).optional(),
+    victoryBonus: z.boolean().optional(),
 });
 
 export async function PATCH(
@@ -17,12 +20,12 @@ export async function PATCH(
     try {
         const { code } = await params;
         const body = await request.json();
-        const { creatorToken, midMissionDelay, lateMissionDelay } = settingsSchema.parse(body);
+        const { creatorToken, midMissionDelay, lateMissionDelay, missionVisibility, gameMap, victoryBonus } = settingsSchema.parse(body);
 
-        // Au moins un des deux doit être fourni
-        if (midMissionDelay === undefined && lateMissionDelay === undefined) {
+        // Au moins un paramètre doit être fourni
+        if (midMissionDelay === undefined && lateMissionDelay === undefined && missionVisibility === undefined && gameMap === undefined && victoryBonus === undefined) {
             return Response.json(
-                { error: 'At least one delay must be provided' },
+                { error: 'At least one setting must be provided' },
                 { status: 400 }
             );
         }
@@ -65,15 +68,21 @@ export async function PATCH(
             data: {
                 ...(midMissionDelay !== undefined && { midMissionDelay }),
                 ...(lateMissionDelay !== undefined && { lateMissionDelay }),
+                ...(missionVisibility !== undefined && { missionVisibility }),
+                ...(gameMap !== undefined && { gameMap }),
+                ...(victoryBonus !== undefined && { victoryBonus }),
             },
         });
 
-        // Push : délais modifiés
+        // Push : paramètres modifiés
         await pushRoomUpdate(code);
 
         return Response.json({
             midMissionDelay: updatedRoom.midMissionDelay,
             lateMissionDelay: updatedRoom.lateMissionDelay,
+            missionVisibility: updatedRoom.missionVisibility,
+            gameMap: updatedRoom.gameMap,
+            victoryBonus: updatedRoom.victoryBonus,
         });
     } catch (error) {
         if (error instanceof z.ZodError) {

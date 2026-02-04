@@ -14,6 +14,7 @@ interface Room {
     gameStopped: boolean;
     midMissionDelay: number;
     lateMissionDelay: number;
+    missionVisibility: 'all' | 'team' | 'hidden';
     players: any[];
 }
 
@@ -310,12 +311,11 @@ export function GameView({ room, roomCode }: GameViewProps) {
                 />
             ) : (
                 <div className="lol-card rounded-lg p-8 text-center">
-                    <div className="text-5xl mb-4">⏳</div>
                     <h2 className="text-2xl font-bold lol-title-gold mb-2">
                         Préparez-vous, invocateurs !
                     </h2>
                     <p className="lol-text mb-6">
-                        Consultez vos missions ci-dessous. Le combat démarrera quand le créateur sera prêt.
+                        Vos missions apparaîtront quand le combat sera lancé.
                     </p>
 
                     {isCreator ? (
@@ -325,7 +325,7 @@ export function GameView({ room, roomCode }: GameViewProps) {
                                 disabled={launching}
                                 className="lol-button-hextech px-10 py-4 rounded-lg font-bold text-xl transition-all hextech-pulse"
                             >
-                                {launching ? '⏳ Préparation...' : '▶️ LANCER LE COMBAT'}
+                                {launching ? '⏳ Préparation...' : 'LANCER LE COMBAT'}
                             </button>
                             {launchError && (
                                 <p className="text-red-400 text-sm">{launchError}</p>
@@ -339,50 +339,56 @@ export function GameView({ room, roomCode }: GameViewProps) {
                 </div>
             )}
 
-            {/* Missions unifiées */}
-            <div className="lol-card rounded-lg p-5">
-                <h2 className="text-xl font-bold lol-title-gold mb-4 flex items-center gap-2">
-                    📜 Tes missions
-                </h2>
+            {/* Missions unifiées — visibles uniquement après le lancement du compteur */}
+            {room.gameStartTime && (
+                <div className="lol-card rounded-lg p-5">
+                    <h2 className="text-xl font-bold lol-title-gold mb-4 flex items-center gap-2">
+                        📜 Tes missions
+                    </h2>
 
-                <div className="space-y-3">
-                    {startMission && (
-                        <MissionCard
-                            key={startMission.mission.id}
-                            mission={startMission}
-                            type="START"
-                            gameStopped={room.gameStopped}
-                            getDifficultyStyle={getDifficultyStyle}
-                        />
-                    )}
+                    <div className="space-y-3">
+                        {startMission && (
+                            <MissionCard
+                                key={startMission.mission.id}
+                                mission={startMission}
+                                type="START"
+                                gameStopped={room.gameStopped}
+                                getDifficultyStyle={getDifficultyStyle}
+                            />
+                        )}
 
-                    {midMission && (
-                        <MissionCard
-                            key={midMission.mission.id}
-                            mission={midMission}
-                            type="MID"
-                            gameStopped={room.gameStopped}
-                            getDifficultyStyle={getDifficultyStyle}
-                        />
-                    )}
+                        {midMission && (
+                            <MissionCard
+                                key={midMission.mission.id}
+                                mission={midMission}
+                                type="MID"
+                                gameStopped={room.gameStopped}
+                                getDifficultyStyle={getDifficultyStyle}
+                            />
+                        )}
 
-                    {lateMission && (
-                        <MissionCard
-                            key={lateMission.mission.id}
-                            mission={lateMission}
-                            type="LATE"
-                            gameStopped={room.gameStopped}
-                            getDifficultyStyle={getDifficultyStyle}
-                        />
-                    )}
+                        {lateMission && (
+                            <MissionCard
+                                key={lateMission.mission.id}
+                                mission={lateMission}
+                                type="LATE"
+                                gameStopped={room.gameStopped}
+                                getDifficultyStyle={getDifficultyStyle}
+                            />
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
 
-            {/* Missions des autres joueurs */}
-            <OtherPlayersMissions
-                players={room.players}
-                currentPlayerToken={playerToken}
-            />
+            {/* Missions des autres joueurs — visibles uniquement après le lancement */}
+            {room.gameStartTime && (
+                <OtherPlayersMissions
+                    players={room.players}
+                    currentPlayerToken={playerToken}
+                    missionVisibility={room.missionVisibility}
+                    currentPlayerTeam={currentPlayer?.team}
+                />
+            )}
         </div>
     );
 }

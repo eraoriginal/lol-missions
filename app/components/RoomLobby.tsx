@@ -12,6 +12,9 @@ interface Room {
     players: any[];
     midMissionDelay: number;
     lateMissionDelay: number;
+    missionVisibility: 'all' | 'team' | 'hidden';
+    gameMap: string;
+    victoryBonus: boolean;
 }
 
 interface RoomLobbyProps {
@@ -122,37 +125,29 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
                 players={room.players}
                 roomCode={roomCode}
                 currentPlayerToken={playerToken}
-            />
-
-            {/* Délais des missions */}
-            <MissionDelayPicker
-                midMissionDelay={room.midMissionDelay}
-                lateMissionDelay={room.lateMissionDelay}
                 isCreator={isCreator}
-                roomCode={roomCode}
-                creatorToken={creatorToken}
             />
 
             {/* Start button (creator only) */}
             {isCreator && (
-                <div className="lol-card rounded-lg p-6">
+                <div className="flex flex-col items-center">
                     {error && (
-                        <div className="mb-4 p-3 bg-red-900/50 border border-red-500 text-red-300 rounded-lg text-sm">
+                        <div className="mb-3 p-2 bg-red-900/50 border border-red-500 text-red-300 rounded-lg text-sm">
                             {error}
                         </div>
                     )}
 
                     <button
                         onClick={handleStart}
-                        disabled={starting || room.players.length < 2}
-                        className="lol-button-hextech w-full py-4 rounded-lg font-bold text-xl transition-all hextech-pulse"
+                        disabled={starting || room.players.filter(p => p.team === 'red' || p.team === 'blue').length < 2}
+                        className="lol-button-hextech px-10 py-2.5 rounded-lg font-bold text-base transition-all hextech-pulse"
                     >
-                        {starting ? '⚔️ Préparation...' : '⚔️ LANCER LA BATAILLE'}
+                        {starting ? 'Préparation...' : 'LANCER LA BATAILLE'}
                     </button>
 
-                    {room.players.length < 2 && (
-                        <p className="mt-3 text-center text-sm lol-text">
-                            Il faut au moins 2 invocateurs pour commencer
+                    {room.players.filter(p => p.team === 'red' || p.team === 'blue').length < 2 && (
+                        <p className="mt-2 text-center text-sm lol-text">
+                            Il faut au moins 2 invocateurs dans une équipe pour commencer
                         </p>
                     )}
                 </div>
@@ -160,12 +155,23 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
 
             {!isCreator && (
                 <div className="lol-card rounded-lg p-6 text-center">
-                    <div className="text-4xl mb-2">⏳</div>
                     <p className="lol-text-gold">
                         En attente que le créateur lance la bataille...
                     </p>
                 </div>
             )}
+
+            {/* Paramétrage de la partie */}
+            <MissionDelayPicker
+                midMissionDelay={room.midMissionDelay}
+                lateMissionDelay={room.lateMissionDelay}
+                missionVisibility={room.missionVisibility}
+                gameMap={room.gameMap}
+                victoryBonus={room.victoryBonus}
+                isCreator={isCreator}
+                roomCode={roomCode}
+                creatorToken={creatorToken}
+            />
         </div>
     );
 }

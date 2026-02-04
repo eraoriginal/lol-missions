@@ -21,19 +21,39 @@ interface Player {
     missions: PlayerMission[];
 }
 
+type MissionVisibility = 'all' | 'team' | 'hidden';
+
 interface OtherPlayersMissionsProps {
     players: Player[];
     currentPlayerToken: string | null;
+    missionVisibility: MissionVisibility;
+    currentPlayerTeam?: string;
 }
 
-export function OtherPlayersMissions({ players, currentPlayerToken }: OtherPlayersMissionsProps) {
+export function OtherPlayersMissions({
+    players,
+    currentPlayerToken,
+    missionVisibility,
+    currentPlayerTeam
+}: OtherPlayersMissionsProps) {
+    // Si visibilité "hidden", ne rien afficher
+    if (missionVisibility === 'hidden') {
+        return null;
+    }
+
     const otherPlayers = players.filter((p: any) => p.token !== currentPlayerToken);
 
     if (otherPlayers.length === 0) {
         return null;
     }
 
-    const playersWithMissions = otherPlayers.filter((p: any) => p.missions.length > 0);
+    // Filtrer selon la visibilité
+    let visiblePlayers = otherPlayers;
+    if (missionVisibility === 'team' && currentPlayerTeam) {
+        visiblePlayers = otherPlayers.filter((p: any) => p.team === currentPlayerTeam);
+    }
+
+    const playersWithMissions = visiblePlayers.filter((p: any) => p.missions.length > 0);
 
     if (playersWithMissions.length === 0) {
         return null;
@@ -85,17 +105,12 @@ export function OtherPlayersMissions({ players, currentPlayerToken }: OtherPlaye
         return '🔥';
     };
 
-    const getMissionText = (pm: PlayerMission) => {
-        if (pm.mission.isPrivate) {
-            return <span className="italic text-white">Mission secrète</span>;
-        }
-        return pm.mission.text;
-    };
+    const title = missionVisibility === 'team' ? 'Missions de ton équipe' : 'Missions des autres joueurs';
 
     return (
         <div className="lol-card rounded-lg p-4">
             <h3 className="text-lg font-bold lol-title-gold mb-3 flex items-center gap-2">
-                👥 Missions des alliés
+                👥 {title}
             </h3>
 
             <div className="space-y-2">
@@ -142,7 +157,12 @@ export function OtherPlayersMissions({ players, currentPlayerToken }: OtherPlaye
                                     }`}
                                 >
                                     <span className="flex-shrink-0">{getMissionIcon(pm)}</span>
-                                    <span className="leading-relaxed">{getMissionText(pm)}</span>
+                                    <span className="leading-relaxed">
+                                        {pm.mission.isPrivate
+                                            ? <span className="italic text-white">Mission secrète</span>
+                                            : pm.mission.text
+                                        }
+                                    </span>
                                     {!pm.mission.isPrivate && pm.mission.difficulty && (
                                         <span className={`text-xs px-1.5 py-0.5 rounded font-bold flex-shrink-0 ${getDifficultyStyle(pm.mission.difficulty).bg} ${getDifficultyStyle(pm.mission.difficulty).text}`}>
                                             {getDifficultyStyle(pm.mission.difficulty).label}

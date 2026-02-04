@@ -24,9 +24,12 @@ interface Player {
 
 interface GameSummaryProps {
     players: Player[];
+    victoryBonus?: boolean;
+    winnerTeam?: string | null;
+    victoryBonusPoints?: number;
 }
 
-export function GameSummary({ players }: GameSummaryProps) {
+export function GameSummary({ players, victoryBonus, winnerTeam: bonusWinnerTeam, victoryBonusPoints = 0 }: GameSummaryProps) {
     const getDifficultyStyle = (difficulty: string) => {
         switch (difficulty) {
             case 'easy':
@@ -53,8 +56,15 @@ export function GameSummary({ players }: GameSummaryProps) {
         .filter(p => p.team === 'blue')
         .sort((a, b) => b.totalPoints - a.totalPoints);
 
-    const redTotal = redTeam.reduce((sum, p) => sum + p.totalPoints, 0);
-    const blueTotal = blueTeam.reduce((sum, p) => sum + p.totalPoints, 0);
+    const redMissionTotal = redTeam.reduce((sum, p) => sum + p.totalPoints, 0);
+    const blueMissionTotal = blueTeam.reduce((sum, p) => sum + p.totalPoints, 0);
+
+    const hasBonus = victoryBonus && bonusWinnerTeam && victoryBonusPoints > 0;
+    const redBonus = hasBonus && bonusWinnerTeam === 'red' ? victoryBonusPoints : 0;
+    const blueBonus = hasBonus && bonusWinnerTeam === 'blue' ? victoryBonusPoints : 0;
+
+    const redTotal = redMissionTotal + redBonus;
+    const blueTotal = blueMissionTotal + blueBonus;
 
     const noTeam = playersWithScores
         .filter(p => !p.team || p.team === '')
@@ -198,22 +208,34 @@ export function GameSummary({ players }: GameSummaryProps) {
                     {winner === 'draw' ? '🤝' : '🏆'}
                 </div>
                 <h2 className="text-3xl font-bold lol-title-gold uppercase tracking-wide">
-                    {winner === 'red' && "Victoire Rouge !"}
-                    {winner === 'blue' && "Victoire Bleue !"}
+                    {winner === 'red' && <>Victoire <span className="text-red-400" style={{ backgroundImage: 'none', WebkitTextFillColor: 'unset' }}>Rouge</span> !</>}
+                    {winner === 'blue' && <>Victoire <span className="text-blue-400" style={{ backgroundImage: 'none', WebkitTextFillColor: 'unset' }}>Bleue</span> !</>}
                     {winner === 'draw' && 'Égalité !'}
                 </h2>
                 <div className="flex items-center justify-center gap-8 mt-4">
-                    <div className="text-center">
-                        <div className="text-2xl font-bold text-red-400">{redTotal}</div>
-                        <div className="text-red-300 text-sm uppercase">Rouge</div>
-                    </div>
+                    <div className="text-2xl font-bold text-red-400">{redTotal}</div>
                     <div className="lol-text-gold text-2xl font-bold">VS</div>
-                    <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-400">{blueTotal}</div>
-                        <div className="text-blue-300 text-sm uppercase">Bleue</div>
-                    </div>
+                    <div className="text-2xl font-bold text-blue-400">{blueTotal}</div>
                 </div>
             </div>
+
+            {/* Bonus de victoire — carte dédiée */}
+            {hasBonus && (
+                <div className={`lol-card rounded-lg p-6 text-center border-2 ${
+                    bonusWinnerTeam === 'red'
+                        ? 'border-red-500 shadow-lg shadow-red-500/30'
+                        : 'border-blue-500 shadow-lg shadow-blue-500/30'
+                }`}>
+                    <h3 className="text-xl font-bold lol-title-gold uppercase tracking-wide mb-3">
+                        Bonus de victoire
+                    </h3>
+                    <div className={`text-2xl font-bold ${
+                        bonusWinnerTeam === 'red' ? 'text-red-400' : 'text-blue-400'
+                    }`}>
+                        +{victoryBonusPoints} pts pour l&apos;équipe {bonusWinnerTeam === 'red' ? 'Rouge' : 'Bleue'}
+                    </div>
+                </div>
+            )}
 
             {/* Les deux équipes */}
             <div className="grid grid-cols-2 gap-4">

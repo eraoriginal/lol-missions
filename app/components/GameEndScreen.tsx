@@ -15,7 +15,7 @@ interface GameEndScreenProps {
 export function GameEndScreen({ room, roomCode, isCreator }: GameEndScreenProps) {
     const [restarting, setRestarting] = useState(false);
 
-    if (room.validationStatus?.startsWith('in_progress')) {
+    if (room.validationStatus?.startsWith('in_progress') || room.validationStatus === 'bonus_selection') {
         if (isCreator) {
             return <ValidationScreen room={room} roomCode={roomCode} />;
         }
@@ -47,15 +47,12 @@ export function GameEndScreen({ room, roomCode, isCreator }: GameEndScreenProps)
 
     return (
         <div className="space-y-6">
-            <div className="lol-card rounded-lg p-8 text-center">
-                <div className="text-6xl mb-4">🏆</div>
-                <h1 className="text-4xl font-bold lol-title-gold mb-2">Combat terminé !</h1>
-                <p className="lol-text">
-                    Room : <span className="font-mono font-bold lol-text-gold">{roomCode}</span>
-                </p>
-            </div>
-
-            <GameSummary players={room.players} />
+            <GameSummary
+                players={room.players}
+                victoryBonus={room.victoryBonus}
+                winnerTeam={room.winnerTeam}
+                victoryBonusPoints={room.victoryBonusPoints}
+            />
 
             <div className="lol-card rounded-lg p-6">
                 {isCreator ? (
@@ -69,7 +66,7 @@ export function GameEndScreen({ room, roomCode, isCreator }: GameEndScreenProps)
                                 disabled={restarting}
                                 className="lol-button-hextech px-8 py-4 rounded-lg font-bold text-lg transition-all hextech-pulse"
                             >
-                                {restarting ? '🔄 Préparation...' : '⚔️ Nouvelle bataille'}
+                                {restarting ? 'Préparation...' : 'Nouvelle bataille'}
                             </button>
                             <LeaveRoomButton roomCode={roomCode} />
                         </div>
@@ -77,7 +74,7 @@ export function GameEndScreen({ room, roomCode, isCreator }: GameEndScreenProps)
                 ) : (
                     <div className="space-y-4">
                         <p className="text-center lol-text">
-                            ⏳ En attente que le créateur relance une bataille...
+                            En attente que le créateur relance une bataille...
                         </p>
                         <div className="flex justify-center">
                             <LeaveRoomButton roomCode={roomCode} />

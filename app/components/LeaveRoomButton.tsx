@@ -78,7 +78,7 @@ export function LeaveRoomButton({ roomCode }: LeaveRoomButtonProps) {
                 disabled={leaving}
                 className="lol-button-danger px-4 py-2 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
-                {leaving ? 'Départ...' : '🚪 Quitter'}
+                {leaving ? 'Départ...' : 'Quitter'}
             </button>
 
             {showConfirm && (

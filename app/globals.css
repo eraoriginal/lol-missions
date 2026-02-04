@@ -181,9 +181,17 @@ body {
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
-.lol-button-hextech:hover {
+.lol-button-hextech:hover:not(:disabled) {
   box-shadow: 0 0 30px rgba(10, 200, 185, 0.6);
   transform: scale(1.02);
+}
+
+.lol-button-hextech:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+  pointer-events: none;
+  animation: none;
 }
 
 /* Bouton danger */

@@ -55,19 +55,18 @@ export async function POST(
     }
 }
 
-// PATCH — le créateur avance au joueur suivant
-// Body: { creatorToken, currentPlayerIndex }
-// Met à jour validationStatus en "in_progress:<index>"
+// PATCH — le créateur avance au joueur suivant, passe en sélection bonus, ou met à jour l'équipe gagnante
+// Body: { creatorToken, currentPlayerIndex?, bonusSelection?, winnerTeam? }
 export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ code: string }> }
 ) {
     try {
         const { code } = await params;
-        const { creatorToken, currentPlayerIndex } = await request.json();
+        const { creatorToken, currentPlayerIndex, bonusSelection, winnerTeam } = await request.json();
 
-        if (!creatorToken || currentPlayerIndex === undefined) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        if (!creatorToken) {
+            return NextResponse.json({ error: 'Missing creatorToken' }, { status: 400 });
         }
 
         const room = await prisma.room.findUnique({ where: { code } });
@@ -79,12 +78,20 @@ export async function PATCH(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
         }
 
-        await prisma.room.update({
-            where: { code },
-            data: { validationStatus: `in_progress:${currentPlayerIndex}` },
-        });
+        const data: { validationStatus?: string; winnerTeam?: string } = {};
 
-        // Push : avancement vers le joueur suivant
+        if (currentPlayerIndex !== undefined) {
+            data.validationStatus = `in_progress:${currentPlayerIndex}`;
+        }
+        if (bonusSelection) {
+            data.validationStatus = 'bonus_selection';
+        }
+        if (winnerTeam !== undefined) {
+            data.winnerTeam = winnerTeam;
+        }
+
+        await prisma.room.update({ where: { code }, data });
+
         await pushRoomUpdate(code);
 
         return NextResponse.json({ success: true });
@@ -102,7 +109,7 @@ export async function PUT(
 ) {
     try {
         const { code } = await params;
-        const { creatorToken } = await request.json();
+        const { creatorToken, winnerTeam } = await request.json();
 
         if (!creatorToken) {
             return NextResponse.json({ error: 'Missing creatorToken' }, { status: 400 });
@@ -117,9 +124,36 @@ export async function PUT(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
         }
 
+        // Tirage aléatoire pondéré du bonus de victoire
+        // 0: 15%, 100: 20%, 200: 20%, 300: 20%, 400: 15%, 500: 10%
+        const weightedBonus = [
+            { points: 0,   weight: 15 },
+            { points: 100, weight: 20 },
+            { points: 200, weight: 20 },
+            { points: 300, weight: 20 },
+            { points: 400, weight: 15 },
+            { points: 500, weight: 10 },
+        ];
+        let randomBonus = 0;
+        if (winnerTeam) {
+            const roll = Math.random() * 100;
+            let cumulative = 0;
+            for (const entry of weightedBonus) {
+                cumulative += entry.weight;
+                if (roll < cumulative) {
+                    randomBonus = entry.points;
+                    break;
+                }
+            }
+        }
+
         await prisma.room.update({
             where: { code },
-            data: { validationStatus: 'completed' },
+            data: {
+                validationStatus: 'completed',
+                winnerTeam: winnerTeam || null,
+                victoryBonusPoints: randomBonus,
+            },
         });
 
         // Push : validation terminée, récapitulatif affiché pour tous
