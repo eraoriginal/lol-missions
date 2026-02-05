@@ -17,25 +17,15 @@ function shuffle<T>(array: T[]): T[] {
 }
 
 /**
- * Calcule les points actuels de chaque équipe basé sur les missions déjà assignées
- */
-function calculateTeamPoints(players: PlayerWithMissions[]): { red: number; blue: number } {
-    let red = 0;
-    let blue = 0;
-
-    for (const player of players) {
-        const playerPoints = player.missions.reduce((sum, pm) => sum + (pm.mission?.points || 0), 0);
-        if (player.team === 'red') red += playerPoints;
-        else if (player.team === 'blue') blue += playerPoints;
-    }
-
-    return { red, blue };
-}
-
-/**
- * Assigne des missions de façon aléatoire.
- * Pour START et MID : tirage 100% aléatoire
- * Pour LATE : distribution intelligente pour équilibrer le total final
+ * Assigne des missions avec un système d'équilibre parfait :
+ * - Chaque joueur reçoit exactement 1 EASY, 1 MEDIUM et 1 HARD au total
+ * - L'ordre des difficultés est aléatoire entre les phases START/MID/LATE
+ * - Chaque joueur a donc exactement 600 pts potentiels (100 + 200 + 300)
+ *
+ * Algorithme :
+ * - Pour START : tire une difficulté aléatoire parmi [easy, medium, hard]
+ * - Pour MID : tire une difficulté parmi les 2 restantes
+ * - Pour LATE : assigne la difficulté manquante
  */
 export function assignBalancedMissions(
     players: Player[] | PlayerWithMissions[],
@@ -43,95 +33,69 @@ export function assignBalancedMissions(
     missionType: 'START' | 'MID' | 'LATE' = 'START'
 ): Map<string, Mission> {
     const assignments = new Map<string, Mission>();
+    const playersWithMissions = players as PlayerWithMissions[];
 
-    // Sépare les joueurs par équipe et mélange
-    const redPlayers = shuffle(players.filter(p => p.team === 'red'));
-    const bluePlayers = shuffle(players.filter(p => p.team === 'blue'));
-
-    // Mélange les missions
-    const shuffledMissions = shuffle([...missions]);
-
-    // Pour START et MID : tirage purement aléatoire
-    if (missionType === 'START' || missionType === 'MID') {
-        const allPlayers = shuffle([...redPlayers, ...bluePlayers]);
-        for (let i = 0; i < allPlayers.length && i < shuffledMissions.length; i++) {
-            assignments.set(allPlayers[i].id, shuffledMissions[i]);
-        }
-        return assignments;
+    // Groupe les missions disponibles par difficulté
+    const byDifficulty = new Map<string, Mission[]>();
+    for (const mission of missions) {
+        const diff = mission.difficulty;
+        if (!diff) continue;
+        const existing = byDifficulty.get(diff) || [];
+        existing.push(mission);
+        byDifficulty.set(diff, existing);
     }
 
-    // Pour LATE : distribution intelligente pour équilibrer
-    const playersWithMissions = players as PlayerWithMissions[];
-    const currentPoints = calculateTeamPoints(playersWithMissions);
+    // Mélange chaque groupe pour le tirage aléatoire
+    for (const [diff, group] of byDifficulty) {
+        byDifficulty.set(diff, shuffle(group));
+    }
 
-    // Points cibles : on veut que red + redLate = blue + blueLate
-    // Donc redLate - blueLate = blue - red = -currentImbalance
-    const currentImbalance = currentPoints.red - currentPoints.blue;
+    const allDifficulties = ['easy', 'medium', 'hard'];
 
-    // On doit distribuer N missions à red et M missions à blue
-    const redCount = redPlayers.length;
-    const blueCount = bluePlayers.length;
-    const totalMissionsNeeded = redCount + blueCount;
+    // Pour chaque joueur dans une équipe
+    for (const player of playersWithMissions) {
+        if (player.team !== 'red' && player.team !== 'blue') continue;
 
-    // Prend les missions nécessaires du pool mélangé
-    const missionPool = shuffledMissions.slice(0, totalMissionsNeeded);
-
-    // Trie les missions par points (pour pouvoir faire des choix intelligents)
-    const sortedMissions = [...missionPool].sort((a, b) => b.points - a.points);
-
-    // Algorithme glouton :
-    // On assigne les missions une par une en choisissant à chaque fois
-    // l'équipe qui a le plus besoin de points (ou qui en a le moins si on doit réduire)
-
-    let redPoints = currentPoints.red;
-    let bluePoints = currentPoints.blue;
-    let redAssigned = 0;
-    let blueAssigned = 0;
-
-    const redMissions: Mission[] = [];
-    const blueMissions: Mission[] = [];
-
-    for (const mission of shuffle(sortedMissions)) {  // Re-mélange pour ne pas toujours donner les grosses missions en premier
-        const redNeedsMore = redAssigned < redCount;
-        const blueNeedsMore = blueAssigned < blueCount;
-
-        if (!redNeedsMore && !blueNeedsMore) break;
-
-        if (!redNeedsMore) {
-            // Doit aller à blue
-            blueMissions.push(mission);
-            bluePoints += mission.points;
-            blueAssigned++;
-        } else if (!blueNeedsMore) {
-            // Doit aller à red
-            redMissions.push(mission);
-            redPoints += mission.points;
-            redAssigned++;
-        } else {
-            // Les deux équipes ont besoin de missions
-            // On donne à l'équipe qui a le moins de points actuellement
-            if (redPoints <= bluePoints) {
-                redMissions.push(mission);
-                redPoints += mission.points;
-                redAssigned++;
-            } else {
-                blueMissions.push(mission);
-                bluePoints += mission.points;
-                blueAssigned++;
+        // Trouve les difficultés déjà assignées à ce joueur
+        const existingDifficulties = new Set<string>();
+        if (player.missions) {
+            for (const pm of player.missions) {
+                if (pm.mission?.difficulty) {
+                    existingDifficulties.add(pm.mission.difficulty);
+                }
             }
         }
-    }
 
-    // Assigne les missions aux joueurs (mélangées)
-    const shuffledRedMissions = shuffle(redMissions);
-    const shuffledBlueMissions = shuffle(blueMissions);
+        // Difficultés pas encore assignées
+        const availableDifficulties = allDifficulties.filter(d => !existingDifficulties.has(d));
 
-    for (let i = 0; i < redPlayers.length && i < shuffledRedMissions.length; i++) {
-        assignments.set(redPlayers[i].id, shuffledRedMissions[i]);
-    }
+        if (availableDifficulties.length === 0) continue;
 
-    for (let i = 0; i < bluePlayers.length && i < shuffledBlueMissions.length; i++) {
-        assignments.set(bluePlayers[i].id, shuffledBlueMissions[i]);
+        // Choix aléatoire parmi les difficultés disponibles
+        const shuffledAvailable = shuffle(availableDifficulties);
+        let assigned = false;
+
+        // Essaie d'assigner une mission de la difficulté choisie
+        for (const chosenDifficulty of shuffledAvailable) {
+            const pool = byDifficulty.get(chosenDifficulty);
+            if (pool && pool.length > 0) {
+                assignments.set(player.id, pool.pop()!);
+                assigned = true;
+                break;
+            }
+        }
+
+        // Fallback : si aucune mission disponible dans les difficultés restantes,
+        // prend n'importe quelle mission disponible
+        if (!assigned) {
+            for (const diff of allDifficulties) {
+                const pool = byDifficulty.get(diff);
+                if (pool && pool.length > 0) {
+                    assignments.set(player.id, pool.pop()!);
+                    break;
+                }
+            }
+        }
     }
 
     return assignments;

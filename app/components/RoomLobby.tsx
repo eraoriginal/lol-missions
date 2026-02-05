@@ -5,6 +5,19 @@ import { TeamSelector } from './TeamSelector';
 import { MissionDelayPicker } from '@/app/games/aram-missions/components/MissionDelayPicker';
 import { LeaveRoomButton } from './LeaveRoomButton';
 import { AramRulesModal } from '@/app/games/aram-missions/components/AramRulesModal';
+import { HistoryPanel } from '@/app/games/aram-missions/components/HistoryPanel';
+
+interface GameHistoryItem {
+    id: string;
+    gameNumber: number;
+    redScore: number;
+    blueScore: number;
+    winnerTeam: string | null;
+    victoryBonusPoints: number;
+    bonusTeam: string | null;
+    playersSnapshot: string;
+    playedAt: string;
+}
 
 interface Room {
     id: string;
@@ -15,6 +28,7 @@ interface Room {
     missionVisibility: 'all' | 'team' | 'hidden';
     gameMap: string;
     victoryBonus: boolean;
+    gameHistories?: GameHistoryItem[];
 }
 
 interface RoomLobbyProps {
@@ -82,6 +96,17 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
         }
     };
 
+    // Calcul du score cumulé
+    const cumulativeScore = (room.gameHistories || []).reduce(
+        (acc, game) => {
+            if (game.winnerTeam === 'red') acc.red++;
+            else if (game.winnerTeam === 'blue') acc.blue++;
+            return acc;
+        },
+        { red: 0, blue: 0 }
+    );
+    const hasHistory = room.gameHistories && room.gameHistories.length > 0;
+
     return (
         <div className="space-y-6">
             {/* Header compact */}
@@ -119,6 +144,17 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
                     </div>
                 </div>
             </div>
+
+            {/* Score cumulé (affiché au-dessus des équipes) */}
+            {hasHistory && (
+                <div className="flex items-center justify-center gap-6 py-2">
+                    <div className="flex items-center gap-4 text-3xl font-bold">
+                        <span className="text-red-500">🔴 {cumulativeScore.red}</span>
+                        <span className="lol-text-gold">-</span>
+                        <span className="text-blue-500">{cumulativeScore.blue} 🔵</span>
+                    </div>
+                </div>
+            )}
 
             {/* Sélection des équipes */}
             <TeamSelector
@@ -172,6 +208,11 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
                 roomCode={roomCode}
                 creatorToken={creatorToken}
             />
+
+            {/* Historique des parties (en bas de page) */}
+            {hasHistory && (
+                <HistoryPanel gameHistories={room.gameHistories!} />
+            )}
         </div>
     );
 }

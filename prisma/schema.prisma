@@ -25,7 +25,7 @@ model Mission {
   type       String   // 'START', 'MID' ou 'LATE'
   category   String
   difficulty String   // 'easy', 'medium', 'hard'
-  points     Int      // 100 (easy), 200 (medium), 500 (hard)
+  points     Int      // 100 (easy), 200 (medium), 300 (hard)
   isPrivate  Boolean  @default(false)
   maps       String   @default("all")   // "howling_abyss", "summoners_rift" ou "all"
   createdAt  DateTime @default(now())
@@ -56,8 +56,31 @@ model Room {
 
   players          Player[]
   codenameGame     CodenameGame?
+  gameHistories    GameHistory[]
 
   @@index([code])
+}
+
+model GameHistory {
+  id                 String   @id @default(cuid())
+  roomId             String
+  room               Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  gameNumber         Int      // 1, 2, 3... (numéro de la partie dans cette room)
+
+  // Résultats
+  redScore           Int      // Total points équipe rouge
+  blueScore          Int      // Total points équipe bleue
+  winnerTeam         String?  // "red", "blue" ou null (égalité)
+  victoryBonusPoints Int      @default(0)
+  bonusTeam          String?  // Équipe qui a reçu le bonus
+
+  // Snapshot des joueurs et missions (JSON pour simplicité)
+  playersSnapshot    String   // JSON: [{ name, team, avatar, missions: [{ text, type, validated, points }] }]
+
+  playedAt           DateTime @default(now())
+
+  @@index([roomId])
 }
 
 model Player {

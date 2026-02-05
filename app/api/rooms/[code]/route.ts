@@ -42,6 +42,9 @@ export async function GET(
                         },
                     },
                 },
+                gameHistories: {
+                    orderBy: { gameNumber: 'asc' },
+                },
             },
         });
 

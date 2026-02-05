@@ -109,13 +109,27 @@ export async function PUT(
 ) {
     try {
         const { code } = await params;
-        const { creatorToken, winnerTeam } = await request.json();
+        const body = await request.json();
+        const creatorToken = body.creatorToken as string | undefined;
+        const winnerTeam = body.winnerTeam as 'red' | 'blue' | null | undefined;
 
         if (!creatorToken) {
             return NextResponse.json({ error: 'Missing creatorToken' }, { status: 400 });
         }
 
-        const room = await prisma.room.findUnique({ where: { code } });
+        const room = await prisma.room.findUnique({
+            where: { code },
+            include: {
+                players: {
+                    include: {
+                        missions: {
+                            include: { mission: true },
+                        },
+                    },
+                },
+                gameHistories: true,
+            },
+        });
 
         if (!room) {
             return NextResponse.json({ error: 'Room not found' }, { status: 404 });
@@ -146,6 +160,55 @@ export async function PUT(
                 }
             }
         }
+
+        // Calculer les scores finaux par équipe
+        const teamScores: { red: number; blue: number } = { red: 0, blue: 0 };
+        for (const player of room.players) {
+            if (player.team === 'red' || player.team === 'blue') {
+                for (const pm of player.missions) {
+                    if (pm.validated) {
+                        teamScores[player.team as 'red' | 'blue'] += pm.pointsEarned;
+                    }
+                }
+            }
+        }
+
+        // Ajouter le bonus de victoire au score de l'équipe gagnante
+        if (winnerTeam === 'red' || winnerTeam === 'blue') {
+            teamScores[winnerTeam] += randomBonus;
+        }
+
+        // Créer le snapshot des joueurs avec leurs missions
+        const playersSnapshot = room.players
+            .filter(p => p.team === 'red' || p.team === 'blue')
+            .map(player => ({
+                name: player.name,
+                team: player.team,
+                avatar: player.avatar,
+                missions: player.missions.map(pm => ({
+                    text: pm.mission.text,
+                    type: pm.type,
+                    validated: pm.validated,
+                    points: pm.pointsEarned,
+                    isPrivate: pm.mission.isPrivate,
+                })),
+            }));
+
+        // Créer l'historique de la partie
+        // winnerTeam = l'équipe qui a gagné la partie LoL (sélectionnée par le créateur)
+        const gameNumber = room.gameHistories.length + 1;
+        await prisma.gameHistory.create({
+            data: {
+                roomId: room.id,
+                gameNumber,
+                redScore: teamScores.red,
+                blueScore: teamScores.blue,
+                winnerTeam: winnerTeam || null,
+                victoryBonusPoints: randomBonus,
+                bonusTeam: winnerTeam || null,
+                playersSnapshot: JSON.stringify(playersSnapshot),
+            },
+        });
 
         await prisma.room.update({
             where: { code },
