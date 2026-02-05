@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { pushRoomUpdate } from '@/lib/pusher';
 import { isCreator } from '@/lib/utils';
+import { assignBalancedMissions } from '@/lib/balancedMissionAssignment';
 
 export async function POST(
     request: NextRequest,
@@ -40,29 +41,27 @@ export async function POST(
         });
 
         // Récupère et mélange les missions START
-        const startMissions = await prisma.mission.findMany({ where: { type: 'START' } });
+        const startMissions = await prisma.mission.findMany({ where: { type: 'START', OR: [{ maps: room.gameMap }, { maps: 'all' }] } });
 
         if (startMissions.length < room.players.length) {
             return Response.json({ error: 'Not enough missions available' }, { status: 500 });
         }
 
-        const shuffledMissions = [...startMissions];
-        for (let i = shuffledMissions.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffledMissions[i], shuffledMissions[j]] = [shuffledMissions[j], shuffledMissions[i]];
-        }
+        // Assigne les missions START de façon aléatoire
+        const assignments = assignBalancedMissions(room.players, startMissions, 'START');
 
-        // Assigne les nouvelles missions START
         await Promise.all(
-            room.players.map((player, index) =>
-                prisma.playerMission.create({
+            room.players.map((player) => {
+                const mission = assignments.get(player.id);
+                if (!mission) return Promise.resolve();
+                return prisma.playerMission.create({
                     data: {
                         playerId: player.id,
-                        missionId: shuffledMissions[index].id,
+                        missionId: mission.id,
                         type: 'START',
                     },
-                })
-            )
+                });
+            })
         );
 
         // Reset le timer mais garde gameStarted = true

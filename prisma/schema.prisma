@@ -27,6 +27,7 @@ model Mission {
   difficulty String   // 'easy', 'medium', 'hard'
   points     Int      // 100 (easy), 200 (medium), 500 (hard)
   isPrivate  Boolean  @default(false)
+  maps       String   @default("all")   // "howling_abyss", "summoners_rift" ou "all"
   createdAt  DateTime @default(now())
 
   playerMissions PlayerMission[]

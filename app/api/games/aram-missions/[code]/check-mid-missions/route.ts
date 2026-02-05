@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { pushRoomUpdate } from '@/lib/pusher';
 import { filterPrivateMissions } from '@/lib/filterPrivateMissions';
+import { assignBalancedMissions } from '@/lib/balancedMissionAssignment';
 
 export async function POST(
     request: NextRequest,
@@ -70,7 +71,7 @@ export async function POST(
 
         // Récupère toutes les missions MID disponibles
         const midMissions = await prisma.mission.findMany({
-            where: { type: 'MID' },
+            where: { type: 'MID', OR: [{ maps: room.gameMap }, { maps: 'all' }] },
         });
 
         if (midMissions.length < room.players.length) {
@@ -80,22 +81,20 @@ export async function POST(
             );
         }
 
-        // Mélange les missions (Fisher-Yates)
-        const shuffledMissions = [...midMissions];
-        for (let i = shuffledMissions.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffledMissions[i], shuffledMissions[j]] = [shuffledMissions[j], shuffledMissions[i]];
-        }
+        // Assigne les missions MID de façon aléatoire
+        const assignments = assignBalancedMissions(room.players, midMissions, 'MID');
 
         // Assigne une mission MID à chaque joueur (avec transaction pour atomicité)
         let createdByUs = false;
         try {
             await prisma.$transaction(async (tx) => {
-                for (let i = 0; i < room.players.length; i++) {
+                for (const player of room.players) {
+                    const mission = assignments.get(player.id);
+                    if (!mission) continue;
                     await tx.playerMission.create({
                         data: {
-                            playerId: room.players[i].id,
-                            missionId: shuffledMissions[i].id,
+                            playerId: player.id,
+                            missionId: mission.id,
                             type: 'MID',
                         },
                     });
