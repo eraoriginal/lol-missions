@@ -467,6 +467,7 @@ export function GameView({ room, roomCode }: GameViewProps) {
             {/* Overlay de choix de mission */}
             {room.gameStartTime && activePendingType && activePendingChoices.length > 0 && (
                 <MissionChoiceOverlay
+                    key={activePendingType}
                     choices={activePendingChoices}
                     type={activePendingType as 'START' | 'MID' | 'LATE'}
                     roomCode={roomCode}

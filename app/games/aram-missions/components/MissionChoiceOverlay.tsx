@@ -59,7 +59,10 @@ export function MissionChoiceOverlay({ choices, type, roomCode, missionVisibilit
             ? localStorage.getItem(`room_${roomCode}_player`)
             : null;
 
-        if (!playerToken) return;
+        if (!playerToken) {
+            setChoosingId(null);
+            return;
+        }
 
         try {
             const res = await fetch(`/api/games/aram-missions/${roomCode}/choose-mission`, {
@@ -68,9 +71,7 @@ export function MissionChoiceOverlay({ choices, type, roomCode, missionVisibilit
                 body: JSON.stringify({ playerToken, pendingChoiceId: choice.id }),
             });
 
-            if (res.ok) {
-                onChosen();
-            } else {
+            if (!res.ok) {
                 setChoosingId(null);
             }
         } catch {
