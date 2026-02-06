@@ -12,6 +12,7 @@ interface PlayerMission {
     type: string;
     validated: boolean;
     pointsEarned: number;
+    resolvedText?: string;
 }
 
 interface Player {
@@ -162,7 +163,7 @@ export function GameSummary({ players, victoryBonus, winnerTeam: bonusWinnerTeam
                                                     <span>{pm.validated ? '✅' : '❌'}</span>
                                                     {isPrivate && <span className="text-[#C8AA6E]">🔒</span>}
                                                     <span className={`truncate ${isPrivate ? 'text-[#F0E6D2]' : 'lol-text-light'} ${!pm.validated ? 'line-through opacity-60' : ''}`}>
-                                                        {pm.mission.text}
+                                                        {pm.resolvedText || pm.mission.text}
                                                     </span>
                                                 </div>
                                                 <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">

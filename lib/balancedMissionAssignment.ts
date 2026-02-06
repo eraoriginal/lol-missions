@@ -4,6 +4,14 @@ type PlayerWithMissions = Player & {
     missions: { mission: Mission; type: string }[];
 };
 
+export interface DuelPair {
+    missionId: string;
+    player1Id: string;
+    player2Id: string;
+    player1ResolvedText: string;
+    player2ResolvedText: string;
+}
+
 /**
  * Mélange un tableau avec Fisher-Yates
  */
@@ -99,4 +107,85 @@ export function assignBalancedMissions(
     }
 
     return assignments;
+}
+
+/**
+ * Post-traite les assignations pour gérer les missions duel.
+ * Si une mission duel a été tirée aléatoirement pour un joueur,
+ * on trouve un adversaire et on lui assigne la même mission (avec texte inversé).
+ *
+ * @param assignments - Les assignations déjà faites par assignBalancedMissions
+ * @param players - Tous les joueurs
+ * @param allMissions - Toutes les missions disponibles (pour remplacer si pas d'adversaire)
+ * @returns Les paires de duel créées (pour savoir qui doit avoir resolvedText modifié)
+ */
+export function processDuelMissions(
+    assignments: Map<string, Mission>,
+    players: Player[],
+    allMissions: Mission[]
+): DuelPair[] {
+    const duelPairs: DuelPair[] = [];
+    const usedMissionIds = new Set<string>();
+
+    // Collecte les IDs des missions déjà utilisées
+    for (const mission of assignments.values()) {
+        usedMissionIds.add(mission.id);
+    }
+
+    // Collecte d'abord toutes les entrées avec mission duel (pour éviter de modifier pendant l'itération)
+    const duelEntries: { playerId: string; mission: Mission }[] = [];
+    for (const [playerId, mission] of assignments) {
+        if (mission.playerPlaceholder === 'duel') {
+            duelEntries.push({ playerId, mission });
+        }
+    }
+
+    const processedPlayerIds = new Set<string>();
+
+    for (const { playerId, mission } of duelEntries) {
+        // Skip si ce joueur a déjà été traité (comme adversaire d'un autre duel)
+        if (processedPlayerIds.has(playerId)) continue;
+
+        const player = players.find(p => p.id === playerId);
+        if (!player || (player.team !== 'red' && player.team !== 'blue')) continue;
+
+        // Trouve un adversaire qui n'a pas déjà été assigné à un duel
+        const opponentTeam = player.team === 'red' ? 'blue' : 'red';
+        const availableOpponents = players.filter(p =>
+            p.team === opponentTeam && !processedPlayerIds.has(p.id)
+        );
+
+        if (availableOpponents.length === 0) {
+            // Pas d'adversaire disponible -> remplacer par une mission non-duel
+            const replacement = allMissions.find(m =>
+                m.playerPlaceholder !== 'duel' && !usedMissionIds.has(m.id)
+            );
+            if (replacement) {
+                assignments.set(playerId, replacement);
+                usedMissionIds.add(replacement.id);
+            }
+            continue;
+        }
+
+        // Prend un adversaire au hasard
+        const opponent = availableOpponents[Math.floor(Math.random() * availableOpponents.length)];
+
+        // Marque les deux joueurs comme traités
+        processedPlayerIds.add(player.id);
+        processedPlayerIds.add(opponent.id);
+
+        // Remplace la mission de l'adversaire par la mission duel
+        assignments.set(opponent.id, mission);
+
+        // Crée la paire avec les textes résolus
+        duelPairs.push({
+            missionId: mission.id,
+            player1Id: player.id,
+            player2Id: opponent.id,
+            player1ResolvedText: mission.text.replace('{player}', opponent.name),
+            player2ResolvedText: mission.text.replace('{player}', player.name),
+        });
+    }
+
+    return duelPairs;
 }

@@ -106,6 +106,7 @@ export function useRoom(roomCode: string | null) {
                             setTimeout(() => {
                                 window.location.href = '/';
                             }, 2000);
+                            return; // Ne pas throw, la redirection est en cours
                         }
                     }
                     throw new Error('Room not found');

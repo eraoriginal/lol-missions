@@ -186,7 +186,7 @@ export async function PUT(
                 team: player.team,
                 avatar: player.avatar,
                 missions: player.missions.map(pm => ({
-                    text: pm.mission.text,
+                    text: pm.resolvedText || pm.mission.text,
                     type: pm.type,
                     validated: pm.validated,
                     points: pm.pointsEarned,

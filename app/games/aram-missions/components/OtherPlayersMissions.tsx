@@ -11,6 +11,7 @@ interface Mission {
 interface PlayerMission {
     mission: Mission;
     type: string;
+    resolvedText?: string;
 }
 
 interface Player {
@@ -160,7 +161,7 @@ export function OtherPlayersMissions({
                                     <span className="leading-relaxed">
                                         {pm.mission.isPrivate
                                             ? <span className="italic text-white">Mission secrète</span>
-                                            : pm.mission.text
+                                            : (pm.resolvedText || pm.mission.text)
                                         }
                                     </span>
                                     {!pm.mission.isPrivate && pm.mission.difficulty && (

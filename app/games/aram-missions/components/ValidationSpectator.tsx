@@ -77,7 +77,7 @@ export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps
                         {isPrivate && <span className="text-white">🔒</span>}
                         <span className={`text-sm ${isPrivate ? 'text-white' : 'lol-text-gold'}`}>+{pm.mission.points} pts</span>
                     </div>
-                    <p className={`leading-relaxed ${isPrivate ? 'text-white' : 'lol-text-light'}`}>{pm.mission.text}</p>
+                    <p className={`leading-relaxed ${isPrivate ? 'text-white' : 'lol-text-light'}`}>{pm.resolvedText || pm.mission.text}</p>
                 </div>
                 <div className="flex-shrink-0">
                     {pm.decided ? (

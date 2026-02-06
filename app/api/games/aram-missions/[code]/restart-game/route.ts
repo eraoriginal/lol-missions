@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { pushRoomUpdate } from '@/lib/pusher';
 import { isCreator } from '@/lib/utils';
-import { assignBalancedMissions } from '@/lib/balancedMissionAssignment';
+import { assignBalancedMissions, processDuelMissions } from '@/lib/balancedMissionAssignment';
+import { resolvePlayerPlaceholder } from '@/lib/resolvePlayerPlaceholder';
 
 export async function POST(
     request: NextRequest,
@@ -50,15 +51,29 @@ export async function POST(
         // Assigne les missions START de façon aléatoire
         const assignments = assignBalancedMissions(room.players, startMissions, 'START');
 
+        // Post-traite les missions duel
+        const duelPairs = processDuelMissions(assignments, room.players, startMissions);
+        const duelResolvedTexts = new Map<string, string>();
+        for (const pair of duelPairs) {
+            duelResolvedTexts.set(pair.player1Id, pair.player1ResolvedText);
+            duelResolvedTexts.set(pair.player2Id, pair.player2ResolvedText);
+        }
+
         await Promise.all(
             room.players.map((player) => {
                 const mission = assignments.get(player.id);
                 if (!mission) return Promise.resolve();
+
+                // Résout les placeholders (duel ou autre)
+                const resolvedText = duelResolvedTexts.get(player.id)
+                    ?? resolvePlayerPlaceholder(mission, player, room.players);
+
                 return prisma.playerMission.create({
                     data: {
                         playerId: player.id,
                         missionId: mission.id,
                         type: 'START',
+                        resolvedText,
                     },
                 });
             })
@@ -74,7 +89,7 @@ export async function POST(
             },
         });
 
-        console.log(`[RESTART-GAME] Game restarted in room ${code}, teams preserved, new START missions assigned`);
+        console.log(`[RESTART-GAME] Game restarted in room ${code}, teams preserved, new START missions assigned, duelPairs=${duelPairs.length}`);
 
         await pushRoomUpdate(code);
 

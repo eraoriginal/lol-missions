@@ -2,7 +2,8 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { pushRoomUpdate } from '@/lib/pusher';
 import { filterPrivateMissions } from '@/lib/filterPrivateMissions';
-import { assignBalancedMissions } from '@/lib/balancedMissionAssignment';
+import { assignBalancedMissions, processDuelMissions } from '@/lib/balancedMissionAssignment';
+import { resolvePlayerPlaceholder } from '@/lib/resolvePlayerPlaceholder';
 
 export async function POST(
     request: NextRequest,
@@ -69,7 +70,7 @@ export async function POST(
             });
         }
 
-        // Récupère toutes les missions LATE disponibles
+        // Récupère toutes les missions LATE disponibles (y compris duel)
         const lateMissions = await prisma.mission.findMany({
             where: { type: 'LATE', OR: [{ maps: room.gameMap }, { maps: 'all' }] },
         });
@@ -81,8 +82,16 @@ export async function POST(
             );
         }
 
-        // Assigne les missions LATE avec équilibrage final des points
+        // Tirage aléatoire équilibré
         const assignments = assignBalancedMissions(room.players, lateMissions, 'LATE');
+
+        // Post-traite les missions duel
+        const duelPairs = processDuelMissions(assignments, room.players, lateMissions);
+        const duelResolvedTexts = new Map<string, string>();
+        for (const pair of duelPairs) {
+            duelResolvedTexts.set(pair.player1Id, pair.player1ResolvedText);
+            duelResolvedTexts.set(pair.player2Id, pair.player2ResolvedText);
+        }
 
         // Assigne une mission LATE à chaque joueur (avec transaction pour atomicité)
         let createdByUs = false;
@@ -91,11 +100,16 @@ export async function POST(
                 for (const player of room.players) {
                     const mission = assignments.get(player.id);
                     if (!mission) continue;
+
+                    const resolvedText = duelResolvedTexts.get(player.id)
+                        ?? resolvePlayerPlaceholder(mission, player, room.players);
+
                     await tx.playerMission.create({
                         data: {
                             playerId: player.id,
                             missionId: mission.id,
                             type: 'LATE',
+                            resolvedText,
                         },
                     });
                 }

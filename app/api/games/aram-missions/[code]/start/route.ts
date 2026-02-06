@@ -3,7 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { pushRoomUpdate } from '@/lib/pusher';
 import { isCreator } from '@/lib/utils';
 import { filterPrivateMissions } from '@/lib/filterPrivateMissions';
-import { assignBalancedMissions } from '@/lib/balancedMissionAssignment';
+import { assignBalancedMissions, processDuelMissions } from '@/lib/balancedMissionAssignment';
+import { resolvePlayerPlaceholder } from '@/lib/resolvePlayerPlaceholder';
 import { z } from 'zod';
 
 const startGameSchema = z.object({
@@ -47,25 +48,70 @@ export async function POST(
             return Response.json({ error: 'Need at least 2 players to start' }, { status: 400 });
         }
 
-        // Récupère et mélange les missions START
-        const startMissions = await prisma.mission.findMany({ where: { type: 'START', OR: [{ maps: room.gameMap }, { maps: 'all' }] } });
+        // Debug: affiche les joueurs avec leurs équipes
+        console.log('[START] room.players:', room.players.map(p => ({ id: p.id, name: p.name, team: p.team })));
+
+        // Récupère les missions START (y compris les missions duel)
+        const startMissions = await prisma.mission.findMany({
+            where: { type: 'START', OR: [{ maps: room.gameMap }, { maps: 'all' }] }
+        });
 
         if (startMissions.length < room.players.length) {
             return Response.json({ error: 'Not enough missions available' }, { status: 500 });
         }
 
-        // Assigne les missions START de façon aléatoire
+        // Tirage aléatoire équilibré (inclut potentiellement des missions duel)
         const assignments = assignBalancedMissions(room.players, startMissions, 'START');
+
+        // Debug: log des missions avec placeholder
+        const missionsWithPlaceholder = Array.from(assignments.entries())
+            .filter(([_, m]) => m.playerPlaceholder)
+            .map(([playerId, m]) => ({
+                playerId,
+                playerName: room.players.find(p => p.id === playerId)?.name,
+                playerTeam: room.players.find(p => p.id === playerId)?.team,
+                missionText: m.text,
+                placeholder: m.playerPlaceholder,
+            }));
+        console.log('[START] Missions avec placeholder:', JSON.stringify(missionsWithPlaceholder, null, 2));
+
+        // Debug: log des joueurs
+        console.log('[START] Joueurs:', room.players.map(p => ({ id: p.id, name: p.name, team: p.team })));
+
+        // Post-traite les missions duel : si une mission duel est tirée,
+        // l'adversaire reçoit aussi cette mission
+        const duelPairs = processDuelMissions(assignments, room.players, startMissions);
+        console.log('[START] Duel pairs créées:', JSON.stringify(duelPairs, null, 2));
+
+        // Crée un map pour accéder rapidement aux textes résolus des duels
+        const duelResolvedTexts = new Map<string, string>();
+        for (const pair of duelPairs) {
+            duelResolvedTexts.set(pair.player1Id, pair.player1ResolvedText);
+            duelResolvedTexts.set(pair.player2Id, pair.player2ResolvedText);
+        }
 
         await Promise.all(
             room.players.map((player) => {
                 const mission = assignments.get(player.id);
                 if (!mission) return Promise.resolve();
+
+                // Si c'est une mission duel, utiliser le texte pré-résolu
+                // Sinon, résoudre les autres placeholders normalement
+                const duelText = duelResolvedTexts.get(player.id);
+                const placeholderText = resolvePlayerPlaceholder(mission, player, room.players);
+                const resolvedText = duelText ?? placeholderText;
+
+                // Debug log
+                if (mission.playerPlaceholder) {
+                    console.log(`[START] Player ${player.name}: placeholder=${mission.playerPlaceholder}, duelText=${duelText}, placeholderText=${placeholderText}, final=${resolvedText}`);
+                }
+
                 return prisma.playerMission.create({
                     data: {
                         playerId: player.id,
                         missionId: mission.id,
                         type: 'START',
+                        resolvedText,
                     },
                 });
             })

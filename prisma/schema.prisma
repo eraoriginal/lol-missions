@@ -20,15 +20,16 @@ model Event {
 }
 
 model Mission {
-  id         String   @id @default(cuid())
-  text       String
-  type       String   // 'START', 'MID' ou 'LATE'
-  category   String
-  difficulty String   // 'easy', 'medium', 'hard'
-  points     Int      // 100 (easy), 200 (medium), 300 (hard)
-  isPrivate  Boolean  @default(false)
-  maps       String   @default("all")   // "howling_abyss", "summoners_rift" ou "all"
-  createdAt  DateTime @default(now())
+  id                String   @id @default(cuid())
+  text              String
+  type              String   // 'START', 'MID' ou 'LATE'
+  category          String
+  difficulty        String   // 'easy', 'medium', 'hard'
+  points            Int      // 100 (easy), 200 (medium), 300 (hard)
+  isPrivate         Boolean  @default(false)
+  maps              String   @default("all")   // "howling_abyss", "summoners_rift" ou "all"
+  playerPlaceholder String?  // null, "teammate", "opponent", "any", "duel" - si présent, {player} dans le texte sera remplacé. "duel" = même mission pour 2 joueurs d'équipes opposées
+  createdAt         DateTime @default(now())
 
   playerMissions PlayerMission[]
 
@@ -107,6 +108,7 @@ model PlayerMission {
   missionId    String
   mission      Mission  @relation(fields: [missionId], references: [id])
   type         String   // 'START', 'MID' ou 'LATE'
+  resolvedText String?  // Texte avec le placeholder {player} remplacé par le nom réel
   validated    Boolean  @default(false)
   pointsEarned Int      @default(0)
   decided      Boolean  @default(false) // true dès que le créateur a traité cette mission

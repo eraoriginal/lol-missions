@@ -72,8 +72,21 @@ async function main() {
         { text: "Faire danser tout le monde en début de partie",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 300, isPrivate: true, maps: "all"  },
         { text: "Au début de la partie, insulter l'équipe adverse",    type: "START", category: "Troll",        difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
         { text: "Dicter les builds de tes coéquipiers comme Al4r1c. Si tu es Al4r1c, achète 2 sceptres de Rylai", type: "START", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true, maps: "all" },
-        { text: "Écrire '???' dans le chat après chaque mort ennemie", type: "START", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true, maps: "all" }
+        { text: "Écrire '???' dans le chat après chaque mort ennemie", type: "START", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
 
+        // 🎭 Missions avec placeholder joueur
+        { text: "Répéter le dernier mot de chaque phrase de {player} pendant 2 minutes", type: "START", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "any" },
+        { text: "Complimenter {player} après chacune de ses actions pendant 2 minutes", type: "START", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "teammate" },
+        { text: "Blâmer {player} pour chaque mort de ton équipe (même si ce n'est pas sa faute)", type: "START", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "teammate" },
+        { text: "Imiter la voix de {player} pendant 1 minute", type: "START", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "any" },
+        { text: "Faire exactement le même build que {player}", type: "START", category: "Build", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "opponent" },
+
+        // ⚔️ Missions duel (même mission pour 2 joueurs adverses)
+        { text: "Avoir plus de kills que {player}", type: "START", category: "Combat", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
+        { text: "Avoir moins de morts que {player}", type: "START", category: "Survie", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
+        { text: "Faire plus de dégâts que {player}", type: "START", category: "Combat", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
+        { text: "Avoir un meilleur KDA que {player}", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
+        { text: "Tuer {player} au moins 3 fois", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" }
     ];
 
     // ========================================
@@ -110,7 +123,6 @@ async function main() {
         { text: "Mourir sous la tour ennemie volontairement",                             type: "MID", category: "Suicide",      difficulty: "easy",   points: 100, isPrivate: true, maps: "all" },
         { text: "Mourir intentionnellement dans les 30 prochaines secondes",                     type: "MID", category: "Suicide",       difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
         { text: "Mourir intentionnellement 3 fois dès que tu spawn",                     type: "MID", category: "Suicide",       difficulty: "medium",   points: 200, isPrivate: true, maps: "all"  },
-        { text: "Suivre un coéquipier partout pendant 3 minutes (jamais à plus de 500 unités)",  type: "MID", category: "Troll",         difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
         { text: "Imiter le rire de Eikichi 3 fois de suite",  type: "MID", category: "Troll",         difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
         { text: "Gémir de plaisir et faire en sorte que ce soit mémorable",  type: "MID", category: "Troll",         difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
         { text: "Lancer tout les sons de la soundboard Discord 3 fois durant la partie",  type: "MID", category: "Troll",         difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
@@ -119,8 +131,12 @@ async function main() {
         { text: "Se plaindre d'un coéquipier avec véhémence pendant 1 minute",                             type: "MID", category: "Toxic", difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
         { text: "Regarder ses coéquipiers mourir et taunt avec au moins 80% de barre de vie",                             type: "MID", category: "Combat", difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
         { text: "Alft F4 en plein teamfight",                             type: "MID", category: "Combat", difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
-        { text: "Remercier Era pour ce jeu incroyable", type: "MID", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true, maps: "all" }
+        { text: "Remercier Era pour ce jeu incroyable", type: "MID", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true, maps: "all" },
 
+        // 🎭 Missions avec placeholder joueur
+        { text: "Suivre {player} partout pendant 2 minutes (jamais à plus de 500 unités)", type: "MID", category: "Troll", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "teammate" },
+        { text: "Défendre {player} à chaque fois qu'il se fait attaquer verbalement", type: "MID", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "teammate" },
+        { text: "Annoncer chaque action de {player} comme un commentateur sportif", type: "MID", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "any" }
     ];
 
     // ========================================
@@ -172,7 +188,12 @@ async function main() {
         { text: "Spam ping '?' sur le joueur avec le plus de kills pendant 2 minutes", type: "LATE", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
         { text: "Spam ping '?' sur tes alliés pendant 2 minutes",                                  type: "LATE", category: "Toxic",       difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
         { text: "Accuser le lag et ta freebox après chaque mort", type: "LATE", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
-        { text: "Après chaque kill de ta part, crier le nom de ta ville bien fort",                                  type: "LATE", category: "Toxic",       difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  }
+        { text: "Après chaque kill de ta part, crier le nom de ta ville bien fort",                                  type: "LATE", category: "Toxic",       difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
+
+        // 🎭 Missions avec placeholder joueur
+        { text: "Critiquer le build de {player} pendant 1 minute", type: "LATE", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "opponent" },
+        { text: "Déclarer que {player} est le MVP de la partie et argumenter pendant 30 secondes", type: "LATE", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "any" },
+        { text: "Promettre de venger chaque mort de {player}", type: "LATE", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "teammate" }
     ];
 
     // ========================================

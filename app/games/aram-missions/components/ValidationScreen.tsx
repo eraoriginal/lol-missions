@@ -233,7 +233,7 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
                         )}
                         <span className={`text-sm ${pm.mission.isPrivate ? 'text-white' : 'lol-text-gold'}`}>+{pm.mission.points} pts</span>
                     </div>
-                    <p className={`leading-relaxed ${pm.mission.isPrivate ? 'text-white' : 'lol-text-light'}`}>{pm.mission.text}</p>
+                    <p className={`leading-relaxed ${pm.mission.isPrivate ? 'text-white' : 'lol-text-light'}`}>{pm.resolvedText || pm.mission.text}</p>
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
                     <button

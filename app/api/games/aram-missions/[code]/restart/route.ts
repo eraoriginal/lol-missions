@@ -63,10 +63,12 @@ export async function POST(
                 gameStartTime: null,
                 gameStopped: false,
                 validationStatus: 'not_started',
+                winnerTeam: null,
+                victoryBonusPoints: 0,
             },
         });
 
-        console.log(`[RESTART] Game restarted in room ${code}`);
+        console.log(`[RESTART] Game restarted in room ${code}, gameStarted=${updatedRoom.gameStarted}`);
 
         // Push : partie redémarrée, retour au lobby
         await pushRoomUpdate(code);

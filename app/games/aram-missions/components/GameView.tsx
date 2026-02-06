@@ -40,6 +40,9 @@ function MissionCard({
 }) {
     const hasAnnouncedRef = useRef(false);
 
+    // Texte affiché (resolvedText si disponible, sinon texte original)
+    const displayText = mission.resolvedText || mission.mission.text;
+
     // TTS déclenché au montage du composant (= quand la mission s'affiche)
     useEffect(() => {
         // Ne pas annoncer si déjà fait ou si le jeu est arrêté
@@ -56,10 +59,11 @@ function MissionCard({
         hasAnnouncedRef.current = true;
         announcedMissionsGlobal.add(missionId);
 
-        // TTS
+        // TTS - utilise le texte résolu si disponible
         if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
             const prefix = mission.mission.isPrivate ? 'Mission secrète : ' : '';
-            const fullText = prefix + mission.mission.text;
+            const textToSpeak = mission.resolvedText || mission.mission.text;
+            const fullText = prefix + textToSpeak;
 
             console.log(`[MissionCard TTS] Annonce ${type}:`, fullText);
 
@@ -129,7 +133,7 @@ function MissionCard({
                         <span className="text-sm px-2 py-0.5 bg-gray-500/30 text-gray-300 rounded animate-pulse">Nouveau</span>
                     )}
                 </div>
-                <p className={`leading-relaxed ${style.textColor}`}>{mission.mission.text}</p>
+                <p className={`leading-relaxed ${style.textColor}`}>{displayText}</p>
             </div>
         </div>
     );
