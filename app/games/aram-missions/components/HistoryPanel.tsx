@@ -15,6 +15,17 @@ interface PlayerSnapshot {
     }[];
 }
 
+interface EventSnapshot {
+    text: string;
+    type: string;
+    difficulty: string;
+    points: number;
+    pointsEarnedRed: number;
+    pointsEarnedBlue: number;
+    redValidated: boolean;
+    blueValidated: boolean;
+}
+
 interface GameHistoryItem {
     id: string;
     gameNumber: number;
@@ -24,6 +35,7 @@ interface GameHistoryItem {
     victoryBonusPoints: number;
     bonusTeam: string | null;
     playersSnapshot: string;
+    eventsSnapshot?: string | null;
     playedAt: string;
 }
 
@@ -92,16 +104,18 @@ export function HistoryPanel({ gameHistories }: HistoryPanelProps) {
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <span className="text-sm font-bold">
-                                        <span className="text-red-400">{game.redScore}</span>
-                                        <span className="lol-text mx-1">-</span>
                                         <span className="text-blue-400">{game.blueScore}</span>
+                                        <span className="lol-text mx-1">-</span>
+                                        <span className="text-red-400">{game.redScore}</span>
                                     </span>
                                     <span className="lol-text">{isExpanded ? '▲' : '▼'}</span>
                                 </div>
                             </button>
 
                             {/* Détails de la partie */}
-                            {isExpanded && (
+                            {isExpanded && (() => {
+                                const events: EventSnapshot[] = game.eventsSnapshot ? JSON.parse(game.eventsSnapshot) : [];
+                                return (
                                 <div className="p-4 border-t border-[#C8AA6E]/20 bg-[#010A13]/30">
                                     {/* Bonus de victoire */}
                                     {game.bonusTeam && game.victoryBonusPoints > 0 && (
@@ -113,17 +127,31 @@ export function HistoryPanel({ gameHistories }: HistoryPanelProps) {
                                         </div>
                                     )}
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {/* Équipe Rouge */}
-                                        <div className="space-y-2">
-                                            <h4 className="font-bold text-red-400 text-sm uppercase border-b border-red-500/30 pb-1">
-                                                🔴 Équipe Rouge
+                                    {/* Événements */}
+                                    {events.length > 0 && (
+                                        <div className="mb-4">
+                                            <h4 className="font-bold text-amber-400 text-sm uppercase border-b border-amber-500/30 pb-1 mb-2">
+                                                ⚡ Événements
                                             </h4>
-                                            {redPlayers.map((player, idx) => (
-                                                <PlayerCard key={idx} player={player} getMissionIcon={getMissionIcon} />
-                                            ))}
+                                            <div className="space-y-1">
+                                                {events.map((ev, idx) => (
+                                                    <div key={idx} className="flex items-center justify-between text-xs bg-amber-900/20 border border-amber-500/20 rounded px-2 py-1">
+                                                        <span className="text-amber-100 truncate flex-1">{ev.text}</span>
+                                                        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                                                            <span className={`${ev.redValidated ? 'text-green-300' : 'text-red-300'}`}>
+                                                                🔴 {ev.redValidated ? `+${ev.pointsEarnedRed}` : '0'}
+                                                            </span>
+                                                            <span className={`${ev.blueValidated ? 'text-green-300' : 'text-red-300'}`}>
+                                                                🔵 {ev.blueValidated ? `+${ev.pointsEarnedBlue}` : '0'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
+                                    )}
 
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {/* Équipe Bleue */}
                                         <div className="space-y-2">
                                             <h4 className="font-bold text-blue-400 text-sm uppercase border-b border-blue-500/30 pb-1">
@@ -133,9 +161,20 @@ export function HistoryPanel({ gameHistories }: HistoryPanelProps) {
                                                 <PlayerCard key={idx} player={player} getMissionIcon={getMissionIcon} />
                                             ))}
                                         </div>
+
+                                        {/* Équipe Rouge */}
+                                        <div className="space-y-2">
+                                            <h4 className="font-bold text-red-400 text-sm uppercase border-b border-red-500/30 pb-1">
+                                                🔴 Équipe Rouge
+                                            </h4>
+                                            {redPlayers.map((player, idx) => (
+                                                <PlayerCard key={idx} player={player} getMissionIcon={getMissionIcon} />
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
-                            )}
+                                );
+                            })()}
                         </div>
                     );
                 })}

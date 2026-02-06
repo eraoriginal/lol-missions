@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
+import type { RoomEvent } from '@/app/types/room';
 
 interface TimerProps {
     gameStartTime: string;
@@ -8,9 +9,11 @@ interface TimerProps {
     gameStopped?: boolean;
     midMissionDelay: number;
     lateMissionDelay: number;
+    maxEventsPerGame?: number;
+    roomEvents?: RoomEvent[];
 }
 
-export function Timer({ gameStartTime, roomCode, gameStopped = false, midMissionDelay, lateMissionDelay }: TimerProps) {
+export function Timer({ gameStartTime, roomCode, gameStopped = false, midMissionDelay, lateMissionDelay, maxEventsPerGame = 0, roomEvents }: TimerProps) {
     const [elapsed, setElapsed] = useState(0);
 
     // Utiliser des refs pour éviter les problèmes de closure dans l'interval
@@ -19,6 +22,7 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false, midMission
     const midSoundPlayedRef = useRef(false);
     const lateSoundPlayedRef = useRef(false);
     const prevGameStartTimeRef = useRef<string | null>(null);
+    const lastEventCheckRef = useRef(0);
 
     const playSound = useCallback((type: 'mid' | 'late') => {
         const audioFile = type === 'mid'
@@ -59,6 +63,17 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false, midMission
         }
     }, [roomCode]);
 
+    const checkEvents = useCallback(async () => {
+        console.log(`[Timer] Checking events`);
+        try {
+            const res = await fetch(`/api/games/aram-missions/${roomCode}/check-events`, { method: 'POST' });
+            const data = await res.json();
+            console.log('[Timer] check-events response:', data);
+        } catch (err) {
+            console.error('[Timer] check-events error:', err);
+        }
+    }, [roomCode]);
+
     // Réinitialiser les refs quand une nouvelle partie commence
     useEffect(() => {
         if (gameStartTime && gameStartTime !== prevGameStartTimeRef.current) {
@@ -68,6 +83,7 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false, midMission
             lateMissionsCheckedRef.current = false;
             midSoundPlayedRef.current = false;
             lateSoundPlayedRef.current = false;
+            lastEventCheckRef.current = 0;
             setElapsed(0);
         }
     }, [gameStartTime]);
@@ -112,13 +128,22 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false, midMission
                     checkLateMissions();
                 }
             }
+
+            // Check events
+            if (maxEventsPerGame > 0 && elapsedSeconds >= 30) {
+                const dueEvent = roomEvents?.find(re => re.scheduledAt <= elapsedSeconds && !re.appearedAt);
+                if (dueEvent && lastEventCheckRef.current < elapsedSeconds) {
+                    lastEventCheckRef.current = elapsedSeconds;
+                    checkEvents();
+                }
+            }
         }, 1000);
 
         return () => {
             console.log('[Timer] Clearing interval');
             clearInterval(interval);
         };
-    }, [gameStartTime, gameStopped, midMissionDelay, lateMissionDelay, playSound, checkMidMissions, checkLateMissions]);
+    }, [gameStartTime, gameStopped, midMissionDelay, lateMissionDelay, maxEventsPerGame, roomEvents, playSound, checkMidMissions, checkLateMissions, checkEvents]);
 
     const midDelayPassed = elapsed >= midMissionDelay;
     const lateDelayPassed = elapsed >= lateMissionDelay;

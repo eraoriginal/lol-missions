@@ -28,6 +28,8 @@ interface Room {
     missionVisibility: 'all' | 'team' | 'hidden';
     gameMap: string;
     victoryBonus: boolean;
+    missionChoiceCount: number;
+    maxEventsPerGame: number;
     gameHistories?: GameHistoryItem[];
 }
 
@@ -149,9 +151,9 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
             {hasHistory && (
                 <div className="flex items-center justify-center gap-6 py-2">
                     <div className="flex items-center gap-4 text-3xl font-bold">
-                        <span className="text-red-500">🔴 {cumulativeScore.red}</span>
+                        <span className="text-blue-500">🔵 {cumulativeScore.blue}</span>
                         <span className="lol-text-gold">-</span>
-                        <span className="text-blue-500">{cumulativeScore.blue} 🔵</span>
+                        <span className="text-red-500">{cumulativeScore.red} 🔴</span>
                     </div>
                 </div>
             )}
@@ -204,6 +206,8 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
                 missionVisibility={room.missionVisibility}
                 gameMap={room.gameMap}
                 victoryBonus={room.victoryBonus}
+                missionChoiceCount={room.missionChoiceCount}
+                maxEventsPerGame={room.maxEventsPerGame}
                 isCreator={isCreator}
                 roomCode={roomCode}
                 creatorToken={creatorToken}

@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { OtherPlayersMissions } from './OtherPlayersMissions';
+import { MissionChoiceOverlay } from './MissionChoiceOverlay';
+import { EventOverlay } from './EventOverlay';
 import { Timer } from '@/app/components/Timer';
 import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
 import { StopGameButton } from '@/app/components/StopGameButton';
 import { GameEndScreen } from '@/app/components/GameEndScreen';
+import type { RoomEvent } from '@/app/types/room';
 
 interface Room {
     id: string;
@@ -15,6 +18,9 @@ interface Room {
     midMissionDelay: number;
     lateMissionDelay: number;
     missionVisibility: 'all' | 'team' | 'hidden';
+    missionChoiceCount?: number;
+    maxEventsPerGame?: number;
+    roomEvents?: RoomEvent[];
     players: any[];
 }
 
@@ -31,11 +37,15 @@ function MissionCard({
     mission,
     type,
     gameStopped,
+    enableTTS,
+    missionVisibility,
     getDifficultyStyle
 }: {
     mission: any;
     type: 'START' | 'MID' | 'LATE';
     gameStopped: boolean;
+    enableTTS: boolean;
+    missionVisibility: 'all' | 'team' | 'hidden';
     getDifficultyStyle: (d: string) => { bg: string; text: string; label: string };
 }) {
     const hasAnnouncedRef = useRef(false);
@@ -45,7 +55,8 @@ function MissionCard({
 
     // TTS déclenché au montage du composant (= quand la mission s'affiche)
     useEffect(() => {
-        // Ne pas annoncer si déjà fait ou si le jeu est arrêté
+        // Ne pas annoncer si TTS désactivé (mode choix), déjà fait, ou jeu arrêté
+        if (!enableTTS) return;
         if (hasAnnouncedRef.current) return;
         if (gameStopped) return;
         if (!mission?.mission?.id || !mission?.mission?.text) return;
@@ -61,7 +72,8 @@ function MissionCard({
 
         // TTS - utilise le texte résolu si disponible
         if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-            const prefix = mission.mission.isPrivate ? 'Mission secrète : ' : '';
+            const showAsSecret = mission.mission.isPrivate && missionVisibility !== 'hidden';
+            const prefix = showAsSecret ? 'Mission secrète : ' : '';
             const textToSpeak = mission.resolvedText || mission.mission.text;
             const fullText = prefix + textToSpeak;
 
@@ -86,9 +98,10 @@ function MissionCard({
                 window.speechSynthesis.speak(utterance);
             }, 100);
         }
-    }, [mission, type, gameStopped]);
+    }, [mission, type, gameStopped, enableTTS, missionVisibility]);
 
-    const isPrivate = mission.mission.isPrivate;
+    // En mode "hidden", pas de notion de mission secrète (personne d'autre ne voit les missions)
+    const isPrivate = mission.mission.isPrivate && missionVisibility !== 'hidden';
     const difficulty = mission.mission.difficulty;
 
     // Styles selon le type
@@ -144,6 +157,8 @@ export function GameView({ room, roomCode }: GameViewProps) {
     const [launchError, setLaunchError] = useState<string | null>(null);
     const [restarting, setRestarting] = useState(false);
     const [resettingToTeams, setResettingToTeams] = useState(false);
+    const dismissedEventsRef = useRef(new Set<string>());
+    const [, forceUpdate] = useState(0);
 
     const playerToken = typeof window !== 'undefined'
         ? localStorage.getItem(`room_${roomCode}_player`)
@@ -162,6 +177,22 @@ export function GameView({ room, roomCode }: GameViewProps) {
     const startMission = currentPlayer?.missions.find((m: any) => m.type === 'START');
     const midMission = currentPlayer?.missions.find((m: any) => m.type === 'MID');
     const lateMission = currentPlayer?.missions.find((m: any) => m.type === 'LATE');
+
+    // Pending choices du joueur actuel
+    const pendingChoices = currentPlayer?.pendingChoices || [];
+    const startPending = pendingChoices.filter((c: any) => c.type === 'START');
+    const midPending = pendingChoices.filter((c: any) => c.type === 'MID');
+    const latePending = pendingChoices.filter((c: any) => c.type === 'LATE');
+
+    // Détermine le type actif (priorité START > MID > LATE)
+    const activePendingType = startPending.length > 0 ? 'START'
+        : midPending.length > 0 ? 'MID'
+        : latePending.length > 0 ? 'LATE'
+        : null;
+    const activePendingChoices = activePendingType === 'START' ? startPending
+        : activePendingType === 'MID' ? midPending
+        : activePendingType === 'LATE' ? latePending
+        : [];
 
     // Reset le Set global quand la mission START change (nouvelles missions après restart)
     const prevStartMissionIdRef = useRef<string | null>(null);
@@ -194,6 +225,15 @@ export function GameView({ room, roomCode }: GameViewProps) {
             setLaunchError(null);
         }
     }, [room.gameStartTime]);
+
+    // Événements actifs (apparus mais pas encore dismissés)
+    const appearedEvents = (room.roomEvents || []).filter(re => re.appearedAt !== null);
+    const activeEvent = appearedEvents.find(re => !dismissedEventsRef.current.has(re.id));
+
+    const handleDismissEvent = (eventId: string) => {
+        dismissedEventsRef.current.add(eventId);
+        forceUpdate(n => n + 1);
+    };
 
     // Si le jeu est arrêté, afficher l'écran de fin
     if (room.gameStopped) {
@@ -312,6 +352,8 @@ export function GameView({ room, roomCode }: GameViewProps) {
                     gameStopped={room.gameStopped}
                     midMissionDelay={room.midMissionDelay}
                     lateMissionDelay={room.lateMissionDelay}
+                    maxEventsPerGame={room.maxEventsPerGame}
+                    roomEvents={room.roomEvents}
                 />
             ) : (
                 <div className="lol-card rounded-lg p-8 text-center">
@@ -357,6 +399,8 @@ export function GameView({ room, roomCode }: GameViewProps) {
                                 mission={startMission}
                                 type="START"
                                 gameStopped={room.gameStopped}
+                                enableTTS={(room.missionChoiceCount ?? 1) === 1}
+                                missionVisibility={room.missionVisibility}
                                 getDifficultyStyle={getDifficultyStyle}
                             />
                         )}
@@ -367,6 +411,8 @@ export function GameView({ room, roomCode }: GameViewProps) {
                                 mission={midMission}
                                 type="MID"
                                 gameStopped={room.gameStopped}
+                                enableTTS={(room.missionChoiceCount ?? 1) === 1}
+                                missionVisibility={room.missionVisibility}
                                 getDifficultyStyle={getDifficultyStyle}
                             />
                         )}
@@ -377,6 +423,8 @@ export function GameView({ room, roomCode }: GameViewProps) {
                                 mission={lateMission}
                                 type="LATE"
                                 gameStopped={room.gameStopped}
+                                enableTTS={(room.missionChoiceCount ?? 1) === 1}
+                                missionVisibility={room.missionVisibility}
                                 getDifficultyStyle={getDifficultyStyle}
                             />
                         )}
@@ -391,6 +439,47 @@ export function GameView({ room, roomCode }: GameViewProps) {
                     currentPlayerToken={playerToken}
                     missionVisibility={room.missionVisibility}
                     currentPlayerTeam={currentPlayer?.team}
+                />
+            )}
+
+            {/* Événements en cours */}
+            {room.gameStartTime && appearedEvents.length > 0 && (
+                <div className="lol-card rounded-lg p-5">
+                    <h2 className="text-xl font-bold text-amber-400 mb-4 flex items-center gap-2">
+                        ⚡ Événements en cours
+                    </h2>
+                    <div className="space-y-3">
+                        {appearedEvents.map(re => (
+                            <div key={re.id} className="flex items-start gap-3 p-3 rounded-lg bg-amber-900/20 border border-amber-500/30">
+                                <span className="text-xl flex-shrink-0">⚡</span>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-amber-100 leading-relaxed">{re.event.text}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-xs text-amber-300 font-bold">+{re.event.points} pts</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Overlay de choix de mission */}
+            {room.gameStartTime && activePendingType && activePendingChoices.length > 0 && (
+                <MissionChoiceOverlay
+                    choices={activePendingChoices}
+                    type={activePendingType as 'START' | 'MID' | 'LATE'}
+                    roomCode={roomCode}
+                    missionVisibility={room.missionVisibility}
+                    onChosen={() => {}}
+                />
+            )}
+
+            {/* Overlay d'événement */}
+            {room.gameStartTime && activeEvent && !room.gameStopped && (
+                <EventOverlay
+                    event={activeEvent}
+                    onDismiss={handleDismissEvent}
                 />
             )}
         </div>

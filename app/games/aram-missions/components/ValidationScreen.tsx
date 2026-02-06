@@ -20,6 +20,10 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
 
     // L'étape bonus est pilotée par le serveur pour que tous les joueurs la voient
     const showBonusStep = room.validationStatus === 'bonus_selection';
+    const showEventsStep = room.validationStatus === 'events_validation';
+
+    // Événements apparus
+    const appearedEvents = (room.roomEvents || []).filter((re: any) => re.appearedAt !== null);
 
     const creatorToken = typeof window !== 'undefined'
         ? localStorage.getItem(`room_${roomCode}_creator`)
@@ -118,7 +122,18 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
 
         try {
             if (currentIndex >= players.length - 1) {
-                // Dernier joueur — vérifier si on doit afficher l'étape bonus
+                // Dernier joueur — vérifier si on doit afficher l'étape événements
+                if (appearedEvents.length > 0) {
+                    const res = await fetch(`/api/games/aram-missions/${roomCode}/validate`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ creatorToken, eventsValidation: true }),
+                    });
+                    if (!res.ok) throw new Error('Passage aux événements échoué');
+                    setFinishing(false);
+                    return;
+                }
+                // Pas d'événements — vérifier si on doit afficher l'étape bonus
                 if (room.victoryBonus) {
                     // PATCH pour passer en bonus_selection — tous les joueurs verront l'écran
                     const res = await fetch(`/api/games/aram-missions/${roomCode}/validate`, {
@@ -262,6 +277,148 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
             </div>
         );
     };
+
+    // State local optimiste pour les décisions d'événements
+    // Clé: eventId, valeur: 'red' | 'blue' | 'none'
+    const [localEventDecisions, setLocalEventDecisions] = useState<Record<string, string>>({});
+
+    // Handler de validation d'un événement (optimiste)
+    const sendEventDecision = async (roomEventId: string, winnerTeam: 'red' | 'blue' | 'none') => {
+        setLocalEventDecisions(prev => ({ ...prev, [roomEventId]: winnerTeam }));
+
+        const creatorToken = localStorage.getItem(`room_${roomCode}_creator`);
+        try {
+            await fetch(`/api/games/aram-missions/${roomCode}/validate-event`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ creatorToken, roomEventId, winnerTeam }),
+            });
+        } catch (e) {
+            console.error('Erreur validation événement:', e);
+        }
+    };
+
+    // Helper : état effectif d'un événement (local optimiste > serveur)
+    const getEventWinner = (re: any): { decided: boolean; winner: 'red' | 'blue' | 'none' | null } => {
+        if (re.id in localEventDecisions) {
+            return { decided: true, winner: localEventDecisions[re.id] as 'red' | 'blue' | 'none' };
+        }
+        if (re.redDecided) {
+            if (re.redValidated) return { decided: true, winner: 'red' };
+            if (re.blueValidated) return { decided: true, winner: 'blue' };
+            return { decided: true, winner: 'none' };
+        }
+        return { decided: false, winner: null };
+    };
+
+    // Passer des événements au bonus (ou finaliser)
+    const goNextFromEvents = async () => {
+        setFinishing(true);
+        const creatorToken = localStorage.getItem(`room_${roomCode}_creator`);
+
+        try {
+            if (room.victoryBonus) {
+                const res = await fetch(`/api/games/aram-missions/${roomCode}/validate`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ creatorToken, bonusSelection: true }),
+                });
+                if (!res.ok) throw new Error('Passage au bonus échoué');
+            } else {
+                await finishValidation();
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Erreur');
+        }
+        setFinishing(false);
+    };
+
+    if (showEventsStep) {
+        const allEventsDecided = appearedEvents.every((re: any) => getEventWinner(re).decided);
+
+        return (
+            <div className="space-y-6">
+                <div className="lol-card rounded-lg p-6 text-center">
+                    <div className="text-4xl mb-2">⚡</div>
+                    <h1 className="text-3xl font-bold text-amber-400 mb-1 uppercase tracking-wide">Validation des événements</h1>
+                    <p className="lol-text">Quelle équipe a réalisé l&apos;événement ?</p>
+                </div>
+
+                <div className="space-y-4">
+                    {appearedEvents.map((re: any) => {
+                        const { decided, winner } = getEventWinner(re);
+
+                        return (
+                        <div key={re.id} className="lol-card rounded-lg p-5 border border-amber-500/30">
+                            <p className="text-amber-100 leading-relaxed mb-4 text-lg">{re.event.text}</p>
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className="text-sm font-bold text-amber-300">+{re.event.points} pts</span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2">
+                                <button
+                                    onClick={() => sendEventDecision(re.id, 'red')}
+                                    className={`p-3 rounded-lg font-bold text-sm transition-all border-2 ${
+                                        decided && winner === 'red'
+                                            ? 'bg-red-600 border-red-400 text-white shadow-lg shadow-red-500/30'
+                                            : decided && winner !== 'red'
+                                                ? 'bg-red-900/20 border-red-500/20 text-red-400/50'
+                                                : 'bg-red-900/30 border-red-500/30 text-red-400 hover:bg-red-900/50 hover:border-red-500/50'
+                                    }`}
+                                >
+                                    🔴 Rouge
+                                </button>
+                                <button
+                                    onClick={() => sendEventDecision(re.id, 'blue')}
+                                    className={`p-3 rounded-lg font-bold text-sm transition-all border-2 ${
+                                        decided && winner === 'blue'
+                                            ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-500/30'
+                                            : decided && winner !== 'blue'
+                                                ? 'bg-blue-900/20 border-blue-500/20 text-blue-400/50'
+                                                : 'bg-blue-900/30 border-blue-500/30 text-blue-400 hover:bg-blue-900/50 hover:border-blue-500/50'
+                                    }`}
+                                >
+                                    🔵 Bleue
+                                </button>
+                                <button
+                                    onClick={() => sendEventDecision(re.id, 'none')}
+                                    className={`p-3 rounded-lg font-bold text-sm transition-all border-2 ${
+                                        decided && winner === 'none'
+                                            ? 'bg-gray-600 border-gray-400 text-white shadow-lg shadow-gray-500/30'
+                                            : decided && winner !== 'none'
+                                                ? 'bg-gray-900/20 border-gray-500/20 text-gray-400/50'
+                                                : 'bg-gray-900/30 border-gray-500/30 text-gray-400 hover:bg-gray-900/50 hover:border-gray-500/50'
+                                    }`}
+                                >
+                                    ❌ Aucune
+                                </button>
+                            </div>
+
+                            {decided && winner !== 'none' && winner && (
+                                <div className={`mt-3 text-center text-sm font-bold ${
+                                    winner === 'red' ? 'text-red-400' : 'text-blue-400'
+                                }`}>
+                                    +{re.event.points} pts pour l&apos;équipe {winner === 'red' ? 'Rouge' : 'Bleue'}
+                                </div>
+                            )}
+                        </div>
+                        );
+                    })}
+                </div>
+
+                <div className="flex justify-center">
+                    <button
+                        onClick={goNextFromEvents}
+                        disabled={!allEventsDecided || finishing}
+                        className="lol-button-hextech px-6 py-3 rounded-lg font-bold transition-all hextech-pulse disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                        {finishing ? 'En cours...' : 'Suivant'}
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     if (showBonusStep) {
         return (

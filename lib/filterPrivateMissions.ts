@@ -34,16 +34,23 @@ export function filterPrivateMissions(room: any, currentPlayerToken: string | nu
             // Mission privée d'un autre joueur : on masque le texte
             return {
                 ...pm,
+                resolvedText: null, // Masquer le texte résolu
                 mission: {
                     ...pm.mission,
-                    text: null, // Masquer le texte
+                    text: null, // Masquer le texte original
                 },
             };
         }) || [];
 
+        // Filtre les pendingChoices : seul le joueur courant voit ses propres choix
+        const filteredPendingChoices = isCurrentPlayer
+            ? (player.pendingChoices || [])
+            : [];
+
         return {
             ...player,
             missions: filteredMissions,
+            pendingChoices: filteredPendingChoices,
         };
     });
 

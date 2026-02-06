@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { pushRoomUpdate } from '@/lib/pusher';
 import { filterPrivateMissions } from '@/lib/filterPrivateMissions';
-import { assignBalancedMissions, processDuelMissions } from '@/lib/balancedMissionAssignment';
+import { assignBalancedMissions, assignBalancedMissionChoices, processDuelMissions } from '@/lib/balancedMissionAssignment';
 import { resolvePlayerPlaceholder } from '@/lib/resolvePlayerPlaceholder';
 
 export async function POST(
@@ -58,12 +58,19 @@ export async function POST(
             });
         }
 
-        // Vérifie si des missions LATE ont déjà été assignées
+        // Vérifie si des missions LATE ont déjà été assignées ou des choix pendants existent
         const hasLateMissions = room.players.some(player =>
             player.missions.some(m => m.type === 'LATE')
         );
 
-        if (hasLateMissions) {
+        const hasLatePendingChoices = await prisma.pendingMissionChoice.findFirst({
+            where: {
+                playerId: { in: room.players.map(p => p.id) },
+                type: 'LATE',
+            },
+        });
+
+        if (hasLateMissions || hasLatePendingChoices) {
             return Response.json({
                 message: 'LATE missions already assigned',
                 shouldAssign: false,
@@ -74,6 +81,65 @@ export async function POST(
         const lateMissions = await prisma.mission.findMany({
             where: { type: 'LATE', OR: [{ maps: room.gameMap }, { maps: 'all' }] },
         });
+
+        const missionChoiceCount = room.missionChoiceCount ?? 1;
+
+        if (missionChoiceCount > 1) {
+            // Mode choix
+            const nonDuelMissions = lateMissions.filter(m => m.playerPlaceholder !== 'duel');
+            const teamPlayers = room.players.filter(p => p.team === 'red' || p.team === 'blue');
+            if (nonDuelMissions.length < teamPlayers.length * missionChoiceCount) {
+                return Response.json({ error: 'Not enough LATE missions available for choice mode' }, { status: 500 });
+            }
+
+            const choiceAssignments = assignBalancedMissionChoices(room.players, lateMissions, missionChoiceCount, 'LATE');
+
+            let createdByUs = false;
+            try {
+                const wasCreated = await prisma.$transaction(async (tx) => {
+                    // Recheck inside transaction to prevent race conditions
+                    const existingCount = await tx.pendingMissionChoice.count({
+                        where: {
+                            playerId: { in: room.players.map(p => p.id) },
+                            type: 'LATE',
+                        },
+                    });
+                    if (existingCount > 0) return false;
+
+                    for (const player of room.players) {
+                        const choices = choiceAssignments.get(player.id);
+                        if (!choices) continue;
+
+                        for (const mission of choices) {
+                            const resolvedText = resolvePlayerPlaceholder(mission, player, room.players);
+                            await tx.pendingMissionChoice.create({
+                                data: {
+                                    playerId: player.id,
+                                    missionId: mission.id,
+                                    type: 'LATE',
+                                    resolvedText,
+                                },
+                            });
+                        }
+                    }
+                    return true;
+                }, { isolationLevel: 'Serializable' });
+                createdByUs = wasCreated;
+                if (createdByUs) console.log(`[check-late-missions] LATE pending choices assigned to room ${code}`);
+            } catch (createError: any) {
+                console.log(`[check-late-missions] LATE pending choices already created for room ${code}`);
+            }
+
+            if (createdByUs) {
+                console.log(`[LATE] Late choices ready in room ${code}, pushing update`);
+                await pushRoomUpdate(code);
+            }
+
+            return Response.json({
+                message: 'LATE mission choices assigned',
+                shouldAssign: true,
+            });
+        }
 
         if (lateMissions.length < room.players.length) {
             return Response.json(
@@ -117,7 +183,6 @@ export async function POST(
             createdByUs = true;
             console.log(`[check-late-missions] LATE missions assigned to room ${code}`);
         } catch (createError: any) {
-            // Erreur de contrainte unique = les missions ont été créées par une autre requête
             const isUniqueConstraint = createError?.code === 'P2002' ||
                 (createError?.message && createError.message.includes('Unique constraint'));
 

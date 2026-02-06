@@ -110,6 +110,93 @@ export function assignBalancedMissions(
 }
 
 /**
+ * Assigne N missions par joueur pour le mode choix.
+ * Réutilise la logique d'équilibrage : détermine la difficulté cible pour chaque joueur,
+ * puis tire N missions de cette difficulté.
+ * Exclut les missions duel pour éviter la complexité de pairing.
+ */
+export function assignBalancedMissionChoices(
+    players: Player[] | PlayerWithMissions[],
+    missions: Mission[],
+    choiceCount: number,
+    missionType: 'START' | 'MID' | 'LATE' = 'START'
+): Map<string, Mission[]> {
+    const assignments = new Map<string, Mission[]>();
+    const playersWithMissions = players as PlayerWithMissions[];
+
+    // Filtre les missions duel
+    const nonDuelMissions = missions.filter(m => m.playerPlaceholder !== 'duel');
+
+    // Groupe les missions disponibles par difficulté
+    const byDifficulty = new Map<string, Mission[]>();
+    for (const mission of nonDuelMissions) {
+        const diff = mission.difficulty;
+        if (!diff) continue;
+        const existing = byDifficulty.get(diff) || [];
+        existing.push(mission);
+        byDifficulty.set(diff, existing);
+    }
+
+    // Mélange chaque groupe
+    for (const [diff, group] of byDifficulty) {
+        byDifficulty.set(diff, shuffle(group));
+    }
+
+    const allDifficulties = ['easy', 'medium', 'hard'];
+
+    for (const player of playersWithMissions) {
+        if (player.team !== 'red' && player.team !== 'blue') continue;
+
+        // Trouve les difficultés déjà assignées à ce joueur
+        const existingDifficulties = new Set<string>();
+        if (player.missions) {
+            for (const pm of player.missions) {
+                if (pm.mission?.difficulty) {
+                    existingDifficulties.add(pm.mission.difficulty);
+                }
+            }
+        }
+
+        // Difficultés pas encore assignées
+        const availableDifficulties = allDifficulties.filter(d => !existingDifficulties.has(d));
+        if (availableDifficulties.length === 0) continue;
+
+        // Choix aléatoire de la difficulté cible
+        const shuffledAvailable = shuffle(availableDifficulties);
+        const choices: Mission[] = [];
+
+        // Essaie de tirer N missions de la difficulté cible
+        for (const chosenDifficulty of shuffledAvailable) {
+            const pool = byDifficulty.get(chosenDifficulty);
+            if (!pool) continue;
+
+            while (choices.length < choiceCount && pool.length > 0) {
+                choices.push(pool.pop()!);
+            }
+            if (choices.length >= choiceCount) break;
+        }
+
+        // Fallback : complète avec d'autres difficultés si pas assez
+        if (choices.length < choiceCount) {
+            for (const diff of allDifficulties) {
+                const pool = byDifficulty.get(diff);
+                if (!pool) continue;
+                while (choices.length < choiceCount && pool.length > 0) {
+                    choices.push(pool.pop()!);
+                }
+                if (choices.length >= choiceCount) break;
+            }
+        }
+
+        if (choices.length > 0) {
+            assignments.set(player.id, choices);
+        }
+    }
+
+    return assignments;
+}
+
+/**
  * Post-traite les assignations pour gérer les missions duel.
  * Si une mission duel a été tirée aléatoirement pour un joueur,
  * on trouve un adversaire et on lui assigne la même mission (avec texte inversé).

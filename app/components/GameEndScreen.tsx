@@ -15,7 +15,7 @@ interface GameEndScreenProps {
 export function GameEndScreen({ room, roomCode, isCreator }: GameEndScreenProps) {
     const [restarting, setRestarting] = useState(false);
 
-    if (room.validationStatus?.startsWith('in_progress') || room.validationStatus === 'bonus_selection') {
+    if (room.validationStatus?.startsWith('in_progress') || room.validationStatus === 'events_validation' || room.validationStatus === 'bonus_selection') {
         if (isCreator) {
             return <ValidationScreen room={room} roomCode={roomCode} />;
         }
@@ -52,6 +52,7 @@ export function GameEndScreen({ room, roomCode, isCreator }: GameEndScreenProps)
                 victoryBonus={room.victoryBonus}
                 winnerTeam={room.winnerTeam}
                 victoryBonusPoints={room.victoryBonusPoints}
+                roomEvents={(room.roomEvents || []).filter((re: any) => re.appearedAt !== null)}
             />
 
             <div className="lol-card rounded-lg p-6">

@@ -63,7 +63,7 @@ export async function PATCH(
 ) {
     try {
         const { code } = await params;
-        const { creatorToken, currentPlayerIndex, bonusSelection, winnerTeam } = await request.json();
+        const { creatorToken, currentPlayerIndex, bonusSelection, eventsValidation, winnerTeam } = await request.json();
 
         if (!creatorToken) {
             return NextResponse.json({ error: 'Missing creatorToken' }, { status: 400 });
@@ -82,6 +82,9 @@ export async function PATCH(
 
         if (currentPlayerIndex !== undefined) {
             data.validationStatus = `in_progress:${currentPlayerIndex}`;
+        }
+        if (eventsValidation) {
+            data.validationStatus = 'events_validation';
         }
         if (bonusSelection) {
             data.validationStatus = 'bonus_selection';
@@ -173,6 +176,16 @@ export async function PUT(
             }
         }
 
+        // Ajouter les points des événements
+        const roomEvents = await prisma.roomEvent.findMany({
+            where: { roomId: room.id, appearedAt: { not: null } },
+            include: { event: true },
+        });
+        for (const re of roomEvents) {
+            teamScores.red += re.pointsEarnedRed;
+            teamScores.blue += re.pointsEarnedBlue;
+        }
+
         // Ajouter le bonus de victoire au score de l'équipe gagnante
         if (winnerTeam === 'red' || winnerTeam === 'blue') {
             teamScores[winnerTeam] += randomBonus;
@@ -194,6 +207,20 @@ export async function PUT(
                 })),
             }));
 
+        // Créer le snapshot des événements
+        const eventsSnapshot = roomEvents.length > 0
+            ? JSON.stringify(roomEvents.map(re => ({
+                text: re.event.text,
+                type: re.event.type,
+                difficulty: re.event.difficulty,
+                points: re.event.points,
+                pointsEarnedRed: re.pointsEarnedRed,
+                pointsEarnedBlue: re.pointsEarnedBlue,
+                redValidated: re.redValidated,
+                blueValidated: re.blueValidated,
+            })))
+            : null;
+
         // Créer l'historique de la partie
         // winnerTeam = l'équipe qui a gagné la partie LoL (sélectionnée par le créateur)
         const gameNumber = room.gameHistories.length + 1;
@@ -207,6 +234,7 @@ export async function PUT(
                 victoryBonusPoints: randomBonus,
                 bonusTeam: winnerTeam || null,
                 playersSnapshot: JSON.stringify(playersSnapshot),
+                eventsSnapshot,
             },
         });
 

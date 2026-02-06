@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { pushRoomUpdate } from '@/lib/pusher';
 import { isCreator } from '@/lib/utils';
+import { computeEventSchedule } from '@/lib/eventScheduling';
 import { z } from 'zod';
 
 const launchSchema = z.object({
@@ -42,6 +43,47 @@ export async function POST(
             where: { id: room.id },
             data: { gameStartTime: new Date() },
         });
+
+        // Planifier les événements aléatoires si activé
+        if (room.maxEventsPerGame > 0) {
+            const schedule = computeEventSchedule({
+                maxEvents: room.maxEventsPerGame,
+                midMissionDelay: room.midMissionDelay,
+                lateMissionDelay: room.lateMissionDelay,
+            });
+
+            if (schedule.length > 0) {
+                // Récupérer les événements disponibles par type
+                const usedEventIds: string[] = [];
+
+                for (const slot of schedule) {
+                    const events = await prisma.event.findMany({
+                        where: {
+                            type: slot.type,
+                            id: { notIn: usedEventIds },
+                        },
+                    });
+
+                    if (events.length === 0) {
+                        console.warn(`[LAUNCH] No events available for type ${slot.type}`);
+                        continue;
+                    }
+
+                    const picked = events[Math.floor(Math.random() * events.length)];
+                    usedEventIds.push(picked.id);
+
+                    await prisma.roomEvent.create({
+                        data: {
+                            roomId: room.id,
+                            eventId: picked.id,
+                            scheduledAt: slot.scheduledAt,
+                        },
+                    });
+                }
+
+                console.log(`[LAUNCH] ${usedEventIds.length} events scheduled in room ${code}`);
+            }
+        }
 
         console.log(`[LAUNCH] Countdown started in room ${code}`);
 

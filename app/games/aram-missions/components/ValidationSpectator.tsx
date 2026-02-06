@@ -100,6 +100,75 @@ export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps
         );
     };
 
+    // Écran événements visible par les spectateurs
+    if (room.validationStatus === 'events_validation') {
+        const appearedEvents = (room.roomEvents || []).filter((re: any) => re.appearedAt !== null);
+
+        return (
+            <div className="space-y-6">
+                <div className="lol-card rounded-lg p-6 text-center">
+                    <div className="text-4xl mb-2 animate-bounce">⚡</div>
+                    <h1 className="text-3xl font-bold text-amber-400 mb-1 uppercase tracking-wide">Validation des événements</h1>
+                    <p className="lol-text">Le créateur valide les événements pour chaque équipe...</p>
+                </div>
+
+                <div className="space-y-4">
+                    {appearedEvents.map((re: any) => {
+                        const decided = re.redDecided;
+                        const winner = decided ? (re.redValidated ? 'red' : re.blueValidated ? 'blue' : 'none') : null;
+
+                        return (
+                        <div key={re.id} className="lol-card rounded-lg p-5 border border-amber-500/30">
+                            <p className="text-amber-100 leading-relaxed mb-4 text-lg">{re.event.text}</p>
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className="text-sm font-bold text-amber-300">+{re.event.points} pts</span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2">
+                                <div className={`p-3 rounded-lg font-bold text-sm text-center border-2 ${
+                                    decided && winner === 'red'
+                                        ? 'bg-red-600 border-red-400 text-white shadow-lg shadow-red-500/30'
+                                        : decided && winner !== 'red'
+                                            ? 'bg-red-900/20 border-red-500/20 text-red-400/50'
+                                            : 'bg-red-900/30 border-red-500/30 text-red-400'
+                                }`}>
+                                    🔴 Rouge
+                                </div>
+                                <div className={`p-3 rounded-lg font-bold text-sm text-center border-2 ${
+                                    decided && winner === 'blue'
+                                        ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-500/30'
+                                        : decided && winner !== 'blue'
+                                            ? 'bg-blue-900/20 border-blue-500/20 text-blue-400/50'
+                                            : 'bg-blue-900/30 border-blue-500/30 text-blue-400'
+                                }`}>
+                                    🔵 Bleue
+                                </div>
+                                <div className={`p-3 rounded-lg font-bold text-sm text-center border-2 ${
+                                    decided && winner === 'none'
+                                        ? 'bg-gray-600 border-gray-400 text-white shadow-lg shadow-gray-500/30'
+                                        : decided && winner !== 'none'
+                                            ? 'bg-gray-900/20 border-gray-500/20 text-gray-400/50'
+                                            : 'bg-gray-900/30 border-gray-500/30 text-gray-400'
+                                }`}>
+                                    ❌ Aucune
+                                </div>
+                            </div>
+
+                            {decided && winner !== 'none' && winner && (
+                                <div className={`mt-3 text-center text-sm font-bold ${
+                                    winner === 'red' ? 'text-red-400' : 'text-blue-400'
+                                }`}>
+                                    +{re.event.points} pts pour l&apos;équipe {winner === 'red' ? 'Rouge' : 'Bleue'}
+                                </div>
+                            )}
+                        </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    }
+
     // Écran bonus visible par les spectateurs
     if (room.validationStatus === 'bonus_selection') {
         const selectedTeam = room.winnerTeam;

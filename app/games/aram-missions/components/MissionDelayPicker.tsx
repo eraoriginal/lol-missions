@@ -11,6 +11,8 @@ interface MissionDelayPickerProps {
     missionVisibility: MissionVisibility;
     gameMap: string;
     victoryBonus: boolean;
+    missionChoiceCount: number;
+    maxEventsPerGame: number;
     isCreator: boolean;
     roomCode: string;
     creatorToken: string | null;
@@ -115,9 +117,23 @@ const visibilityOptions: { value: MissionVisibility; label: string; description:
     { value: 'hidden', label: 'Masquées', description: 'Personne ne voit les missions' },
 ];
 
-const mapOptions: { value: GameMap; label: string }[] = [
+const mapOptions: { value: GameMap; label: string; disabled?: boolean }[] = [
     { value: 'howling_abyss', label: 'Abîme hurlant' },
-    { value: 'summoners_rift', label: 'Faille de l\'invocateur' },
+    { value: 'summoners_rift', label: 'Faille de l\'invocateur', disabled: true },
+];
+
+const missionChoiceOptions: { value: number; label: string; description: string }[] = [
+    { value: 1, label: 'Imposée', description: 'Mission assignée directement' },
+    { value: 2, label: '2 choix', description: 'Choisis parmi 2 missions' },
+    { value: 3, label: '3 choix', description: 'Choisis parmi 3 missions' },
+];
+
+const maxEventsOptions: { value: number; label: string }[] = [
+    { value: 0, label: 'Aucun' },
+    { value: 1, label: '1' },
+    { value: 2, label: '2' },
+    { value: 3, label: '3' },
+    { value: 4, label: '4' },
 ];
 
 export function MissionDelayPicker({
@@ -126,6 +142,8 @@ export function MissionDelayPicker({
     missionVisibility,
     gameMap,
     victoryBonus,
+    missionChoiceCount,
+    maxEventsPerGame,
     isCreator,
     roomCode,
 }: MissionDelayPickerProps) {
@@ -138,6 +156,8 @@ export function MissionDelayPicker({
     const [selectedVisibility, setSelectedVisibility] = useState<MissionVisibility>(missionVisibility);
     const [selectedMap, setSelectedMap] = useState<GameMap>(gameMap as GameMap);
     const [selectedVictoryBonus, setSelectedVictoryBonus] = useState(victoryBonus);
+    const [selectedMissionChoice, setSelectedMissionChoice] = useState(missionChoiceCount);
+    const [selectedMaxEvents, setSelectedMaxEvents] = useState(maxEventsPerGame);
 
     // Sync depuis le polling quand la room change
     const prevMid = useRef(midMissionDelay);
@@ -145,6 +165,8 @@ export function MissionDelayPicker({
     const prevVisibility = useRef(missionVisibility);
     const prevMap = useRef(gameMap);
     const prevVictoryBonus = useRef(victoryBonus);
+    const prevMissionChoice = useRef(missionChoiceCount);
+    const prevMaxEvents = useRef(maxEventsPerGame);
 
     if (midMissionDelay !== prevMid.current) {
         prevMid.current = midMissionDelay;
@@ -165,6 +187,14 @@ export function MissionDelayPicker({
     if (victoryBonus !== prevVictoryBonus.current) {
         prevVictoryBonus.current = victoryBonus;
         setSelectedVictoryBonus(victoryBonus);
+    }
+    if (missionChoiceCount !== prevMissionChoice.current) {
+        prevMissionChoice.current = missionChoiceCount;
+        setSelectedMissionChoice(missionChoiceCount);
+    }
+    if (maxEventsPerGame !== prevMaxEvents.current) {
+        prevMaxEvents.current = maxEventsPerGame;
+        setSelectedMaxEvents(maxEventsPerGame);
     }
 
     // Filtre la saisie : chiffres uniquement, pas de zéro en début
@@ -309,6 +339,50 @@ export function MissionDelayPicker({
         }
     };
 
+    // Gère le changement du nombre de choix de mission
+    const handleMissionChoiceChange = async (value: number) => {
+        const token = localStorage.getItem(`room_${roomCode}_creator`);
+        if (!token) return;
+
+        setSelectedMissionChoice(value);
+
+        try {
+            const res = await fetch(`/api/games/aram-missions/${roomCode}/settings`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ creatorToken: token, missionChoiceCount: value }),
+            });
+
+            if (!res.ok) {
+                setSelectedMissionChoice(missionChoiceCount);
+            }
+        } catch {
+            setSelectedMissionChoice(missionChoiceCount);
+        }
+    };
+
+    // Gère le changement du nombre d'événements
+    const handleMaxEventsChange = async (value: number) => {
+        const token = localStorage.getItem(`room_${roomCode}_creator`);
+        if (!token) return;
+
+        setSelectedMaxEvents(value);
+
+        try {
+            const res = await fetch(`/api/games/aram-missions/${roomCode}/settings`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ creatorToken: token, maxEventsPerGame: value }),
+            });
+
+            if (!res.ok) {
+                setSelectedMaxEvents(maxEventsPerGame);
+            }
+        } catch {
+            setSelectedMaxEvents(maxEventsPerGame);
+        }
+    };
+
     return (
         <div className="lol-card rounded-lg p-5">
             <div className="flex items-center justify-between mb-4">
@@ -439,6 +513,23 @@ export function MissionDelayPicker({
                 <div className="flex gap-2">
                     {mapOptions.map((option) => {
                         const isSelected = selectedMap === option.value;
+                        const isDisabled = !!option.disabled;
+
+                        if (isDisabled) {
+                            return (
+                                <div
+                                    key={option.value}
+                                    className="flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-[#C8AA6E]/20 bg-[#1E2328]/50 opacity-50 cursor-not-allowed"
+                                >
+                                    <div className="w-4 h-4 rounded-full border-2 border-[#C8AA6E]/30 bg-transparent"></div>
+                                    <span className="text-sm font-semibold lol-text-light">{option.label}</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-[#C8AA6E]/20 text-[#C8AA6E] ml-1">
+                                        Bientôt
+                                    </span>
+                                </div>
+                            );
+                        }
+
                         return isCreator ? (
                             <button
                                 key={option.value}
@@ -540,6 +631,136 @@ export function MissionDelayPicker({
                         );
                     })}
                 </div>
+            </div>
+
+            {/* Séparateur */}
+            <div className="h-px bg-[#C8AA6E]/20 my-5"></div>
+
+            {/* Choix de mission */}
+            <div>
+                <p className="text-sm lol-text mb-3">Attribution des missions</p>
+                <div className="flex flex-wrap gap-2">
+                    {missionChoiceOptions.map((option) => {
+                        const isSelected = selectedMissionChoice === option.value;
+                        return isCreator ? (
+                            <button
+                                key={option.value}
+                                onClick={() => handleMissionChoiceChange(option.value)}
+                                className={`
+                                    flex flex-col items-start px-3 py-2 rounded-lg border-2 transition-all text-left cursor-pointer
+                                    ${isSelected
+                                        ? 'border-[#0AC8B9] bg-[#0AC8B9]/10'
+                                        : 'border-[#C8AA6E]/30 bg-[#1E2328] hover:border-[#C8AA6E]/50'
+                                    }
+                                `}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <div className={`
+                                        w-4 h-4 rounded-full border-2 flex items-center justify-center
+                                        ${isSelected
+                                            ? 'border-[#0AC8B9] bg-[#0AC8B9]'
+                                            : 'border-[#C8AA6E]/50 bg-transparent'
+                                        }
+                                    `}>
+                                        {isSelected && (
+                                            <div className="w-1.5 h-1.5 rounded-full bg-[#010A13]"></div>
+                                        )}
+                                    </div>
+                                    <span className={`text-sm font-semibold ${isSelected ? 'text-[#0AC8B9]' : 'lol-text-light'}`}>
+                                        {option.label}
+                                    </span>
+                                </div>
+                                <p className={`text-xs mt-1 ml-6 ${isSelected ? 'text-[#0AC8B9]/70' : 'lol-text'}`}>
+                                    {option.description}
+                                </p>
+                            </button>
+                        ) : (
+                            <div
+                                key={option.value}
+                                className={`
+                                    flex flex-col items-start px-3 py-2 rounded-lg border-2 text-left
+                                    ${isSelected
+                                        ? 'border-[#0AC8B9] bg-[#0AC8B9]/10'
+                                        : 'border-[#C8AA6E]/20 bg-[#1E2328]/50 opacity-40'
+                                    }
+                                `}
+                            >
+                                <span className={`text-sm font-semibold ${isSelected ? 'text-[#0AC8B9]' : 'lol-text-light'}`}>
+                                    {option.label}
+                                </span>
+                                <p className={`text-xs mt-1 ${isSelected ? 'text-[#0AC8B9]/70' : 'lol-text'}`}>
+                                    {option.description}
+                                </p>
+                            </div>
+                        );
+                    })}
+                </div>
+                {selectedMissionChoice > 1 && (
+                    <p className="text-xs text-yellow-400/80 mt-2">
+                        Les missions duel sont désactivées en mode choix
+                    </p>
+                )}
+            </div>
+
+            {/* Séparateur */}
+            <div className="h-px bg-[#C8AA6E]/20 my-5"></div>
+
+            {/* Événements aléatoires */}
+            <div>
+                <p className="text-sm lol-text mb-3">Événements aléatoires</p>
+                <div className="flex flex-wrap gap-2">
+                    {maxEventsOptions.map((option) => {
+                        const isSelected = selectedMaxEvents === option.value;
+                        return isCreator ? (
+                            <button
+                                key={option.value}
+                                onClick={() => handleMaxEventsChange(option.value)}
+                                className={`
+                                    flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all cursor-pointer
+                                    ${isSelected
+                                        ? 'border-[#0AC8B9] bg-[#0AC8B9]/10'
+                                        : 'border-[#C8AA6E]/30 bg-[#1E2328] hover:border-[#C8AA6E]/50'
+                                    }
+                                `}
+                            >
+                                <div className={`
+                                    w-4 h-4 rounded-full border-2 flex items-center justify-center
+                                    ${isSelected
+                                        ? 'border-[#0AC8B9] bg-[#0AC8B9]'
+                                        : 'border-[#C8AA6E]/50 bg-transparent'
+                                    }
+                                `}>
+                                    {isSelected && (
+                                        <div className="w-1.5 h-1.5 rounded-full bg-[#010A13]"></div>
+                                    )}
+                                </div>
+                                <span className={`text-sm font-semibold ${isSelected ? 'text-[#0AC8B9]' : 'lol-text-light'}`}>
+                                    {option.label}
+                                </span>
+                            </button>
+                        ) : (
+                            <div
+                                key={option.value}
+                                className={`
+                                    flex items-center px-3 py-2 rounded-lg border-2
+                                    ${isSelected
+                                        ? 'border-[#0AC8B9] bg-[#0AC8B9]/10'
+                                        : 'border-[#C8AA6E]/20 bg-[#1E2328]/50 opacity-40'
+                                    }
+                                `}
+                            >
+                                <span className={`text-sm font-semibold ${isSelected ? 'text-[#0AC8B9]' : 'lol-text-light'}`}>
+                                    {option.label}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+                {selectedMaxEvents > 0 && (
+                    <p className="text-xs text-amber-400/80 mt-2">
+                        {selectedMaxEvents} événement{selectedMaxEvents > 1 ? 's' : ''} apparaîtra{selectedMaxEvents > 1 ? 'ont' : ''} aléatoirement pendant la partie
+                    </p>
+                )}
             </div>
 
             {isCreator && (

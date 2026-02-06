@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { pushRoomUpdate } from '@/lib/pusher';
 import { isCreator } from '@/lib/utils';
 import { filterPrivateMissions } from '@/lib/filterPrivateMissions';
-import { assignBalancedMissions, processDuelMissions } from '@/lib/balancedMissionAssignment';
+import { assignBalancedMissions, assignBalancedMissionChoices, processDuelMissions } from '@/lib/balancedMissionAssignment';
 import { resolvePlayerPlaceholder } from '@/lib/resolvePlayerPlaceholder';
 import { z } from 'zod';
 
@@ -56,66 +56,93 @@ export async function POST(
             where: { type: 'START', OR: [{ maps: room.gameMap }, { maps: 'all' }] }
         });
 
-        if (startMissions.length < room.players.length) {
-            return Response.json({ error: 'Not enough missions available' }, { status: 500 });
+        const missionChoiceCount = room.missionChoiceCount ?? 1;
+
+        if (missionChoiceCount > 1) {
+            // Mode choix : N missions par joueur, pas de duel
+            const nonDuelMissions = startMissions.filter(m => m.playerPlaceholder !== 'duel');
+            if (nonDuelMissions.length < room.players.filter(p => p.team === 'red' || p.team === 'blue').length * missionChoiceCount) {
+                return Response.json({ error: 'Not enough missions available for choice mode' }, { status: 500 });
+            }
+
+            const choiceAssignments = assignBalancedMissionChoices(room.players, startMissions, missionChoiceCount, 'START');
+
+            await Promise.all(
+                room.players.map((player) => {
+                    const choices = choiceAssignments.get(player.id);
+                    if (!choices) return Promise.resolve();
+
+                    return Promise.all(choices.map((mission) => {
+                        const resolvedText = resolvePlayerPlaceholder(mission, player, room.players);
+                        return prisma.pendingMissionChoice.create({
+                            data: {
+                                playerId: player.id,
+                                missionId: mission.id,
+                                type: 'START',
+                                resolvedText,
+                            },
+                        });
+                    }));
+                })
+            );
+        } else {
+            // Mode classique : 1 mission imposée
+            if (startMissions.length < room.players.length) {
+                return Response.json({ error: 'Not enough missions available' }, { status: 500 });
+            }
+
+            // Tirage aléatoire équilibré (inclut potentiellement des missions duel)
+            const assignments = assignBalancedMissions(room.players, startMissions, 'START');
+
+            // Debug: log des missions avec placeholder
+            const missionsWithPlaceholder = Array.from(assignments.entries())
+                .filter(([_, m]) => m.playerPlaceholder)
+                .map(([playerId, m]) => ({
+                    playerId,
+                    playerName: room.players.find(p => p.id === playerId)?.name,
+                    playerTeam: room.players.find(p => p.id === playerId)?.team,
+                    missionText: m.text,
+                    placeholder: m.playerPlaceholder,
+                }));
+            console.log('[START] Missions avec placeholder:', JSON.stringify(missionsWithPlaceholder, null, 2));
+
+            // Debug: log des joueurs
+            console.log('[START] Joueurs:', room.players.map(p => ({ id: p.id, name: p.name, team: p.team })));
+
+            // Post-traite les missions duel
+            const duelPairs = processDuelMissions(assignments, room.players, startMissions);
+            console.log('[START] Duel pairs créées:', JSON.stringify(duelPairs, null, 2));
+
+            const duelResolvedTexts = new Map<string, string>();
+            for (const pair of duelPairs) {
+                duelResolvedTexts.set(pair.player1Id, pair.player1ResolvedText);
+                duelResolvedTexts.set(pair.player2Id, pair.player2ResolvedText);
+            }
+
+            await Promise.all(
+                room.players.map((player) => {
+                    const mission = assignments.get(player.id);
+                    if (!mission) return Promise.resolve();
+
+                    const duelText = duelResolvedTexts.get(player.id);
+                    const placeholderText = resolvePlayerPlaceholder(mission, player, room.players);
+                    const resolvedText = duelText ?? placeholderText;
+
+                    if (mission.playerPlaceholder) {
+                        console.log(`[START] Player ${player.name}: placeholder=${mission.playerPlaceholder}, duelText=${duelText}, placeholderText=${placeholderText}, final=${resolvedText}`);
+                    }
+
+                    return prisma.playerMission.create({
+                        data: {
+                            playerId: player.id,
+                            missionId: mission.id,
+                            type: 'START',
+                            resolvedText,
+                        },
+                    });
+                })
+            );
         }
-
-        // Tirage aléatoire équilibré (inclut potentiellement des missions duel)
-        const assignments = assignBalancedMissions(room.players, startMissions, 'START');
-
-        // Debug: log des missions avec placeholder
-        const missionsWithPlaceholder = Array.from(assignments.entries())
-            .filter(([_, m]) => m.playerPlaceholder)
-            .map(([playerId, m]) => ({
-                playerId,
-                playerName: room.players.find(p => p.id === playerId)?.name,
-                playerTeam: room.players.find(p => p.id === playerId)?.team,
-                missionText: m.text,
-                placeholder: m.playerPlaceholder,
-            }));
-        console.log('[START] Missions avec placeholder:', JSON.stringify(missionsWithPlaceholder, null, 2));
-
-        // Debug: log des joueurs
-        console.log('[START] Joueurs:', room.players.map(p => ({ id: p.id, name: p.name, team: p.team })));
-
-        // Post-traite les missions duel : si une mission duel est tirée,
-        // l'adversaire reçoit aussi cette mission
-        const duelPairs = processDuelMissions(assignments, room.players, startMissions);
-        console.log('[START] Duel pairs créées:', JSON.stringify(duelPairs, null, 2));
-
-        // Crée un map pour accéder rapidement aux textes résolus des duels
-        const duelResolvedTexts = new Map<string, string>();
-        for (const pair of duelPairs) {
-            duelResolvedTexts.set(pair.player1Id, pair.player1ResolvedText);
-            duelResolvedTexts.set(pair.player2Id, pair.player2ResolvedText);
-        }
-
-        await Promise.all(
-            room.players.map((player) => {
-                const mission = assignments.get(player.id);
-                if (!mission) return Promise.resolve();
-
-                // Si c'est une mission duel, utiliser le texte pré-résolu
-                // Sinon, résoudre les autres placeholders normalement
-                const duelText = duelResolvedTexts.get(player.id);
-                const placeholderText = resolvePlayerPlaceholder(mission, player, room.players);
-                const resolvedText = duelText ?? placeholderText;
-
-                // Debug log
-                if (mission.playerPlaceholder) {
-                    console.log(`[START] Player ${player.name}: placeholder=${mission.playerPlaceholder}, duelText=${duelText}, placeholderText=${placeholderText}, final=${resolvedText}`);
-                }
-
-                return prisma.playerMission.create({
-                    data: {
-                        playerId: player.id,
-                        missionId: mission.id,
-                        type: 'START',
-                        resolvedText,
-                    },
-                });
-            })
-        );
 
         // gameStarted = true, mais gameStartTime reste null
         // Le compteur ne démarre que quand le créateur clique "Lancer le compteur"
@@ -127,7 +154,10 @@ export async function POST(
             },
             include: {
                 players: {
-                    include: { missions: { include: { mission: true } } },
+                    include: {
+                        missions: { include: { mission: true } },
+                        pendingChoices: { include: { mission: true } },
+                    },
                 },
             },
         });

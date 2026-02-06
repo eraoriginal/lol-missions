@@ -140,9 +140,10 @@ export function useRoom(roomCode: string | null) {
 
                 if (currentPlayer) {
                     const hasMissions = currentPlayer.missions || [];
-                    const hasStart = hasMissions.some((m: any) => m.type === 'START');
-                    const hasMid = hasMissions.some((m: any) => m.type === 'MID');
-                    const hasLate = hasMissions.some((m: any) => m.type === 'LATE');
+                    const hasPendingChoices = currentPlayer.pendingChoices || [];
+                    const hasStart = hasMissions.some((m: any) => m.type === 'START') || hasPendingChoices.some((c: any) => c.type === 'START');
+                    const hasMid = hasMissions.some((m: any) => m.type === 'MID') || hasPendingChoices.some((c: any) => c.type === 'MID');
+                    const hasLate = hasMissions.some((m: any) => m.type === 'LATE') || hasPendingChoices.some((c: any) => c.type === 'LATE');
 
                     const shouldHaveStart = true; // Toujours attendu au démarrage
                     const shouldHaveMid = elapsed >= midDelay;

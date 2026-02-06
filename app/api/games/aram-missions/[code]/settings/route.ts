@@ -11,6 +11,8 @@ const settingsSchema = z.object({
     missionVisibility: z.enum(['all', 'team', 'hidden']).optional(),
     gameMap: z.enum(['howling_abyss', 'summoners_rift']).optional(),
     victoryBonus: z.boolean().optional(),
+    missionChoiceCount: z.number().int().min(1).max(3).optional(),
+    maxEventsPerGame: z.number().int().min(0).max(4).optional(),
 });
 
 export async function PATCH(
@@ -20,10 +22,10 @@ export async function PATCH(
     try {
         const { code } = await params;
         const body = await request.json();
-        const { creatorToken, midMissionDelay, lateMissionDelay, missionVisibility, gameMap, victoryBonus } = settingsSchema.parse(body);
+        const { creatorToken, midMissionDelay, lateMissionDelay, missionVisibility, gameMap, victoryBonus, missionChoiceCount, maxEventsPerGame } = settingsSchema.parse(body);
 
         // Au moins un paramètre doit être fourni
-        if (midMissionDelay === undefined && lateMissionDelay === undefined && missionVisibility === undefined && gameMap === undefined && victoryBonus === undefined) {
+        if (midMissionDelay === undefined && lateMissionDelay === undefined && missionVisibility === undefined && gameMap === undefined && victoryBonus === undefined && missionChoiceCount === undefined && maxEventsPerGame === undefined) {
             return Response.json(
                 { error: 'At least one setting must be provided' },
                 { status: 400 }
@@ -71,6 +73,8 @@ export async function PATCH(
                 ...(missionVisibility !== undefined && { missionVisibility }),
                 ...(gameMap !== undefined && { gameMap }),
                 ...(victoryBonus !== undefined && { victoryBonus }),
+                ...(missionChoiceCount !== undefined && { missionChoiceCount }),
+                ...(maxEventsPerGame !== undefined && { maxEventsPerGame }),
             },
         });
 
@@ -83,6 +87,8 @@ export async function PATCH(
             missionVisibility: updatedRoom.missionVisibility,
             gameMap: updatedRoom.gameMap,
             victoryBonus: updatedRoom.victoryBonus,
+            missionChoiceCount: updatedRoom.missionChoiceCount,
+            maxEventsPerGame: updatedRoom.maxEventsPerGame,
         });
     } catch (error) {
         if (error instanceof z.ZodError) {

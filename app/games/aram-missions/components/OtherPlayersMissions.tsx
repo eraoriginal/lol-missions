@@ -120,7 +120,7 @@ export function OtherPlayersMissions({
                     return (
                         <div
                             key={player.id}
-                            className={`grid grid-cols-[120px_1fr] gap-3 items-start rounded-lg p-2 border border-[#C8AA6E]/10 ${teamStyle.bg} ${teamStyle.border}`}
+                            className={`grid grid-cols-[minmax(120px,auto)_1fr] gap-3 items-start rounded-lg p-2 border border-[#C8AA6E]/10 ${teamStyle.bg} ${teamStyle.border}`}
                         >
                             {/* Colonne 1: Pseudo */}
                             <div className="flex items-center gap-2 min-w-0">
@@ -128,14 +128,14 @@ export function OtherPlayersMissions({
                                     <img
                                         src={player.avatar}
                                         alt={player.name}
-                                        className={`w-8 h-8 rounded-full flex-shrink-0 ${
+                                        className={`w-12 h-12 rounded-full flex-shrink-0 ${
                                             player.team === 'red' ? 'border-2 border-red-500' :
                                             player.team === 'blue' ? 'border-2 border-blue-500' :
                                             'border border-[#C8AA6E]'
                                         }`}
                                     />
                                 ) : (
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
                                         player.team === 'red' ? 'bg-gradient-to-br from-red-500 to-red-700 text-white border-2 border-red-400' :
                                         player.team === 'blue' ? 'bg-gradient-to-br from-blue-500 to-blue-700 text-white border-2 border-blue-400' :
                                         'bg-gradient-to-br from-[#0AC8B9] to-[#0397AB] text-[#010A13] border border-[#C8AA6E]'

@@ -16,6 +16,8 @@ model Event {
   points     Int
   createdAt  DateTime @default(now())
 
+  roomEvents RoomEvent[]
+
   @@index([type])
 }
 
@@ -31,7 +33,8 @@ model Mission {
   playerPlaceholder String?  // null, "teammate", "opponent", "any", "duel" - si présent, {player} dans le texte sera remplacé. "duel" = même mission pour 2 joueurs d'équipes opposées
   createdAt         DateTime @default(now())
 
-  playerMissions PlayerMission[]
+  playerMissions     PlayerMission[]
+  pendingChoices     PendingMissionChoice[]
 
   @@index([type])
 }
@@ -50,6 +53,8 @@ model Room {
   missionVisibility   String    @default("team")         // 'all', 'team', 'hidden'
   gameMap             String    @default("howling_abyss") // 'howling_abyss', 'summoners_rift'
   victoryBonus        Boolean   @default(true)            // bonus de 0-500 pts pour l'équipe victorieuse
+  missionChoiceCount  Int       @default(1)               // 1 = imposée, 2 ou 3 = choix parmi N missions
+  maxEventsPerGame    Int       @default(0)               // 0-5, nombre d'événements aléatoires par partie
   winnerTeam          String?                             // "red" ou "blue", null si pas encore défini
   victoryBonusPoints  Int       @default(0)              // points bonus attribués à l'équipe gagnante
   selectedCategories  String[]  @default([])             // catégories sélectionnées pour Codename
@@ -58,6 +63,7 @@ model Room {
   players          Player[]
   codenameGame     CodenameGame?
   gameHistories    GameHistory[]
+  roomEvents       RoomEvent[]
 
   @@index([code])
 }
@@ -78,10 +84,31 @@ model GameHistory {
 
   // Snapshot des joueurs et missions (JSON pour simplicité)
   playersSnapshot    String   // JSON: [{ name, team, avatar, missions: [{ text, type, validated, points }] }]
+  eventsSnapshot     String?  // JSON: snapshot des événements de la partie
 
   playedAt           DateTime @default(now())
 
   @@index([roomId])
+}
+
+model RoomEvent {
+  id                String    @id @default(cuid())
+  roomId            String
+  room              Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  eventId           String
+  event             Event     @relation(fields: [eventId], references: [id])
+  scheduledAt       Int       // secondes depuis gameStartTime
+  appearedAt        DateTime? // null = pas encore apparu
+  redValidated      Boolean   @default(false)
+  blueValidated     Boolean   @default(false)
+  redDecided        Boolean   @default(false)
+  blueDecided       Boolean   @default(false)
+  pointsEarnedRed   Int       @default(0)
+  pointsEarnedBlue  Int       @default(0)
+  createdAt         DateTime  @default(now())
+
+  @@index([roomId])
+  @@unique([roomId, scheduledAt])
 }
 
 model Player {
@@ -95,10 +122,24 @@ model Player {
   room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
-  missions PlayerMission[]
+  missions       PlayerMission[]
+  pendingChoices PendingMissionChoice[]
 
   @@index([roomId])
   @@index([token])
+}
+
+model PendingMissionChoice {
+  id           String   @id @default(cuid())
+  playerId     String
+  player       Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  missionId    String
+  mission      Mission  @relation(fields: [missionId], references: [id])
+  type         String   // 'START', 'MID', 'LATE'
+  resolvedText String?
+  createdAt    DateTime @default(now())
+
+  @@index([playerId, type])
 }
 
 model PlayerMission {

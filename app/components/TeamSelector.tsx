@@ -86,9 +86,9 @@ export function TeamSelector({ players, roomCode, currentPlayerToken, isCreator 
     const PlayerSlot = ({ player, showCrown = false }: { player: Player; showCrown?: boolean }) => (
         <div className="flex items-center gap-2 bg-black/30 rounded-lg p-2 border border-white/10">
             {player.avatar ? (
-                <img src={player.avatar} alt={player.name} className="w-8 h-8 rounded-full border border-[#C8AA6E]" />
+                <img src={player.avatar} alt={player.name} className="w-12 h-12 rounded-full border border-[#C8AA6E]" />
             ) : (
-                <div className="w-8 h-8 bg-gradient-to-br from-[#C8AA6E] to-[#785A28] rounded-full flex items-center justify-center text-[#010A13] font-bold text-sm">
+                <div className="w-12 h-12 bg-gradient-to-br from-[#C8AA6E] to-[#785A28] rounded-full flex items-center justify-center text-[#010A13] font-bold text-sm">
                     {player.name.charAt(0).toUpperCase()}
                 </div>
             )}
@@ -111,7 +111,7 @@ export function TeamSelector({ players, roomCode, currentPlayerToken, isCreator 
                         : 'bg-black/20 border-blue-500/30 hover:border-blue-500/60 hover:bg-blue-900/30 cursor-pointer'
             }`}
         >
-            <div className={`w-8 h-8 rounded-full border border-dashed flex items-center justify-center ${
+            <div className={`w-12 h-12 rounded-full border border-dashed flex items-center justify-center ${
                 team === 'red' ? 'border-red-500/40' : 'border-blue-500/40'
             }`}>
                 <span className={`text-lg ${team === 'red' ? 'text-red-500/40' : 'text-blue-500/40'}`}>+</span>
@@ -165,9 +165,9 @@ export function TeamSelector({ players, roomCode, currentPlayerToken, isCreator 
                         {spectators.map((p) => (
                             <div key={p.id} className="flex items-center gap-2 bg-[#010A13] rounded-lg px-3 py-2 border border-[#C8AA6E]/20">
                                 {p.avatar ? (
-                                    <img src={p.avatar} alt={p.name} className="w-8 h-8 rounded-full border border-[#C8AA6E]" />
+                                    <img src={p.avatar} alt={p.name} className="w-12 h-12 rounded-full border border-[#C8AA6E]" />
                                 ) : (
-                                    <div className="w-8 h-8 bg-gradient-to-br from-[#0AC8B9] to-[#0397AB] rounded-full flex items-center justify-center text-[#010A13] font-bold text-sm border border-[#C8AA6E]">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-[#0AC8B9] to-[#0397AB] rounded-full flex items-center justify-center text-[#010A13] font-bold text-sm border border-[#C8AA6E]">
                                         {p.name.charAt(0).toUpperCase()}
                                     </div>
                                 )}
@@ -188,26 +188,6 @@ export function TeamSelector({ players, roomCode, currentPlayerToken, isCreator 
 
             {/* Composition des équipes */}
             <div className="grid grid-cols-2 gap-4">
-                {/* Équipe Rouge */}
-                <div className="bg-gradient-to-br from-red-900/80 to-red-950 rounded-lg p-5 border border-red-500/30">
-                    <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-red-300 font-bold text-lg flex items-center gap-2 uppercase tracking-wide">
-                            🔴 Rouge
-                        </h4>
-                        <span className="text-red-400 text-sm font-semibold bg-red-950 px-2 py-0.5 rounded-full border border-red-500/30">
-                            {redTeam.length}/5
-                        </span>
-                    </div>
-                    <div className="space-y-2">
-                        {redTeam.map((p) => (
-                            <PlayerSlot key={p.id} player={p} showCrown={p.id === creatorId} />
-                        ))}
-                        {Array.from({ length: 5 - redTeam.length }).map((_, i) => (
-                            <EmptySlot key={`red-empty-${i}`} team="red" disabled={myTeam === 'red'} />
-                        ))}
-                    </div>
-                </div>
-
                 {/* Équipe Bleue */}
                 <div className="bg-gradient-to-br from-blue-900/80 to-blue-950 rounded-lg p-5 border border-blue-500/30">
                     <div className="flex items-center justify-between mb-4">
@@ -224,6 +204,26 @@ export function TeamSelector({ players, roomCode, currentPlayerToken, isCreator 
                         ))}
                         {Array.from({ length: 5 - blueTeam.length }).map((_, i) => (
                             <EmptySlot key={`blue-empty-${i}`} team="blue" disabled={myTeam === 'blue'} />
+                        ))}
+                    </div>
+                </div>
+
+                {/* Équipe Rouge */}
+                <div className="bg-gradient-to-br from-red-900/80 to-red-950 rounded-lg p-5 border border-red-500/30">
+                    <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-red-300 font-bold text-lg flex items-center gap-2 uppercase tracking-wide">
+                            🔴 Rouge
+                        </h4>
+                        <span className="text-red-400 text-sm font-semibold bg-red-950 px-2 py-0.5 rounded-full border border-red-500/30">
+                            {redTeam.length}/5
+                        </span>
+                    </div>
+                    <div className="space-y-2">
+                        {redTeam.map((p) => (
+                            <PlayerSlot key={p.id} player={p} showCrown={p.id === creatorId} />
+                        ))}
+                        {Array.from({ length: 5 - redTeam.length }).map((_, i) => (
+                            <EmptySlot key={`red-empty-${i}`} team="red" disabled={myTeam === 'red'} />
                         ))}
                     </div>
                 </div>

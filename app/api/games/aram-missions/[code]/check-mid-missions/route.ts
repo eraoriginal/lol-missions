@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { pushRoomUpdate } from '@/lib/pusher';
 import { filterPrivateMissions } from '@/lib/filterPrivateMissions';
-import { assignBalancedMissions, processDuelMissions } from '@/lib/balancedMissionAssignment';
+import { assignBalancedMissions, assignBalancedMissionChoices, processDuelMissions } from '@/lib/balancedMissionAssignment';
 import { resolvePlayerPlaceholder } from '@/lib/resolvePlayerPlaceholder';
 
 export async function POST(
@@ -58,12 +58,19 @@ export async function POST(
             });
         }
 
-        // Vérifie si des missions MID ont déjà été assignées
+        // Vérifie si des missions MID ont déjà été assignées ou des choix pendants existent
         const hasMidMissions = room.players.some(player =>
             player.missions.some(m => m.type === 'MID')
         );
 
-        if (hasMidMissions) {
+        const hasMidPendingChoices = await prisma.pendingMissionChoice.findFirst({
+            where: {
+                playerId: { in: room.players.map(p => p.id) },
+                type: 'MID',
+            },
+        });
+
+        if (hasMidMissions || hasMidPendingChoices) {
             return Response.json({
                 message: 'MID missions already assigned',
                 shouldAssign: false,
@@ -74,6 +81,65 @@ export async function POST(
         const midMissions = await prisma.mission.findMany({
             where: { type: 'MID', OR: [{ maps: room.gameMap }, { maps: 'all' }] },
         });
+
+        const missionChoiceCount = room.missionChoiceCount ?? 1;
+
+        if (missionChoiceCount > 1) {
+            // Mode choix
+            const nonDuelMissions = midMissions.filter(m => m.playerPlaceholder !== 'duel');
+            const teamPlayers = room.players.filter(p => p.team === 'red' || p.team === 'blue');
+            if (nonDuelMissions.length < teamPlayers.length * missionChoiceCount) {
+                return Response.json({ error: 'Not enough MID missions available for choice mode' }, { status: 500 });
+            }
+
+            const choiceAssignments = assignBalancedMissionChoices(room.players, midMissions, missionChoiceCount, 'MID');
+
+            let createdByUs = false;
+            try {
+                const wasCreated = await prisma.$transaction(async (tx) => {
+                    // Recheck inside transaction to prevent race conditions
+                    const existingCount = await tx.pendingMissionChoice.count({
+                        where: {
+                            playerId: { in: room.players.map(p => p.id) },
+                            type: 'MID',
+                        },
+                    });
+                    if (existingCount > 0) return false;
+
+                    for (const player of room.players) {
+                        const choices = choiceAssignments.get(player.id);
+                        if (!choices) continue;
+
+                        for (const mission of choices) {
+                            const resolvedText = resolvePlayerPlaceholder(mission, player, room.players);
+                            await tx.pendingMissionChoice.create({
+                                data: {
+                                    playerId: player.id,
+                                    missionId: mission.id,
+                                    type: 'MID',
+                                    resolvedText,
+                                },
+                            });
+                        }
+                    }
+                    return true;
+                }, { isolationLevel: 'Serializable' });
+                createdByUs = wasCreated;
+                if (createdByUs) console.log(`[check-mid-missions] MID pending choices assigned to room ${code}`);
+            } catch (createError: any) {
+                console.log(`[check-mid-missions] MID pending choices already created for room ${code}`);
+            }
+
+            if (createdByUs) {
+                console.log(`[MID] Mid choices ready in room ${code}, pushing update`);
+                await pushRoomUpdate(code);
+            }
+
+            return Response.json({
+                message: 'MID mission choices assigned',
+                shouldAssign: true,
+            });
+        }
 
         if (midMissions.length < room.players.length) {
             return Response.json(
@@ -117,7 +183,6 @@ export async function POST(
             createdByUs = true;
             console.log(`[check-mid-missions] MID missions assigned to room ${code}`);
         } catch (createError: any) {
-            // Erreur de contrainte unique = les missions ont été créées par une autre requête
             const isUniqueConstraint = createError?.code === 'P2002' ||
                 (createError?.message && createError.message.includes('Unique constraint'));
 

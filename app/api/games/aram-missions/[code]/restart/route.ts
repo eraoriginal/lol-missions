@@ -46,13 +46,16 @@ export async function POST(
             );
         }
 
-        // Supprime toutes les missions des joueurs
+        // Supprime toutes les missions, choix pendants et événements des joueurs
+        const playerIds = room.players.map(p => p.id);
         await prisma.playerMission.deleteMany({
-            where: {
-                playerId: {
-                    in: room.players.map(p => p.id),
-                },
-            },
+            where: { playerId: { in: playerIds } },
+        });
+        await prisma.pendingMissionChoice.deleteMany({
+            where: { playerId: { in: playerIds } },
+        });
+        await prisma.roomEvent.deleteMany({
+            where: { roomId: room.id },
         });
 
         // Réinitialise la room

@@ -27,6 +27,11 @@ export async function GET(
                                 mission: true,
                             },
                         },
+                        pendingChoices: {
+                            include: {
+                                mission: true,
+                            },
+                        },
                     },
                 },
                 codenameGame: {
@@ -44,6 +49,10 @@ export async function GET(
                 },
                 gameHistories: {
                     orderBy: { gameNumber: 'asc' },
+                },
+                roomEvents: {
+                    include: { event: true },
+                    orderBy: { scheduledAt: 'asc' },
                 },
             },
         });

@@ -23,14 +23,28 @@ interface Player {
     missions: PlayerMission[];
 }
 
+interface RoomEventSummary {
+    id: string;
+    event: {
+        text: string;
+        points: number;
+        difficulty: string;
+    };
+    redValidated: boolean;
+    blueValidated: boolean;
+    pointsEarnedRed: number;
+    pointsEarnedBlue: number;
+}
+
 interface GameSummaryProps {
     players: Player[];
     victoryBonus?: boolean;
     winnerTeam?: string | null;
     victoryBonusPoints?: number;
+    roomEvents?: RoomEventSummary[];
 }
 
-export function GameSummary({ players, victoryBonus, winnerTeam: bonusWinnerTeam, victoryBonusPoints = 0 }: GameSummaryProps) {
+export function GameSummary({ players, victoryBonus, winnerTeam: bonusWinnerTeam, victoryBonusPoints = 0, roomEvents }: GameSummaryProps) {
     const getDifficultyStyle = (difficulty: string) => {
         switch (difficulty) {
             case 'easy':
@@ -60,12 +74,15 @@ export function GameSummary({ players, victoryBonus, winnerTeam: bonusWinnerTeam
     const redMissionTotal = redTeam.reduce((sum, p) => sum + p.totalPoints, 0);
     const blueMissionTotal = blueTeam.reduce((sum, p) => sum + p.totalPoints, 0);
 
+    const redEventTotal = (roomEvents || []).reduce((sum, re) => sum + re.pointsEarnedRed, 0);
+    const blueEventTotal = (roomEvents || []).reduce((sum, re) => sum + re.pointsEarnedBlue, 0);
+
     const hasBonus = victoryBonus && bonusWinnerTeam && victoryBonusPoints > 0;
     const redBonus = hasBonus && bonusWinnerTeam === 'red' ? victoryBonusPoints : 0;
     const blueBonus = hasBonus && bonusWinnerTeam === 'blue' ? victoryBonusPoints : 0;
 
-    const redTotal = redMissionTotal + redBonus;
-    const blueTotal = blueMissionTotal + blueBonus;
+    const redTotal = redMissionTotal + redEventTotal + redBonus;
+    const blueTotal = blueMissionTotal + blueEventTotal + blueBonus;
 
     const noTeam = playersWithScores
         .filter(p => !p.team || p.team === '')
@@ -127,9 +144,9 @@ export function GameSummary({ players, victoryBonus, winnerTeam: bonusWinnerTeam
                                     <div className="flex items-center gap-2">
                                         <span className="lol-text text-sm font-bold w-5 text-center">#{i + 1}</span>
                                         {player.avatar ? (
-                                            <img src={player.avatar} alt={player.name} className="w-8 h-8 rounded-full border border-[#C8AA6E]" />
+                                            <img src={player.avatar} alt={player.name} className="w-12 h-12 rounded-full border border-[#C8AA6E]" />
                                         ) : (
-                                            <div className="w-8 h-8 bg-gradient-to-br from-[#C8AA6E] to-[#785A28] rounded-full flex items-center justify-center text-[#010A13] font-bold text-sm">
+                                            <div className="w-12 h-12 bg-gradient-to-br from-[#C8AA6E] to-[#785A28] rounded-full flex items-center justify-center text-[#010A13] font-bold text-sm">
                                                 {player.name.charAt(0).toUpperCase()}
                                             </div>
                                         )}
@@ -214,9 +231,9 @@ export function GameSummary({ players, victoryBonus, winnerTeam: bonusWinnerTeam
                     {winner === 'draw' && 'Égalité !'}
                 </h2>
                 <div className="flex items-center justify-center gap-8 mt-4">
-                    <div className="text-2xl font-bold text-red-400">{redTotal}</div>
-                    <div className="lol-text-gold text-2xl font-bold">VS</div>
                     <div className="text-2xl font-bold text-blue-400">{blueTotal}</div>
+                    <div className="lol-text-gold text-2xl font-bold">VS</div>
+                    <div className="text-2xl font-bold text-red-400">{redTotal}</div>
                 </div>
             </div>
 
@@ -238,19 +255,55 @@ export function GameSummary({ players, victoryBonus, winnerTeam: bonusWinnerTeam
                 </div>
             )}
 
+            {/* Événements */}
+            {roomEvents && roomEvents.length > 0 && (
+                <div className="lol-card rounded-lg p-6">
+                    <h3 className="text-xl font-bold text-amber-400 uppercase tracking-wide mb-4">
+                        ⚡ Événements
+                    </h3>
+                    <div className="space-y-3">
+                        {roomEvents.map((re) => {
+                            const winner = re.redValidated ? 'red' : re.blueValidated ? 'blue' : 'none';
+
+                            return (
+                            <div key={re.id} className="bg-amber-900/20 border border-amber-500/30 rounded-lg p-4">
+                                <p className="text-amber-100 leading-relaxed mb-3">{re.event.text}</p>
+                                <div className={`p-2 rounded text-center text-sm font-semibold ${
+                                    winner === 'red'
+                                        ? 'bg-red-900/40 text-red-300 border border-red-500/30'
+                                        : winner === 'blue'
+                                            ? 'bg-blue-900/40 text-blue-300 border border-blue-500/30'
+                                            : 'bg-gray-900/40 text-gray-400 border border-gray-500/30'
+                                }`}>
+                                    {winner === 'red' && `🔴 Rouge +${re.pointsEarnedRed} pts`}
+                                    {winner === 'blue' && `🔵 Bleue +${re.pointsEarnedBlue} pts`}
+                                    {winner === 'none' && '❌ Aucune équipe'}
+                                </div>
+                            </div>
+                            );
+                        })}
+                    </div>
+                    {(redEventTotal > 0 || blueEventTotal > 0) && (
+                        <div className="mt-3 text-center text-sm lol-text">
+                            Total événements : <span className="text-red-400 font-bold">{redEventTotal}</span> vs <span className="text-blue-400 font-bold">{blueEventTotal}</span>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Les deux équipes */}
             <div className="grid grid-cols-2 gap-4">
-                <TeamBlock
-                    team="red"
-                    players={redTeam}
-                    totalPoints={redTotal}
-                    isWinner={winner === 'red'}
-                />
                 <TeamBlock
                     team="blue"
                     players={blueTeam}
                     totalPoints={blueTotal}
                     isWinner={winner === 'blue'}
+                />
+                <TeamBlock
+                    team="red"
+                    players={redTeam}
+                    totalPoints={redTotal}
+                    isWinner={winner === 'red'}
                 />
             </div>
 
