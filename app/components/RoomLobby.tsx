@@ -22,7 +22,7 @@ interface GameHistoryItem {
 interface Room {
     id: string;
     code: string;
-    creatorToken: string;
+    creatorToken?: string;
     players: any[];
     midMissionDelay: number;
     lateMissionDelay: number;
