@@ -185,18 +185,18 @@ export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps
                     <h3 className="text-lg font-bold lol-title-gold mb-4 text-center">Équipe gagnante</h3>
                     <div className="grid grid-cols-2 gap-4">
                         <div className={`p-4 rounded-lg font-bold text-lg text-center transition-all border-2 ${
-                            selectedTeam === 'red'
-                                ? 'bg-red-600 border-red-400 text-white shadow-lg shadow-red-500/30'
-                                : 'bg-red-900/20 border-red-500/20 text-red-400/50'
-                        }`}>
-                            🔴 Rouge
-                        </div>
-                        <div className={`p-4 rounded-lg font-bold text-lg text-center transition-all border-2 ${
                             selectedTeam === 'blue'
                                 ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-500/30'
                                 : 'bg-blue-900/20 border-blue-500/20 text-blue-400/50'
                         }`}>
                             🔵 Bleue
+                        </div>
+                        <div className={`p-4 rounded-lg font-bold text-lg text-center transition-all border-2 ${
+                            selectedTeam === 'red'
+                                ? 'bg-red-600 border-red-400 text-white shadow-lg shadow-red-500/30'
+                                : 'bg-red-900/20 border-red-500/20 text-red-400/50'
+                        }`}>
+                            🔴 Rouge
                         </div>
                     </div>
                     {!selectedTeam && (

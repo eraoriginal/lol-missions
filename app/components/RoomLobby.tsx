@@ -22,6 +22,7 @@ interface GameHistoryItem {
 interface Room {
     id: string;
     code: string;
+    creatorToken: string;
     players: any[];
     midMissionDelay: number;
     lateMissionDelay: number;
@@ -51,6 +52,8 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
     const playerToken = typeof window !== 'undefined'
         ? localStorage.getItem(`room_${roomCode}_player`)
         : null;
+
+    const creatorPlayerId = room.players.find(p => p.token === room.creatorToken)?.id || null;
 
     const handleStart = async () => {
         if (!creatorToken) return;
@@ -98,11 +101,15 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
         }
     };
 
-    // Calcul du score cumulé
+    // Calcul du score cumulé (match nul = +1 pour les deux)
     const cumulativeScore = (room.gameHistories || []).reduce(
         (acc, game) => {
             if (game.winnerTeam === 'red') acc.red++;
             else if (game.winnerTeam === 'blue') acc.blue++;
+            else if (game.redScore === game.blueScore && game.redScore > 0) {
+                acc.red++;
+                acc.blue++;
+            }
             return acc;
         },
         { red: 0, blue: 0 }
@@ -164,6 +171,7 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
                 roomCode={roomCode}
                 currentPlayerToken={playerToken}
                 isCreator={isCreator}
+                creatorPlayerId={creatorPlayerId}
             />
 
             {/* Start button (creator only) */}

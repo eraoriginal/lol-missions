@@ -77,7 +77,7 @@ export function GameSummary({ players, victoryBonus, winnerTeam: bonusWinnerTeam
     const redEventTotal = (roomEvents || []).reduce((sum, re) => sum + re.pointsEarnedRed, 0);
     const blueEventTotal = (roomEvents || []).reduce((sum, re) => sum + re.pointsEarnedBlue, 0);
 
-    const hasBonus = victoryBonus && bonusWinnerTeam && victoryBonusPoints > 0;
+    const hasBonus = victoryBonus && bonusWinnerTeam;
     const redBonus = hasBonus && bonusWinnerTeam === 'red' ? victoryBonusPoints : 0;
     const blueBonus = hasBonus && bonusWinnerTeam === 'blue' ? victoryBonusPoints : 0;
 
@@ -250,7 +250,7 @@ export function GameSummary({ players, victoryBonus, winnerTeam: bonusWinnerTeam
                     <div className={`text-2xl font-bold ${
                         bonusWinnerTeam === 'red' ? 'text-red-400' : 'text-blue-400'
                     }`}>
-                        +{victoryBonusPoints} pts pour l&apos;équipe {bonusWinnerTeam === 'red' ? 'Rouge' : 'Bleue'}
+                        +{victoryBonusPoints} pt{victoryBonusPoints !== 1 ? 's' : ''} pour l&apos;équipe {bonusWinnerTeam === 'red' ? 'Rouge' : 'Bleue'}{victoryBonusPoints === 0 ? ', on rigole bien !' : ''}
                     </div>
                 </div>
             )}

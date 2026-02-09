@@ -141,6 +141,11 @@ export async function PUT(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
         }
 
+        // Garde d'idempotence : si déjà finalisé, ne pas recréer d'historique
+        if (room.validationStatus === 'completed') {
+            return NextResponse.json({ success: true });
+        }
+
         // Tirage aléatoire pondéré du bonus de victoire
         // 0: 15%, 100: 20%, 200: 20%, 300: 20%, 400: 15%, 500: 10%
         const weightedBonus = [
@@ -191,6 +196,11 @@ export async function PUT(
             teamScores[winnerTeam] += randomBonus;
         }
 
+        // Le vainqueur est l'équipe avec le plus de points (bonus inclus)
+        const actualWinner = teamScores.blue > teamScores.red ? 'blue'
+            : teamScores.red > teamScores.blue ? 'red'
+            : null;
+
         // Créer le snapshot des joueurs avec leurs missions
         const playersSnapshot = room.players
             .filter(p => p.team === 'red' || p.team === 'blue')
@@ -222,7 +232,6 @@ export async function PUT(
             : null;
 
         // Créer l'historique de la partie
-        // winnerTeam = l'équipe qui a gagné la partie LoL (sélectionnée par le créateur)
         const gameNumber = room.gameHistories.length + 1;
         await prisma.gameHistory.create({
             data: {
@@ -230,7 +239,7 @@ export async function PUT(
                 gameNumber,
                 redScore: teamScores.red,
                 blueScore: teamScores.blue,
-                winnerTeam: winnerTeam || null,
+                winnerTeam: actualWinner,
                 victoryBonusPoints: randomBonus,
                 bonusTeam: winnerTeam || null,
                 playersSnapshot: JSON.stringify(playersSnapshot),

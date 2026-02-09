@@ -15,9 +15,10 @@ interface TeamSelectorProps {
     roomCode: string;
     currentPlayerToken: string | null;
     isCreator?: boolean;
+    creatorPlayerId?: string | null;
 }
 
-export function TeamSelector({ players, roomCode, currentPlayerToken, isCreator = false }: TeamSelectorProps) {
+export function TeamSelector({ players, roomCode, currentPlayerToken, isCreator = false, creatorPlayerId }: TeamSelectorProps) {
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [randomizing, setRandomizing] = useState(false);
@@ -29,8 +30,7 @@ export function TeamSelector({ players, roomCode, currentPlayerToken, isCreator 
     const currentPlayer = players.find(p => p.token === currentPlayerToken);
     const myTeam = currentPlayer?.team || '';
 
-    // Le créateur est toujours le premier joueur de la liste
-    const creatorId = players[0]?.id;
+    const creatorId = creatorPlayerId || null;
 
     const selectTeam = async (team: string) => {
         if (!currentPlayerToken || team === myTeam) return;

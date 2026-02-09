@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
 
 interface ValidationScreenProps {
@@ -21,6 +21,11 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
     // L'étape bonus est pilotée par le serveur pour que tous les joueurs la voient
     const showBonusStep = room.validationStatus === 'bonus_selection';
     const showEventsStep = room.validationStatus === 'events_validation';
+
+    // Réinitialiser finishing quand on change d'écran (via Pusher)
+    useEffect(() => {
+        setFinishing(false);
+    }, [room.validationStatus]);
 
     // Événements apparus
     const appearedEvents = (room.roomEvents || []).filter((re: any) => re.appearedAt !== null);
@@ -108,12 +113,12 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
                 }),
             });
             if (!res.ok) throw new Error('Finalisation échouée');
+            // Succès : garder finishing=true, le Pusher update changera l'écran
         } catch (e) {
             console.error(e);
             alert('Erreur lors de la finalisation');
+            setFinishing(false);
         }
-
-        setFinishing(false);
     };
 
     const goNext = async () => {
@@ -130,7 +135,7 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
                         body: JSON.stringify({ creatorToken, eventsValidation: true }),
                     });
                     if (!res.ok) throw new Error('Passage aux événements échoué');
-                    setFinishing(false);
+                    // Garder finishing=true, le Pusher update changera l'écran
                     return;
                 }
                 // Pas d'événements — vérifier si on doit afficher l'étape bonus
@@ -142,11 +147,12 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
                         body: JSON.stringify({ creatorToken, bonusSelection: true }),
                     });
                     if (!res.ok) throw new Error('Passage au bonus échoué');
-                    setFinishing(false);
+                    // Garder finishing=true, le Pusher update changera l'écran
                     return;
                 }
                 // Pas de bonus — termine directement
                 await finishValidation();
+                return;
             } else {
                 // Pas dernier joueur — PATCH pour avancer l'index
                 const nextIndex = currentIndex + 1;
@@ -158,13 +164,13 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
                 if (!res.ok) throw new Error('Avancement échoué');
                 // Seulement après confirmation du serveur, on change l'index local
                 setCurrentIndex(nextIndex);
+                setFinishing(false);
             }
         } catch (e) {
             console.error(e);
             alert('Erreur lors du passage au joueur suivant');
+            setFinishing(false);
         }
-
-        setFinishing(false);
     };
 
     const selectWinnerTeam = async (team: 'red' | 'blue') => {
@@ -326,12 +332,13 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
                 if (!res.ok) throw new Error('Passage au bonus échoué');
             } else {
                 await finishValidation();
+                return;
             }
         } catch (e) {
             console.error(e);
             alert('Erreur');
+            setFinishing(false);
         }
-        setFinishing(false);
     };
 
     if (showEventsStep) {
@@ -434,16 +441,6 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
                     <h3 className="text-lg font-bold lol-title-gold mb-4">Équipe gagnante</h3>
                     <div className="grid grid-cols-2 gap-4">
                         <button
-                            onClick={() => selectWinnerTeam('red')}
-                            className={`p-4 rounded-lg font-bold text-lg transition-all border-2 ${
-                                selectedWinnerTeam === 'red'
-                                    ? 'bg-red-600 border-red-400 text-white shadow-lg shadow-red-500/30'
-                                    : 'bg-red-900/30 border-red-500/30 text-red-400 hover:bg-red-900/50 hover:border-red-500/50'
-                            }`}
-                        >
-                            🔴 Rouge
-                        </button>
-                        <button
                             onClick={() => selectWinnerTeam('blue')}
                             className={`p-4 rounded-lg font-bold text-lg transition-all border-2 ${
                                 selectedWinnerTeam === 'blue'
@@ -452,6 +449,16 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
                             }`}
                         >
                             🔵 Bleue
+                        </button>
+                        <button
+                            onClick={() => selectWinnerTeam('red')}
+                            className={`p-4 rounded-lg font-bold text-lg transition-all border-2 ${
+                                selectedWinnerTeam === 'red'
+                                    ? 'bg-red-600 border-red-400 text-white shadow-lg shadow-red-500/30'
+                                    : 'bg-red-900/30 border-red-500/30 text-red-400 hover:bg-red-900/50 hover:border-red-500/50'
+                            }`}
+                        >
+                            🔴 Rouge
                         </button>
                     </div>
                 </div>
