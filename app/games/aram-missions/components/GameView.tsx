@@ -495,7 +495,7 @@ export function GameView({ room, roomCode }: GameViewProps) {
                                 <div key={re.id} className={`flex items-start gap-3 p-3 rounded-lg ${isActive ? 'bg-amber-900/40 border-2 border-amber-500 animate-pulse' : 'bg-amber-900/20 border border-amber-500/30 opacity-60'}`}>
                                     <span className="text-xl flex-shrink-0">{isActive ? '⚡' : '✅'}</span>
                                     <div className="flex-1 min-w-0">
-                                        <p className={`leading-relaxed ${isActive ? 'text-amber-100' : 'text-amber-200/60'}`}>{re.event.text}</p>
+                                        <p className={`leading-relaxed ${isActive ? 'text-amber-100' : 'text-amber-200/60'}`}>{re.resolvedText || re.event.text}</p>
                                         <div className="flex items-center gap-2 mt-1">
                                             <span className="text-xs text-amber-300 font-bold">+{re.event.points} pts</span>
                                             {isActive && <ActiveEventCountdown event={re} />}
@@ -504,6 +504,39 @@ export function GameView({ room, roomCode }: GameViewProps) {
                                 </div>
                             );
                         })}
+                    </div>
+                </div>
+            )}
+
+            {/* Composition des équipes */}
+            {room.gameStartTime && (
+                <div className="lol-card rounded-lg p-5">
+                    <h2 className="text-xl font-bold lol-title-gold mb-4 flex items-center gap-2">
+                        👥 Équipes
+                    </h2>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <h3 className="text-sm font-bold uppercase text-red-400 mb-2">Rouge</h3>
+                            <div className="space-y-1">
+                                {room.players.filter((p: any) => p.team === 'red').map((p: any) => (
+                                    <div key={p.id} className="flex items-center gap-2 text-sm text-red-200">
+                                        {p.avatar && <img src={p.avatar} alt={p.name} className="w-6 h-6 rounded-full" />}
+                                        <span className={p.token === playerToken ? 'font-bold' : ''}>{p.name}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold uppercase text-blue-400 mb-2">Bleue</h3>
+                            <div className="space-y-1">
+                                {room.players.filter((p: any) => p.team === 'blue').map((p: any) => (
+                                    <div key={p.id} className="flex items-center gap-2 text-sm text-blue-200">
+                                        {p.avatar && <img src={p.avatar} alt={p.name} className="w-6 h-6 rounded-full" />}
+                                        <span className={p.token === playerToken ? 'font-bold' : ''}>{p.name}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

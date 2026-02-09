@@ -54,6 +54,7 @@ export interface CodenameGame {
 export interface RoomEvent {
     id: string;
     scheduledAt: number;
+    resolvedText: string | null;
     appearedAt: string | null;
     endedAt: string | null;
     redValidated: boolean;

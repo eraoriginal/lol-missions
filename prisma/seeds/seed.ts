@@ -103,7 +103,7 @@ async function main() {
         { text: "Avoir le moins de morts de la partie. Tu ne dois pas être à égalité avec un autre joueur",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 300, isPrivate: true, maps: "all"  },
         { text: "Faire danser tout le monde en début de partie",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 300, isPrivate: true, maps: "all"  },
         { text: "Faire un check avec toute ton équipe au spawn. Interdiction d'annoncer le check",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 300, isPrivate: true, maps: "all"  },
-        { text: "Au début de la partie, insulter l'équipe adverse",    type: "START", category: "Troll",        difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
+        { text: "Au début de la partie, provoquer l'équipe adverse",    type: "START", category: "Troll",        difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
         { text: "Dicter les builds de tes coéquipiers comme Al4r1c. Si tu es Al4r1c, achète 2 sceptres de Rylai", type: "START", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true, maps: "all" },
         { text: "Écrire '???' dans le chat après chaque mort ennemie", type: "START", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
 
@@ -112,18 +112,18 @@ async function main() {
         { text: "Répéter le dernier mot de chaque phrase de {player} pendant 2 minutes", type: "START", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "any" },
         { text: "Complimenter {player} après chacune de ses actions pendant 2 minutes", type: "START", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "teammate" },
         { text: "Blâmer {player} pour chaque mort de ton équipe (même si ce n'est pas sa faute)", type: "START", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "teammate" },
-        { text: "Insulter {player} pour chaque mort de ton équipe (même si ce n'est pas sa faute)", type: "START", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "teammate" },
+        { text: "Blâmer {player} pour chaque mort de ton équipe (même si ce n'est pas sa faute)", type: "START", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "teammate" },
         { text: "Avoir plus de sbires tués que {player}. Pas d'égalité", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "any" },
-        { text: "Avoir moins de sbires tués que {player}. Pas d'égalité", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "any" },
+        { text: "Avoir moins de sbires tués que {player}. Pas d'égalité", type: "START", category: "Combat", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "any" },
         { text: "Avoir le même nombre de sbires tués que {player}. Pas d'égalité", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "any" },
         { text: "Avoir plus de kill que {player}. Pas d'égalité", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "any" },
-        { text: "Avoir moins de kill que {player}. Pas d'égalité", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "any" },
+        { text: "Avoir moins de kill que {player}. Pas d'égalité", type: "START", category: "Combat", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "any" },
         { text: "Avoir le même nombre de kill que {player}. Pas d'égalité", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "any" },
         { text: "Avoir plus d'assistances que {player}. Pas d'égalité", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "any" },
-        { text: "Avoir moins d'assistances que {player}. Pas d'égalité", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "any" },
+        { text: "Avoir moins d'assistances que {player}. Pas d'égalité", type: "START", category: "Combat", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "any" },
         { text: "Avoir le même nombre d'assistances que {player}. Pas d'égalité", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "any" },
-        { text: "Avoir plus de morts que {player}. Pas d'égalité", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "any" },
-        { text: "Avoir moins de morts que {player}. Pas d'égalité", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "any" },
+        { text: "Avoir plus de morts que {player}. Pas d'égalité", type: "START", category: "Combat", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "any" },
+        { text: "Avoir moins de morts que {player}. Pas d'égalité", type: "START", category: "Combat", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "any" },
         { text: "Avoir le même nombre de morts que {player}. Pas d'égalité", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "any" },
 
         // ⚔️ Missions duel (même mission pour 2 joueurs adverses)
@@ -169,7 +169,7 @@ async function main() {
         { text: "Annoncer un fake plan et le répéter avec insistance", type: "MID", category: "Communication", difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
         { text: "Utiliser ton ultime dès qu'il est disponible (+ ou - 5 secondes) jusqu'à la fin de la partie",                       type: "MID", category: "Handicap",    difficulty: "hard", points: 300, isPrivate: true, maps: "all"  },
         { text: "Utiliser ton ultime complètement dans le vide 3 fois de suite",                          type: "MID", category: "Troll",        difficulty: "easy",   points: 100, isPrivate: true, maps: "all" },
-        { text: "Mourir sous la tour ennemie volontairement",                             type: "MID", category: "Suicide",      difficulty: "easy",   points: 100, isPrivate: true, maps: "all" },
+        { text: "Se faire exécuter par une tour ennemie",                             type: "MID", category: "Suicide",      difficulty: "medium",   points: 200, isPrivate: true, maps: "all" },
         { text: "Mourir intentionnellement dans les 30 prochaines secondes",                     type: "MID", category: "Suicide",       difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
         { text: "Mourir intentionnellement 3 fois dès que tu spawn",                     type: "MID", category: "Suicide",       difficulty: "medium",   points: 200, isPrivate: true, maps: "all"  },
         { text: "Imiter le rire de Eikichi 3 fois de suite. Si tu es Eikichi, chante une chanson de New Jeans en entier",  type: "MID", category: "Troll",         difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
@@ -249,7 +249,7 @@ async function main() {
         // 🎭 Missions avec placeholder joueur
         { text: "Critiquer le build de {player} pendant 1 minute", type: "LATE", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "opponent" },
         { text: "Déclarer que {player} est le MVP de la partie et argumenter pendant 30 secondes", type: "LATE", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "any" },
-        { text: "Promettre de venger chaque mort de {player}", type: "LATE", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "teammate" }
+        { text: "Venger 3 morts de {player} en te ruant tête baissée dans l'équipe adverse en criant \"POUR FRODON\"", type: "LATE", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "teammate" }
     ];
 
     // ========================================

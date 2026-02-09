@@ -101,6 +101,7 @@ model RoomEvent {
   eventId           String
   event             Event     @relation(fields: [eventId], references: [id])
   scheduledAt       Int       // secondes depuis gameStartTime
+  resolvedText      String?   // texte résolu avec noms des joueurs (null = pas de placeholder)
   appearedAt        DateTime? // null = pas encore apparu
   endedAt           DateTime? // null = événement encore actif (ou pas encore apparu)
   redValidated      Boolean   @default(false)

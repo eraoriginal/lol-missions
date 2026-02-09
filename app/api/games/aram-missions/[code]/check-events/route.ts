@@ -13,6 +13,7 @@ export async function POST(
         const room = await prisma.room.findUnique({
             where: { code },
             include: {
+                players: true,
                 roomEvents: {
                     include: { event: true },
                     orderBy: { scheduledAt: 'asc' },
@@ -84,10 +85,37 @@ export async function POST(
             if (dueEvents.length > 0) {
                 // On ne fait apparaître qu'un seul événement à la fois
                 const nextEvent = dueEvents[0];
+
+                // Résoudre les placeholders si présents
+                let resolvedText: string | null = null;
+                const eventText = nextEvent.event.text;
+                if (eventText.includes('{player1}') || eventText.includes('{player2}')) {
+                    // {player1} = joueur rouge au hasard, {player2} = joueur bleu au hasard
+                    const redPlayers = room.players.filter(p => p.team === 'red');
+                    const bluePlayers = room.players.filter(p => p.team === 'blue');
+                    const player1 = redPlayers.length > 0
+                        ? redPlayers[Math.floor(Math.random() * redPlayers.length)]
+                        : null;
+                    const player2 = bluePlayers.length > 0
+                        ? bluePlayers[Math.floor(Math.random() * bluePlayers.length)]
+                        : null;
+                    resolvedText = eventText
+                        .replace(/\{player1\}/g, player1?.name ?? 'Joueur rouge')
+                        .replace(/\{player2\}/g, player2?.name ?? 'Joueur bleu');
+                } else if (eventText.includes('{player}')) {
+                    // {player} = un joueur au hasard parmi toutes les équipes
+                    const allPlayers = room.players.filter(p => p.team === 'red' || p.team === 'blue');
+                    const player = allPlayers.length > 0
+                        ? allPlayers[Math.floor(Math.random() * allPlayers.length)]
+                        : null;
+                    resolvedText = eventText
+                        .replace(/\{player\}/g, player?.name ?? 'Un joueur');
+                }
+
                 await prisma.$transaction([
                     prisma.roomEvent.update({
                         where: { id: nextEvent.id },
-                        data: { appearedAt: new Date(now) },
+                        data: { appearedAt: new Date(now), resolvedText },
                     }),
                     prisma.room.update({
                         where: { id: room.id },

@@ -220,7 +220,7 @@ export async function PUT(
         // Créer le snapshot des événements
         const eventsSnapshot = roomEvents.length > 0
             ? JSON.stringify(roomEvents.map(re => ({
-                text: re.event.text,
+                text: re.resolvedText || re.event.text,
                 type: re.event.type,
                 difficulty: re.event.difficulty,
                 points: re.event.points,

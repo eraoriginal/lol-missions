@@ -32,13 +32,15 @@ export function EventOverlay({ event, onDismiss }: EventOverlayProps) {
     });
     const hasAnnouncedRef = useRef(false);
 
+    const displayText = event.resolvedText || event.event.text;
+
     // TTS au mount
     useEffect(() => {
         if (hasAnnouncedRef.current) return;
         hasAnnouncedRef.current = true;
 
         if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-            const fullText = 'Événement spécial : ' + event.event.text;
+            const fullText = 'Événement spécial : ' + displayText;
 
             setTimeout(() => {
                 window.speechSynthesis.cancel();
@@ -56,7 +58,7 @@ export function EventOverlay({ event, onDismiss }: EventOverlayProps) {
                 window.speechSynthesis.speak(utterance);
             }, 100);
         }
-    }, [event.event.text]);
+    }, [displayText]);
 
     // Countdown basé sur appearedAt (server-authoritative, synchronisé multi-clients)
     useEffect(() => {
@@ -101,7 +103,7 @@ export function EventOverlay({ event, onDismiss }: EventOverlayProps) {
                 {/* Event card */}
                 <div className="bg-gradient-to-br from-amber-900/60 to-orange-950/60 border-2 border-amber-500/50 rounded-xl p-8 shadow-lg shadow-amber-500/20">
                     <p className="text-xl text-white leading-relaxed mb-6">
-                        {event.event.text}
+                        {displayText}
                     </p>
 
                     <div className="flex items-center justify-center gap-3">

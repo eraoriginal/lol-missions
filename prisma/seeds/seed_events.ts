@@ -17,11 +17,10 @@ async function main() {
     // EVENTS START (début de partie)
     // ========================================
     const startEvents = [
-        { text: "Etre la première équipe à mourir dans la fontaine adverse", type: "START", category: "Survie", difficulty: "easy", points: 100, duration: 60 },
-        { text: "Etre la première équipe à calculer : 10 + 19 - 56 + 47 - 13 -77 - 56 + 231 - 411 + 378 - 3", type: "START", category: "Combat", difficulty: "medium", points: 200, duration: 60 },
-        { text: "Etre la première équipe à calculer : 120 − 75 − 64 + 98 + 33 − 142 + 67 − 19", type: "START", category: "Combat", difficulty: "medium", points: 200, duration: 60 },
-        { text: "Etre la première équipe à calculer : 24 + 19 - 56 + 77 - 13 -77 - 12 + 231 - 257 + 378 - 3", type: "START", category: "Combat", difficulty: "medium", points: 200, duration: 60 },
+        { text: "Etre la première équipe à mourir dans la fontaine adverse. Interdiction d'infliger des dégats à l'équipe adverse. Si un joueur de ton équipe meurt avant d'atteindre la fontaine, c'est perdu", type: "START", category: "Survie", difficulty: "easy", points: 100, duration: 60 },
         { text: "Chaque équipe désigne son champion pour un duel! Vous devez encourager comme jamais votre coéquipier", type: "START", category: "Combat", difficulty: "hard", points: 500, duration: 60 },
+        { text: "1v1 : {player1} contre {player2} !", type: "START", category: "Combat", difficulty: "medium", points: 200, duration: 60 },
+        { text: "Si {player} meurt, l'équipe adverse remporte 500 points! {player} ne peut pas être derrière une tour alliée", type: "START", category: "Survie", difficulty: "hard", points: 500, duration: 60 },
     ];
 
     // ========================================
@@ -31,6 +30,8 @@ async function main() {
         { text: "Réaliser un ACE", type: "MID", category: "Combat", difficulty: "medium", points: 200, duration: 60 },
         { text: "Ton équipe entière doit mourir avant l'équipe adverse", type: "MID", category: "Build", difficulty: "medium", points: 200, duration: 60 },
         { text: "Chaque équipe désigne son champion pour un duel! Vous devez encourager comme jamais votre coéquipier", type: "MID", category: "Combat", difficulty: "hard", points: 500, duration: 60 },
+        { text: "1v1 : {player1} contre {player2} !", type: "MID", category: "Combat", difficulty: "medium", points: 200, duration: 60 },
+        { text: "Si {player} meurt, l'équipe adverse remporte 500 points! {player} ne peut pas être derrière une tour alliée", type: "MID", category: "Survie", difficulty: "hard", points: 500, duration: 60 },
 
     ];
 
@@ -41,6 +42,8 @@ async function main() {
         { text: "Etre la première équipe à réaliser un ACE", type: "LATE", category: "Combat", difficulty: "easy", points: 100, duration: 60 },
         { text: "Etre la première équipe à faire tomber la prochaine tour", type: "LATE", category: "Combat", difficulty: "medium", points: 200, duration: 60 },
         { text: "Chaque équipe désigne son champion pour un duel! Vous devez saucer comme jamais votre coéquipier", type: "LATE", category: "Combat", difficulty: "hard", points: 500, duration: 60 },
+        { text: "1v1 : {player1} contre {player2} !", type: "LATE", category: "Combat", difficulty: "medium", points: 200, duration: 60 },
+        { text: "Si {player} meurt, l'équipe adverse remporte 500 points! {player} ne peut pas être derrière une tour alliée", type: "LATE", category: "Survie", difficulty: "hard", points: 500, duration: 60 },
 
     ];
 
