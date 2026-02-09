@@ -68,6 +68,8 @@ export async function POST(
                 validationStatus: 'not_started',
                 winnerTeam: null,
                 victoryBonusPoints: 0,
+                eventPausedAt: null,
+                totalPausedDuration: 0,
             },
         });
 

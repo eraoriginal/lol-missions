@@ -11,9 +11,28 @@ interface TimerProps {
     lateMissionDelay: number;
     maxEventsPerGame?: number;
     roomEvents?: RoomEvent[];
+    eventPausedAt?: string | null;
+    totalPausedDuration?: number;
 }
 
-export function Timer({ gameStartTime, roomCode, gameStopped = false, midMissionDelay, lateMissionDelay, maxEventsPerGame = 0, roomEvents }: TimerProps) {
+function computeEffectiveElapsedClient(
+    gameStartTime: string,
+    totalPausedDuration: number,
+    eventPausedAt: string | null | undefined,
+    now: number = Date.now()
+): number {
+    const startMs = new Date(gameStartTime).getTime();
+    const wallElapsed = (now - startMs) / 1000;
+
+    let currentPauseDuration = 0;
+    if (eventPausedAt) {
+        currentPauseDuration = (now - new Date(eventPausedAt).getTime()) / 1000;
+    }
+
+    return Math.max(0, wallElapsed - totalPausedDuration - currentPauseDuration);
+}
+
+export function Timer({ gameStartTime, roomCode, gameStopped = false, midMissionDelay, lateMissionDelay, maxEventsPerGame = 0, roomEvents, eventPausedAt, totalPausedDuration = 0 }: TimerProps) {
     const [elapsed, setElapsed] = useState(0);
 
     // Utiliser des refs pour éviter les problèmes de closure dans l'interval
@@ -94,17 +113,19 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false, midMission
             return;
         }
 
-        const startTime = new Date(gameStartTime).getTime();
         console.log('[Timer] Starting interval, startTime:', gameStartTime);
 
         const interval = setInterval(() => {
             const now = Date.now();
-            const diff = now - startTime;
-            const elapsedSeconds = Math.floor(diff / 1000);
-            setElapsed(elapsedSeconds);
 
-            // Check MID missions
-            if (diff >= midMissionDelay * 1000) {
+            // Toujours calculer le temps effectif (tient compte des pauses)
+            const effectiveSeconds = computeEffectiveElapsedClient(
+                gameStartTime, totalPausedDuration, eventPausedAt, now
+            );
+            setElapsed(Math.floor(effectiveSeconds));
+
+            // Check MID missions (basé sur le temps effectif)
+            if (effectiveSeconds >= midMissionDelay) {
                 if (!midSoundPlayedRef.current) {
                     console.log('[Timer] MID reached — playing sound');
                     playSound('mid');
@@ -116,8 +137,8 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false, midMission
                 }
             }
 
-            // Check LATE missions
-            if (diff >= lateMissionDelay * 1000) {
+            // Check LATE missions (basé sur le temps effectif)
+            if (effectiveSeconds >= lateMissionDelay) {
                 if (!lateSoundPlayedRef.current) {
                     console.log('[Timer] LATE reached — playing sound');
                     playSound('late');
@@ -129,11 +150,21 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false, midMission
                 }
             }
 
-            // Check events
-            if (maxEventsPerGame > 0 && elapsedSeconds >= 30) {
-                const dueEvent = roomEvents?.find(re => re.scheduledAt <= elapsedSeconds && !re.appearedAt);
-                if (dueEvent && lastEventCheckRef.current < elapsedSeconds) {
-                    lastEventCheckRef.current = elapsedSeconds;
+            // Check events — basé sur le temps RÉEL (wall clock) pour détecter les expirations
+            const wallElapsed = (now - new Date(gameStartTime).getTime()) / 1000;
+            const realSeconds = Math.floor(wallElapsed);
+            if (maxEventsPerGame > 0 && realSeconds >= 30) {
+                // Vérifier si un événement actif a expiré
+                const activeEvt = roomEvents?.find(re => re.appearedAt && !re.endedAt);
+                const hasExpiredActive = activeEvt && (
+                    (now - new Date(activeEvt.appearedAt!).getTime()) / 1000 >= activeEvt.event.duration
+                );
+
+                // Vérifier si un événement est dû (basé sur temps effectif)
+                const dueEvent = roomEvents?.find(re => re.scheduledAt <= effectiveSeconds && !re.appearedAt);
+
+                if ((hasExpiredActive || dueEvent) && lastEventCheckRef.current < realSeconds) {
+                    lastEventCheckRef.current = realSeconds;
                     checkEvents();
                 }
             }
@@ -143,8 +174,9 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false, midMission
             console.log('[Timer] Clearing interval');
             clearInterval(interval);
         };
-    }, [gameStartTime, gameStopped, midMissionDelay, lateMissionDelay, maxEventsPerGame, roomEvents, playSound, checkMidMissions, checkLateMissions, checkEvents]);
+    }, [gameStartTime, gameStopped, midMissionDelay, lateMissionDelay, maxEventsPerGame, roomEvents, eventPausedAt, totalPausedDuration, playSound, checkMidMissions, checkLateMissions, checkEvents]);
 
+    const isPaused = !!eventPausedAt;
     const midDelayPassed = elapsed >= midMissionDelay;
     const lateDelayPassed = elapsed >= lateMissionDelay;
 
@@ -176,6 +208,12 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false, midMission
 
     return (
         <div className={`lol-card rounded-lg p-6 text-center transition-all duration-300 ${countdownColor}`}>
+            {isPaused && (
+                <div className="mb-3 p-2 bg-amber-900/50 border border-amber-500 text-amber-300 rounded-lg text-sm font-bold animate-pulse">
+                    ⏸ Timer en pause — Événement en cours
+                </div>
+            )}
+
             {lateDelayPassed ? (
                 <>
                     <h3 className="text-lg font-semibold text-red-400 mb-2 uppercase tracking-wider">

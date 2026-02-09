@@ -52,6 +52,8 @@ export async function POST(
                 gameStartTime: null,
                 gameStopped: false,
                 validationStatus: 'not_started',
+                eventPausedAt: null,
+                totalPausedDuration: 0,
             },
         });
 

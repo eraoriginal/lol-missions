@@ -14,6 +14,7 @@ model Event {
   category   String
   difficulty String   // 'easy', 'medium', 'hard'
   points     Int
+  duration   Int      @default(60) // durée en secondes pendant laquelle l'événement est actif
   createdAt  DateTime @default(now())
 
   roomEvents RoomEvent[]
@@ -55,6 +56,8 @@ model Room {
   victoryBonus        Boolean   @default(true)            // bonus de 0-500 pts pour l'équipe victorieuse
   missionChoiceCount  Int       @default(1)               // 1 = imposée, 2 ou 3 = choix parmi N missions
   maxEventsPerGame    Int       @default(0)               // 0-5, nombre d'événements aléatoires par partie
+  eventPausedAt       DateTime?                           // set quand un événement est actif (timer en pause)
+  totalPausedDuration Int       @default(0)               // durée totale en secondes passée en pause événements
   winnerTeam          String?                             // "red" ou "blue", null si pas encore défini
   victoryBonusPoints  Int       @default(0)              // points bonus attribués à l'équipe gagnante
   selectedCategories  String[]  @default([])             // catégories sélectionnées pour Codename
@@ -99,6 +102,7 @@ model RoomEvent {
   event             Event     @relation(fields: [eventId], references: [id])
   scheduledAt       Int       // secondes depuis gameStartTime
   appearedAt        DateTime? // null = pas encore apparu
+  endedAt           DateTime? // null = événement encore actif (ou pas encore apparu)
   redValidated      Boolean   @default(false)
   blueValidated     Boolean   @default(false)
   redDecided        Boolean   @default(false)

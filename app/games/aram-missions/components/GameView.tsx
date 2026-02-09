@@ -20,6 +20,8 @@ interface Room {
     missionVisibility: 'all' | 'team' | 'hidden';
     missionChoiceCount?: number;
     maxEventsPerGame?: number;
+    eventPausedAt?: string | null;
+    totalPausedDuration?: number;
     roomEvents?: RoomEvent[];
     players: any[];
 }
@@ -27,6 +29,39 @@ interface Room {
 interface GameViewProps {
     room: Room;
     roomCode: string;
+}
+
+// Composant pour un événement actif avec countdown live
+function ActiveEventCountdown({ event }: { event: RoomEvent }) {
+    const [remaining, setRemaining] = useState(() => {
+        if (event.appearedAt) {
+            const elapsed = (Date.now() - new Date(event.appearedAt).getTime()) / 1000;
+            return Math.max(0, Math.ceil(event.event.duration - elapsed));
+        }
+        return event.event.duration;
+    });
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (event.appearedAt) {
+                const elapsed = (Date.now() - new Date(event.appearedAt).getTime()) / 1000;
+                setRemaining(Math.max(0, Math.ceil(event.event.duration - elapsed)));
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [event.appearedAt, event.event.duration]);
+
+    const minutes = Math.floor(remaining / 60);
+    const seconds = remaining % 60;
+    const display = remaining >= 60
+        ? `${minutes}:${String(seconds).padStart(2, '0')}`
+        : `${remaining}s`;
+
+    return (
+        <span className="text-xs font-mono font-bold text-amber-300 bg-amber-900/60 px-2 py-0.5 rounded border border-amber-500/40">
+            ⏱ {display}
+        </span>
+    );
 }
 
 // Set global pour tracker les missions déjà annoncées (persiste entre les re-renders)
@@ -226,9 +261,12 @@ export function GameView({ room, roomCode }: GameViewProps) {
         }
     }, [room.gameStartTime]);
 
-    // Événements actifs (apparus mais pas encore dismissés)
+    // Événements apparus (pour la liste)
     const appearedEvents = (room.roomEvents || []).filter(re => re.appearedAt !== null);
-    const activeEvent = appearedEvents.find(re => !dismissedEventsRef.current.has(re.id));
+    // Événement actif en cours (apparu mais pas terminé)
+    const activeRoomEvent = appearedEvents.find(re => !re.endedAt);
+    // Overlay: événement actif non dismissé
+    const activeEvent = activeRoomEvent && !dismissedEventsRef.current.has(activeRoomEvent.id) ? activeRoomEvent : null;
 
     const handleDismissEvent = (eventId: string) => {
         dismissedEventsRef.current.add(eventId);
@@ -354,6 +392,8 @@ export function GameView({ room, roomCode }: GameViewProps) {
                     lateMissionDelay={room.lateMissionDelay}
                     maxEventsPerGame={room.maxEventsPerGame}
                     roomEvents={room.roomEvents}
+                    eventPausedAt={room.eventPausedAt}
+                    totalPausedDuration={room.totalPausedDuration}
                 />
             ) : (
                 <div className="lol-card rounded-lg p-8 text-center">
@@ -442,24 +482,28 @@ export function GameView({ room, roomCode }: GameViewProps) {
                 />
             )}
 
-            {/* Événements en cours */}
+            {/* Événements */}
             {room.gameStartTime && appearedEvents.length > 0 && (
                 <div className="lol-card rounded-lg p-5">
                     <h2 className="text-xl font-bold text-amber-400 mb-4 flex items-center gap-2">
-                        ⚡ Événements en cours
+                        ⚡ Événements
                     </h2>
                     <div className="space-y-3">
-                        {appearedEvents.map(re => (
-                            <div key={re.id} className="flex items-start gap-3 p-3 rounded-lg bg-amber-900/20 border border-amber-500/30">
-                                <span className="text-xl flex-shrink-0">⚡</span>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-amber-100 leading-relaxed">{re.event.text}</p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-xs text-amber-300 font-bold">+{re.event.points} pts</span>
+                        {appearedEvents.map(re => {
+                            const isActive = !re.endedAt;
+                            return (
+                                <div key={re.id} className={`flex items-start gap-3 p-3 rounded-lg ${isActive ? 'bg-amber-900/40 border-2 border-amber-500 animate-pulse' : 'bg-amber-900/20 border border-amber-500/30 opacity-60'}`}>
+                                    <span className="text-xl flex-shrink-0">{isActive ? '⚡' : '✅'}</span>
+                                    <div className="flex-1 min-w-0">
+                                        <p className={`leading-relaxed ${isActive ? 'text-amber-100' : 'text-amber-200/60'}`}>{re.event.text}</p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-xs text-amber-300 font-bold">+{re.event.points} pts</span>
+                                            {isActive && <ActiveEventCountdown event={re} />}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}
@@ -476,7 +520,7 @@ export function GameView({ room, roomCode }: GameViewProps) {
                 />
             )}
 
-            {/* Overlay d'événement */}
+            {/* Overlay d'événement (seulement pour événements actifs non terminés) */}
             {room.gameStartTime && activeEvent && !room.gameStopped && (
                 <EventOverlay
                     event={activeEvent}

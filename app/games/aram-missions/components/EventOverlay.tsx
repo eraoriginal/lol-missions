@@ -22,7 +22,14 @@ function getDifficultyStyle(difficulty: string) {
 }
 
 export function EventOverlay({ event, onDismiss }: EventOverlayProps) {
-    const [countdown, setCountdown] = useState(10);
+    const [countdown, setCountdown] = useState(() => {
+        // Calculer le countdown restant depuis appearedAt (server-authoritative)
+        if (event.appearedAt) {
+            const elapsed = (Date.now() - new Date(event.appearedAt).getTime()) / 1000;
+            return Math.max(0, Math.ceil(event.event.duration - elapsed));
+        }
+        return event.event.duration;
+    });
     const hasAnnouncedRef = useRef(false);
 
     // TTS au mount
@@ -51,22 +58,20 @@ export function EventOverlay({ event, onDismiss }: EventOverlayProps) {
         }
     }, [event.event.text]);
 
-    // Auto-dismiss countdown
+    // Countdown basé sur appearedAt (server-authoritative, synchronisé multi-clients)
     useEffect(() => {
         const interval = setInterval(() => {
-            setCountdown(prev => {
-                if (prev <= 1) {
-                    clearInterval(interval);
-                    return 0;
-                }
-                return prev - 1;
-            });
+            if (event.appearedAt) {
+                const elapsed = (Date.now() - new Date(event.appearedAt).getTime()) / 1000;
+                const remaining = Math.max(0, Math.ceil(event.event.duration - elapsed));
+                setCountdown(remaining);
+            }
         }, 1000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [event.appearedAt, event.event.duration]);
 
-    // Dismiss quand le countdown atteint 0, en dehors du state updater
+    // Auto-dismiss quand le countdown atteint 0
     useEffect(() => {
         if (countdown === 0) {
             onDismiss(event.id);
@@ -74,6 +79,13 @@ export function EventOverlay({ event, onDismiss }: EventOverlayProps) {
     }, [countdown, event.id, onDismiss]);
 
     const diff = getDifficultyStyle(event.event.difficulty);
+
+    // Format countdown en mm:ss si > 60s
+    const countdownMinutes = Math.floor(countdown / 60);
+    const countdownSeconds = countdown % 60;
+    const countdownDisplay = countdown >= 60
+        ? `${countdownMinutes}:${String(countdownSeconds).padStart(2, '0')}`
+        : `${countdown}s`;
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-md">
@@ -102,13 +114,18 @@ export function EventOverlay({ event, onDismiss }: EventOverlayProps) {
                     </div>
                 </div>
 
-                {/* Dismiss button */}
-                <button
-                    onClick={() => onDismiss(event.id)}
-                    className="mt-6 px-8 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg transition-all text-lg"
-                >
-                    Compris ({countdown}s)
-                </button>
+                {/* Countdown et bouton dismiss */}
+                <div className="mt-6 space-y-3">
+                    <div className="text-2xl font-bold font-mono text-amber-300">
+                        ⏱ {countdownDisplay}
+                    </div>
+                    <button
+                        onClick={() => onDismiss(event.id)}
+                        className="px-8 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg transition-all text-lg"
+                    >
+                        Compris
+                    </button>
+                </div>
             </div>
         </div>
     );

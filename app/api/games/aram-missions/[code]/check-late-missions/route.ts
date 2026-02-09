@@ -4,6 +4,7 @@ import { pushRoomUpdate } from '@/lib/pusher';
 import { filterPrivateMissions } from '@/lib/filterPrivateMissions';
 import { assignBalancedMissions, assignBalancedMissionChoices, processDuelMissions } from '@/lib/balancedMissionAssignment';
 import { resolvePlayerPlaceholder } from '@/lib/resolvePlayerPlaceholder';
+import { computeEffectiveElapsed } from '@/lib/gameTime';
 
 export async function POST(
     request: NextRequest,
@@ -42,18 +43,21 @@ export async function POST(
             );
         }
 
-        const elapsed = Date.now() - new Date(room.gameStartTime).getTime();
-        const lateDelayMs = room.lateMissionDelay * 1000;
-        const shouldAssign = elapsed >= lateDelayMs;
+        const effectiveElapsed = computeEffectiveElapsed(
+            room.gameStartTime,
+            room.totalPausedDuration,
+            room.eventPausedAt,
+        );
+        const shouldAssign = effectiveElapsed >= room.lateMissionDelay;
 
-        console.log(`[check-late-missions] Room ${code}: elapsed=${Math.floor(elapsed/1000)}s, shouldAssign=${shouldAssign}, delay=${room.lateMissionDelay}s`);
+        console.log(`[check-late-missions] Room ${code}: effectiveElapsed=${Math.floor(effectiveElapsed)}s, shouldAssign=${shouldAssign}, delay=${room.lateMissionDelay}s`);
 
         // Si pas encore le moment
         if (!shouldAssign) {
             return Response.json({
                 message: 'Not time yet',
                 shouldAssign: false,
-                elapsed: Math.floor(elapsed / 1000),
+                elapsed: Math.floor(effectiveElapsed),
                 required: room.lateMissionDelay,
             });
         }

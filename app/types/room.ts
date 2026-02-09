@@ -55,6 +55,7 @@ export interface RoomEvent {
     id: string;
     scheduledAt: number;
     appearedAt: string | null;
+    endedAt: string | null;
     redValidated: boolean;
     blueValidated: boolean;
     redDecided: boolean;
@@ -68,6 +69,7 @@ export interface RoomEvent {
         category: string;
         difficulty: string;
         points: number;
+        duration: number;
     };
 }
 
@@ -85,6 +87,8 @@ export interface Room {
     victoryBonus: boolean;
     missionChoiceCount: number;
     maxEventsPerGame: number;
+    eventPausedAt: string | null;
+    totalPausedDuration: number;
     winnerTeam?: string | null;
     victoryBonusPoints: number;
     creatorToken?: string;
