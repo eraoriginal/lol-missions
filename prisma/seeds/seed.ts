@@ -103,9 +103,9 @@ async function main() {
         // 🔒 Missions secrètes
         // { text: "Acheter uniquement des objets qui commencent par la lettre de ton champion (hors bottes)",     type: "START", category: "items",        difficulty: "hard", points: 300, isPrivate: true, maps: "all" },
         { text: "Ne pas faire plus de 7 kills",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 300, isPrivate: true, maps: "all"  },
-        { text: "Ne pas faire plus de 11 kills",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 300, isPrivate: true, maps: "all"  },
+        { text: "Ne pas faire plus de 11 kills",                                     type: "START", category: "Précision",   difficulty: "medium",   points: 200, isPrivate: true, maps: "all"  },
         { text: "Convaincre Thomas qu'on s'amuse bien en ARAM. Le faire 3 fois. Si tu es Thomas, demande pardon à tout le monde.",                                     type: "START", category: "Vocal",   difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
-        { text: "Avoir le plus de morts de la partie. Tu ne dois pas être à égalité avec un autre joueur",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 300, isPrivate: true, maps: "all"  },
+        { text: "Avoir le plus de morts de la partie. Tu ne dois pas être à égalité avec un autre joueur",                                     type: "START", category: "Précision",   difficulty: "medium",   points: 200, isPrivate: true, maps: "all"  },
         { text: "Avoir le moins de morts de la partie. Tu ne dois pas être à égalité avec un autre joueur",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 300, isPrivate: true, maps: "all"  },
         { text: "Faire danser toute ton équipe en début de partie sans révéler ta mission",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 300, isPrivate: true, maps: "all"  },
         { text: "Faire un check avec toute ton équipe au spawn sans révéler ta mission",                                     type: "START", category: "Précision",   difficulty: "hard",   points: 300, isPrivate: true, maps: "all"  },
@@ -140,7 +140,7 @@ async function main() {
         { text: "Avoir plus de morts que {player}", type: "START", category: "Survie", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
         { text: "Faire plus de dégâts que {player}", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
         { text: "Faire moins de dégâts que {player}", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
-        { text: "Se faire tuer par {player} dès que tu spawn", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
+        { text: "Se faire tuer par {player} dès que tu spawn (1 spawn possible)", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
     ];
 
     // ========================================
@@ -162,12 +162,14 @@ async function main() {
         { text: "Change ton build et imite celui d'un coéquipier jusqu'à la fin",                            type: "MID", category: "Build",        difficulty: "medium", points: 200, isPrivate: false, maps: "all" },
         { text: "Acheter 5 chapeaux",                                                  type: "MID", category: "items",      difficulty: "easy",   points: 100, isPrivate: false, maps: "all" },
         { text: "Vendre ses bottes et ne pas utiliser la fonction Annuler",                                                  type: "MID", category: "items",      difficulty: "easy",   points: 100, isPrivate: false, maps: "all" },
-        { text: "Retourne à la fontaine à pied, puis retourne auprès de tes coéquipiers sans utiliser de téléportation",                                  type: "MID", category: "Troll",       difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
+        { text: "Retourne à la fontaine à pieds, puis retourne auprès de tes coéquipiers, à pieds aussi bien sûr",                                  type: "MID", category: "Troll",       difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
         { text: "Ne pas mourir pendant 5 minutes, tu dois annoncer la mission en vocal",        type: "MID", category: "Survie",        difficulty: "hard", points: 300, isPrivate: false, maps: "all" },
         { text: "Se faire exécuter d'ici la fin de la partie, tu dois annoncer la mission en vocal",        type: "MID", category: "Suicide",        difficulty: "hard", points: 300, isPrivate: false, maps: "all" },
         { text: "Vendre un objet complet (hors bottes) et ne pas utiliser la fonction Annuler",                 type: "MID", category: "Troll",         difficulty: "medium", points: 200, isPrivate: false, maps: "all"  },
         { text: "Flash dans un mur, si pas de flash alors utilise tes 2 sorts d'invocateur immédiatement",                                  type: "MID", category: "Troll",         difficulty: "easy",   points: 100, isPrivate: false, maps: "all"  },
-
+        { text: "Donner un surnom à chaque ennemi et ne les appeler que par ce surnom en vocal", type: "MID", category: "Vocal", difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
+        { text: "Donner un surnom à chaque coéquipier et ne les appeler que par ce surnom en vocal", type: "MID", category: "Vocal", difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
+        { text: "Ne plus utiliser ton clavier pendant 2 minutes (souris uniquement)", type: "MID", category: "Combat",         difficulty: "easy",   points: 100, isPrivate: false, maps: "all"  },
 
         // 🔒 Missions secrètes
         { text: "Insulter et provoquer l'équipe adverse en vocal",                       type: "MID", category: "Toxic",       difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
@@ -189,14 +191,23 @@ async function main() {
         { text: "Regarder ses coéquipiers mourir et taunt avec au moins 80% de barre de vie",                             type: "MID", category: "Combat", difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
         { text: "Alft F4 en plein teamfight",                             type: "MID", category: "Combat", difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
         { text: "Remercier Era pour ce jeu incroyable", type: "MID", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true, maps: "all" },
+        { text: "La somme de tes kills + morts doit être égal à 27 exactement", type: "MID", category: "Précision", difficulty: "hard", points: 300, isPrivate: true, maps: "all" },
+        { text: "Raconter l'histoire de ta journée en détail pendant un teamfight", type: "MID", category: "Troll", difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
+        { text: "Dire 'selon mon analyse...' avant chaque prise de décision en vocal", type: "MID", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
+        { text: "Faire un bilan mi-temps en vocal comme un commentateur de foot (stats, classement, pronostic)", type: "MID", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
+        { text: "Crier 'PENTAKILL' à chaque kill, même si c'est le premier", type: "MID", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
 
         // 🎭 Missions avec placeholder joueur
         { text: "Demander à {player} de t'apprendre le Q-click jusqu'à ce qu'il accepte", type: "MID", category: "Troll", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "teammate" },
         { text: "Suivre {player} partout pendant 2 minutes (jamais à plus de 500 unités)", type: "MID", category: "Troll", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "teammate" },
         { text: "Défendre {player} à chaque fois qu'il se fait attaquer verbalement", type: "MID", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "teammate" },
         { text: "Annoncer chaque action de {player} comme un commentateur sportif", type: "MID", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "any" },
+        { text: "Convaincre {player} de duoQ", type: "MID", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "any" },
+        { text: "Chaque fois que {player} meurt, tu dois écrire une phrase poétique dans le chat", type: "MID", category: "Poésie", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "any" },
+        { text: "Rédiger un bulletin scolaire de {player} en vocal, avec appréciation du prof", type: "MID", category: "Notation", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "any" },
 
         // ⚔️ Missions duel (même mission pour 2 joueurs adverses)
+        { text: "Tu dois être le prochain joueur à tuer {player}", type: "MID", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
 
     ];
 
