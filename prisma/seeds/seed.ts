@@ -40,7 +40,6 @@ async function main() {
         { text: "Acheter un maximum l'objet Collier rafraîchissant en début de partie. Vente autorisée après la seconde mort",                       type: "START", category: "Handicap",    difficulty: "easy", points: 100, isPrivate: false, maps: "all"  },
         { text: "Acheter un maximum l'objet Tome d'amplification en début de partie. Vente autorisée après la seconde mort",                       type: "START", category: "Handicap",    difficulty: "easy", points: 100, isPrivate: false, maps: "all"  },
         { text: "Acheter un maximum l'objet Potion en début de partie. Vente autorisée après la seconde mort",                       type: "START", category: "Handicap",    difficulty: "easy", points: 100, isPrivate: false, maps: "all"  },
-        { text: "Acheter un maximum l'objet Botte en début de partie. Vente autorisée après la seconde mort",                       type: "START", category: "Handicap",    difficulty: "easy", points: 100, isPrivate: false, maps: "all"  },
         { text: "Augmente en priorité le sort A", type: "START", category: "Handicap",        difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
         { text: "Augmente en priorité le sort Z", type: "START", category: "Handicap",        difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
         { text: "Augmente en priorité le sort E", type: "START", category: "Handicap",        difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
