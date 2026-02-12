@@ -358,24 +358,12 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
 
                         return (
                         <div key={re.id} className="lol-card rounded-lg p-5 border border-amber-500/30">
-                            <p className="text-amber-100 leading-relaxed mb-4 text-lg">{re.event.text}</p>
+                            <p className="text-amber-100 leading-relaxed mb-4 text-lg">{re.resolvedText || re.event.text}</p>
                             <div className="flex items-center gap-2 mb-4">
                                 <span className="text-sm font-bold text-amber-300">+{re.event.points} pts</span>
                             </div>
 
                             <div className="grid grid-cols-3 gap-2">
-                                <button
-                                    onClick={() => sendEventDecision(re.id, 'red')}
-                                    className={`p-3 rounded-lg font-bold text-sm transition-all border-2 ${
-                                        decided && winner === 'red'
-                                            ? 'bg-red-600 border-red-400 text-white shadow-lg shadow-red-500/30'
-                                            : decided && winner !== 'red'
-                                                ? 'bg-red-900/20 border-red-500/20 text-red-400/50'
-                                                : 'bg-red-900/30 border-red-500/30 text-red-400 hover:bg-red-900/50 hover:border-red-500/50'
-                                    }`}
-                                >
-                                    🔴 Rouge
-                                </button>
                                 <button
                                     onClick={() => sendEventDecision(re.id, 'blue')}
                                     className={`p-3 rounded-lg font-bold text-sm transition-all border-2 ${
@@ -399,6 +387,18 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
                                     }`}
                                 >
                                     ❌ Aucune
+                                </button>
+                                <button
+                                    onClick={() => sendEventDecision(re.id, 'red')}
+                                    className={`p-3 rounded-lg font-bold text-sm transition-all border-2 ${
+                                        decided && winner === 'red'
+                                            ? 'bg-red-600 border-red-400 text-white shadow-lg shadow-red-500/30'
+                                            : decided && winner !== 'red'
+                                                ? 'bg-red-900/20 border-red-500/20 text-red-400/50'
+                                                : 'bg-red-900/30 border-red-500/30 text-red-400 hover:bg-red-900/50 hover:border-red-500/50'
+                                    }`}
+                                >
+                                    🔴 Rouge
                                 </button>
                             </div>
 

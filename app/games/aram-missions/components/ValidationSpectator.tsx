@@ -119,21 +119,12 @@ export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps
 
                         return (
                         <div key={re.id} className="lol-card rounded-lg p-5 border border-amber-500/30">
-                            <p className="text-amber-100 leading-relaxed mb-4 text-lg">{re.event.text}</p>
+                            <p className="text-amber-100 leading-relaxed mb-4 text-lg">{re.resolvedText || re.event.text}</p>
                             <div className="flex items-center gap-2 mb-4">
                                 <span className="text-sm font-bold text-amber-300">+{re.event.points} pts</span>
                             </div>
 
                             <div className="grid grid-cols-3 gap-2">
-                                <div className={`p-3 rounded-lg font-bold text-sm text-center border-2 ${
-                                    decided && winner === 'red'
-                                        ? 'bg-red-600 border-red-400 text-white shadow-lg shadow-red-500/30'
-                                        : decided && winner !== 'red'
-                                            ? 'bg-red-900/20 border-red-500/20 text-red-400/50'
-                                            : 'bg-red-900/30 border-red-500/30 text-red-400'
-                                }`}>
-                                    🔴 Rouge
-                                </div>
                                 <div className={`p-3 rounded-lg font-bold text-sm text-center border-2 ${
                                     decided && winner === 'blue'
                                         ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-500/30'
@@ -151,6 +142,15 @@ export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps
                                             : 'bg-gray-900/30 border-gray-500/30 text-gray-400'
                                 }`}>
                                     ❌ Aucune
+                                </div>
+                                <div className={`p-3 rounded-lg font-bold text-sm text-center border-2 ${
+                                    decided && winner === 'red'
+                                        ? 'bg-red-600 border-red-400 text-white shadow-lg shadow-red-500/30'
+                                        : decided && winner !== 'red'
+                                            ? 'bg-red-900/20 border-red-500/20 text-red-400/50'
+                                            : 'bg-red-900/30 border-red-500/30 text-red-400'
+                                }`}>
+                                    🔴 Rouge
                                 </div>
                             </div>
 
