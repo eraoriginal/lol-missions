@@ -82,8 +82,15 @@ export async function POST(
         }
 
         // Récupère toutes les missions LATE disponibles (y compris duel)
+        const playerCount = room.players.length;
         const lateMissions = await prisma.mission.findMany({
-            where: { type: 'LATE', OR: [{ maps: room.gameMap }, { maps: 'all' }] },
+            where: {
+                type: 'LATE',
+                AND: [
+                    { OR: [{ maps: room.gameMap }, { maps: 'all' }] },
+                    { OR: [{ minPlayers: null }, { minPlayers: { lte: playerCount } }] },
+                ],
+            },
         });
 
         const missionChoiceCount = room.missionChoiceCount ?? 1;

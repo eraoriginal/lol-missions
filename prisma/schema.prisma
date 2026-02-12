@@ -30,6 +30,7 @@ model Mission {
   difficulty        String   // 'easy', 'medium', 'hard'
   points            Int      // 100 (easy), 200 (medium), 300 (hard)
   isPrivate         Boolean  @default(false)
+  minPlayers        Int?     // nombre minimum de joueurs requis (null = pas de minimum)
   maps              String   @default("all")   // "howling_abyss", "summoners_rift" ou "all"
   playerPlaceholder String?  // null, "teammate", "opponent", "any", "duel" - si présent, {player} dans le texte sera remplacé. "duel" = même mission pour 2 joueurs d'équipes opposées
   createdAt         DateTime @default(now())

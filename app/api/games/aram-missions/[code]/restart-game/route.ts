@@ -47,7 +47,16 @@ export async function POST(
         });
 
         // Récupère et mélange les missions START
-        const startMissions = await prisma.mission.findMany({ where: { type: 'START', OR: [{ maps: room.gameMap }, { maps: 'all' }] } });
+        const playerCount = room.players.length;
+        const startMissions = await prisma.mission.findMany({
+            where: {
+                type: 'START',
+                AND: [
+                    { OR: [{ maps: room.gameMap }, { maps: 'all' }] },
+                    { OR: [{ minPlayers: null }, { minPlayers: { lte: playerCount } }] },
+                ],
+            },
+        });
 
         const missionChoiceCount = room.missionChoiceCount ?? 1;
 

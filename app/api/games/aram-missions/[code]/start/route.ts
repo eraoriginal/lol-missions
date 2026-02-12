@@ -52,8 +52,15 @@ export async function POST(
         console.log('[START] room.players:', room.players.map(p => ({ id: p.id, name: p.name, team: p.team })));
 
         // Récupère les missions START (y compris les missions duel)
+        const playerCount = room.players.length;
         const startMissions = await prisma.mission.findMany({
-            where: { type: 'START', OR: [{ maps: room.gameMap }, { maps: 'all' }] }
+            where: {
+                type: 'START',
+                AND: [
+                    { OR: [{ maps: room.gameMap }, { maps: 'all' }] },
+                    { OR: [{ minPlayers: null }, { minPlayers: { lte: playerCount } }] },
+                ],
+            },
         });
 
         const missionChoiceCount = room.missionChoiceCount ?? 1;
