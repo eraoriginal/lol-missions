@@ -3,6 +3,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RoomEvent } from '@/app/types/room';
 
+const EVENT_MUSIC_MAP: Record<string, string> = {
+    '1V1': '/sounds/aram-missions/1v1_music.mp3',
+    '2V2': '/sounds/aram-missions/2v2_music.mp3',
+    '3V3': '/sounds/aram-missions/3v3_music.mp3',
+};
+
 interface EventOverlayProps {
     event: RoomEvent;
     onDismiss: (eventId: string) => void;
@@ -31,10 +37,23 @@ export function EventOverlay({ event, onDismiss }: EventOverlayProps) {
         return event.event.duration;
     });
     const hasAnnouncedRef = useRef(false);
+    const musicRef = useRef<HTMLAudioElement | null>(null);
 
     const displayText = event.resolvedText || event.event.text;
 
-    // TTS au mount
+    const playEventMusic = () => {
+        const musicCode = event.event.music;
+        if (!musicCode) return;
+        const musicPath = EVENT_MUSIC_MAP[musicCode];
+        if (!musicPath) return;
+
+        const audio = new Audio(musicPath);
+        audio.volume = 0.5;
+        musicRef.current = audio;
+        audio.play().catch(() => {});
+    };
+
+    // TTS au mount + musique après le TTS
     useEffect(() => {
         if (hasAnnouncedRef.current) return;
         hasAnnouncedRef.current = true;
@@ -55,9 +74,21 @@ export function EventOverlay({ event, onDismiss }: EventOverlayProps) {
                     utterance.voice = frenchVoice;
                 }
 
+                utterance.onend = () => playEventMusic();
+
                 window.speechSynthesis.speak(utterance);
             }, 100);
+        } else {
+            // Pas de TTS disponible : délai de 1s avant la musique
+            setTimeout(() => playEventMusic(), 1000);
         }
+
+        return () => {
+            if (musicRef.current) {
+                musicRef.current.pause();
+                musicRef.current = null;
+            }
+        };
     }, [displayText]);
 
     // Countdown basé sur appearedAt (server-authoritative, synchronisé multi-clients)

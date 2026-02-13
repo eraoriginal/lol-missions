@@ -18,7 +18,10 @@ export async function POST(
         const body = await request.json();
         const { creatorToken } = launchSchema.parse(body);
 
-        const room = await prisma.room.findUnique({ where: { code } });
+        const room = await prisma.room.findUnique({
+            where: { code },
+            include: { players: true },
+        });
 
         if (!room) {
             return Response.json({ error: 'Room not found' }, { status: 404 });
@@ -53,7 +56,8 @@ export async function POST(
             });
 
             if (schedule.length > 0) {
-                // Récupérer les événements disponibles par type
+                // Récupérer les événements disponibles par type, filtrés par minPlayers
+                const playerCount = room.players.filter(p => p.team === 'red' || p.team === 'blue').length;
                 const usedEventIds: string[] = [];
 
                 for (const slot of schedule) {
@@ -61,6 +65,7 @@ export async function POST(
                         where: {
                             type: slot.type,
                             id: { notIn: usedEventIds },
+                            OR: [{ minPlayers: null }, { minPlayers: { lte: playerCount } }],
                         },
                     });
 

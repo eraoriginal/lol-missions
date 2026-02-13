@@ -71,6 +71,7 @@ export interface RoomEvent {
         difficulty: string;
         points: number;
         duration: number;
+        music: string | null;
     };
 }
 

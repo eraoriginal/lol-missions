@@ -89,19 +89,20 @@ export async function POST(
                 // Résoudre les placeholders si présents
                 let resolvedText: string | null = null;
                 const eventText = nextEvent.event.text;
-                if (eventText.includes('{player1}') || eventText.includes('{player2}')) {
-                    // {player1} = joueur rouge au hasard, {player2} = joueur bleu au hasard
-                    const redPlayers = room.players.filter(p => p.team === 'red');
-                    const bluePlayers = room.players.filter(p => p.team === 'blue');
-                    const player1 = redPlayers.length > 0
-                        ? redPlayers[Math.floor(Math.random() * redPlayers.length)]
-                        : null;
-                    const player2 = bluePlayers.length > 0
-                        ? bluePlayers[Math.floor(Math.random() * bluePlayers.length)]
-                        : null;
+                const redPlayers = room.players.filter(p => p.team === 'red');
+                const bluePlayers = room.players.filter(p => p.team === 'blue');
+
+                if (eventText.includes('{red1}') || eventText.includes('{blue1}')) {
+                    // 1v1, 2v2 ou 3v3 : sélectionner N joueurs par équipe
+                    const shuffledRed = [...redPlayers].sort(() => Math.random() - 0.5);
+                    const shuffledBlue = [...bluePlayers].sort(() => Math.random() - 0.5);
                     resolvedText = eventText
-                        .replace(/\{player1\}/g, player1?.name ?? 'Joueur rouge')
-                        .replace(/\{player2\}/g, player2?.name ?? 'Joueur bleu');
+                        .replace(/\{red1\}/g, shuffledRed[0]?.name ?? 'Joueur rouge 1')
+                        .replace(/\{red2\}/g, shuffledRed[1]?.name ?? 'Joueur rouge 2')
+                        .replace(/\{red3\}/g, shuffledRed[2]?.name ?? 'Joueur rouge 3')
+                        .replace(/\{blue1\}/g, shuffledBlue[0]?.name ?? 'Joueur bleu 1')
+                        .replace(/\{blue2\}/g, shuffledBlue[1]?.name ?? 'Joueur bleu 2')
+                        .replace(/\{blue3\}/g, shuffledBlue[2]?.name ?? 'Joueur bleu 3');
                 } else if (eventText.includes('{player}')) {
                     // {player} = un joueur au hasard parmi toutes les équipes
                     const allPlayers = room.players.filter(p => p.team === 'red' || p.team === 'blue');

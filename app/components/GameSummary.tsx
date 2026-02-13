@@ -262,13 +262,13 @@ export function GameSummary({ players, victoryBonus, winnerTeam: bonusWinnerTeam
                     <h3 className="text-xl font-bold text-amber-400 uppercase tracking-wide mb-4">
                         ⚡ Événements
                     </h3>
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
                         {roomEvents.map((re) => {
                             const winner = re.redValidated ? 'red' : re.blueValidated ? 'blue' : 'none';
 
                             return (
-                            <div key={re.id} className="bg-amber-900/20 border border-amber-500/30 rounded-lg p-4">
-                                <p className="text-amber-100 leading-relaxed mb-3">{re.resolvedText || re.event.text}</p>
+                            <div key={re.id} className="bg-amber-900/20 border border-amber-500/30 rounded-lg p-4 flex flex-col justify-between">
+                                <p className="text-amber-100 text-sm leading-relaxed mb-3">{re.resolvedText || re.event.text}</p>
                                 <div className={`p-2 rounded text-center text-sm font-semibold ${
                                     winner === 'red'
                                         ? 'bg-red-900/40 text-red-300 border border-red-500/30'
