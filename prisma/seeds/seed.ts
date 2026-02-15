@@ -203,6 +203,7 @@ async function main() {
         { text: "Défendre {player} à chaque fois qu'il se fait attaquer verbalement", type: "MID", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "teammate" },
         { text: "Annoncer chaque action de {player} comme un commentateur sportif", type: "MID", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "any" },
         { text: "Convaincre {player} de duoQ", type: "MID", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "any" },
+        { text: "Supplier {player} de duoQ. J'insite sur le terme supplier. Il doit refuser ", type: "MID", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "any" },
         { text: "Chaque fois que {player} meurt, tu dois écrire une phrase poétique dans le chat", type: "MID", category: "Poésie", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "any" },
         { text: "Rédiger un bulletin scolaire de {player} en vocal, avec appréciation du prof", type: "MID", category: "Notation", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "any" },
 
