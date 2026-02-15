@@ -147,14 +147,14 @@ export async function PUT(
         }
 
         // Tirage aléatoire pondéré du bonus de victoire
-        // 0: 15%, 100: 20%, 200: 20%, 300: 20%, 400: 15%, 500: 10%
+        // 0: 23%, 100: 24%, 200: 23%, 300: 15%, 400: 10%, 500: 5%
         const weightedBonus = [
-            { points: 0,   weight: 15 },
-            { points: 100, weight: 20 },
-            { points: 200, weight: 20 },
-            { points: 300, weight: 20 },
-            { points: 400, weight: 15 },
-            { points: 500, weight: 10 },
+            { points: 0,   weight: 23 },
+            { points: 100, weight: 24 },
+            { points: 200, weight: 23 },
+            { points: 300, weight: 15 },
+            { points: 400, weight: 10 },
+            { points: 500, weight: 5 },
         ];
         let randomBonus = 0;
         if (winnerTeam) {
