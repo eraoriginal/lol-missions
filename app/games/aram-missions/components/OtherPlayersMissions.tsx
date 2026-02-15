@@ -126,7 +126,7 @@ export function OtherPlayersMissions({
                             {/* Colonne 1: Pseudo */}
                             <div className="flex items-center gap-2 min-w-0">
                                 {player.avatar ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
+
                                     <img
                                         src={player.avatar}
                                         alt={player.name}

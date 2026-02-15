@@ -520,7 +520,7 @@ export function GameView({ room, roomCode }: GameViewProps) {
                             <div className="space-y-1">
                                 {room.players.filter((p) => p.team === 'red').map((p) => (
                                     <div key={p.id} className="flex items-center gap-2 text-sm text-red-200">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+
                                         {p.avatar && <img src={p.avatar} alt={p.name} className="w-6 h-6 rounded-full" />}
                                         <span className={p.token === playerToken ? 'font-bold' : ''}>{p.name}</span>
                                     </div>
@@ -532,7 +532,7 @@ export function GameView({ room, roomCode }: GameViewProps) {
                             <div className="space-y-1">
                                 {room.players.filter((p) => p.team === 'blue').map((p) => (
                                     <div key={p.id} className="flex items-center gap-2 text-sm text-blue-200">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+
                                         {p.avatar && <img src={p.avatar} alt={p.name} className="w-6 h-6 rounded-full" />}
                                         <span className={p.token === playerToken ? 'font-bold' : ''}>{p.name}</span>
                                     </div>

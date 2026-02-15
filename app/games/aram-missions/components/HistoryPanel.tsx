@@ -191,7 +191,7 @@ function PlayerCard({ player, getMissionIcon }: { player: PlayerSnapshot; getMis
         <div className="bg-[#1E2328]/50 rounded-lg p-2 border border-[#C8AA6E]/10">
             <div className="flex items-center gap-2 mb-1">
                 {player.avatar ? (
-                    // eslint-disable-next-line @next/next/no-img-element
+
                     <img
                         src={player.avatar}
                         alt={player.name}

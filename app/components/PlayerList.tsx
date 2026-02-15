@@ -27,7 +27,7 @@ export function PlayerList({ players }: PlayerListProps) {
                         <div className="flex items-center gap-3">
                             {player.avatar ? (
                                 <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#C8AA6E] flex-shrink-0">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+
                                     <img
                                         src={player.avatar}
                                         alt={player.name}

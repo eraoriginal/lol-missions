@@ -116,7 +116,7 @@ function TeamBlock({
                                 <div className="flex items-center gap-2">
                                     <span className="lol-text text-sm font-bold w-5 text-center">#{i + 1}</span>
                                     {player.avatar ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
+
                                         <img src={player.avatar} alt={player.name} className="w-12 h-12 rounded-full border border-[#C8AA6E]" />
                                     ) : (
                                         <div className="w-12 h-12 bg-gradient-to-br from-[#C8AA6E] to-[#785A28] rounded-full flex items-center justify-center text-[#010A13] font-bold text-sm">
@@ -320,7 +320,7 @@ export function GameSummary({ players, victoryBonus, winnerTeam: bonusWinnerTeam
                             <div key={player.id} className="flex items-center justify-between bg-[#010A13]/50 rounded-lg p-3 border border-[#C8AA6E]/20">
                                 <div className="flex items-center gap-3">
                                     {player.avatar ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
+
                                         <img src={player.avatar} alt={player.name} className="w-9 h-9 rounded-full border border-[#C8AA6E]" />
                                     ) : (
                                         <div className="w-9 h-9 bg-gradient-to-br from-[#C8AA6E] to-[#785A28] rounded-full flex items-center justify-center text-[#010A13] font-bold text-sm">

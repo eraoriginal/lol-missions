@@ -285,7 +285,7 @@ export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps
                 <div className="lol-card rounded-lg p-5 border-2 border-[#0AC8B9]/50 shadow-lg shadow-[#0AC8B9]/20">
                     <div className="flex items-center gap-3 mb-4">
                         {currentPlayer.avatar ? (
-                            // eslint-disable-next-line @next/next/no-img-element
+
                             <img
                                 src={currentPlayer.avatar}
                                 alt={currentPlayer.name}
@@ -319,7 +319,7 @@ export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps
                             <div key={p.id} className="flex items-center justify-between bg-[#010A13]/50 rounded-lg p-3 border border-[#C8AA6E]/20">
                                 <div className="flex items-center gap-3">
                                     {p.avatar ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
+            
                                         <img src={p.avatar} alt={p.name} className="w-9 h-9 rounded-full border border-[#C8AA6E]" />
                                     ) : (
                                         <div className="w-9 h-9 bg-gradient-to-br from-[#C8AA6E] to-[#785A28] rounded-full flex items-center justify-center text-[#010A13] font-bold text-sm">
