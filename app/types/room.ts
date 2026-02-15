@@ -4,11 +4,17 @@ export interface Mission {
     type: string;
     category: string;
     difficulty: string;
+    points: number;
+    isPrivate: boolean;
 }
 
 export interface PlayerMission {
     mission: Mission;
     type: 'START' | 'MID' | 'LATE';
+    validated: boolean;
+    decided: boolean;
+    pointsEarned: number;
+    resolvedText?: string;
 }
 
 export interface PendingChoice {
@@ -25,7 +31,7 @@ export interface Player {
     avatar: string;
     team: string;
     role: string | null;
-    missions: any[];
+    missions: PlayerMission[];
     pendingChoices?: PendingChoice[];
 }
 

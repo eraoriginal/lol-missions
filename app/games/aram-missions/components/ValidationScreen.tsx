@@ -3,13 +3,156 @@
 import { useState, useEffect } from 'react';
 import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
 
+interface MissionDataV {
+    id: string;
+    text: string;
+    type: string;
+    category: string;
+    difficulty: string;
+    points: number;
+    isPrivate: boolean;
+}
+
+interface PlayerMissionV {
+    type: string;
+    decided: boolean;
+    validated: boolean;
+    pointsEarned: number;
+    resolvedText?: string;
+    mission: MissionDataV;
+}
+
+interface PlayerV {
+    id: string;
+    name: string;
+    avatar: string;
+    team: string;
+    token?: string;
+    missions: PlayerMissionV[];
+}
+
+interface RoomEventV {
+    id: string;
+    appearedAt: string | null;
+    resolvedText?: string | null;
+    redDecided: boolean;
+    redValidated: boolean;
+    blueValidated: boolean;
+    event: { text: string; points: number; duration: number };
+}
+
+interface ValidationScreenRoom {
+    validationStatus?: string;
+    winnerTeam?: string | null;
+    victoryBonus?: boolean;
+    players: PlayerV[];
+    roomEvents?: RoomEventV[];
+}
+
 interface ValidationScreenProps {
-    room: any;
+    room: ValidationScreenRoom;
     roomCode: string;
 }
 
+function getMissionIcon(type: string) {
+    if (type === 'START') return '⚔️';
+    if (type === 'MID') return '⚡';
+    return '🔥';
+}
+
+function getMissionLabel(type: string) {
+    if (type === 'START') return 'Début';
+    if (type === 'MID') return 'MID';
+    return 'Finale';
+}
+
+function getMissionColor(type: string) {
+    if (type === 'START') return 'blue';
+    if (type === 'MID') return 'purple';
+    return 'red';
+}
+
+function getDifficultyStyle(difficulty: string) {
+    switch (difficulty) {
+        case 'easy':
+            return { bg: 'bg-green-600/80', text: 'text-green-100', label: 'Facile' };
+        case 'medium':
+            return { bg: 'bg-yellow-600/80', text: 'text-yellow-100', label: 'Moyen' };
+        case 'hard':
+            return { bg: 'bg-red-600/80', text: 'text-red-100', label: 'Difficile' };
+        default:
+            return { bg: 'bg-gray-600/80', text: 'text-gray-100', label: difficulty };
+    }
+}
+
+function MissionRow({ pm, type, decisions, onDecide }: {
+    pm: PlayerMissionV;
+    type: string;
+    decisions: Record<string, boolean>;
+    onDecide: (type: string, validated: boolean) => void;
+}) {
+    const color = getMissionColor(type);
+    const validated = decisions[type] === true;
+    const failed = decisions[type] === false;
+
+    return (
+        <div className={`flex items-start gap-4 p-4 rounded-lg border transition-all ${
+            validated
+                ? 'bg-green-900/30 border-green-500/50'
+                : failed
+                    ? 'bg-red-900/30 border-red-500/50'
+                    : pm.mission.isPrivate
+                        ? 'secret-mission-full'
+                        : `bg-${color}-900/20 border-${color}-500/30`
+        }`}>
+            <span className="text-2xl flex-shrink-0 mt-0.5">{getMissionIcon(type)}</span>
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className={`text-sm font-semibold uppercase ${
+                        pm.mission.isPrivate ? 'text-white' :
+                        color === 'blue' ? 'text-blue-400' :
+                        color === 'purple' ? 'text-purple-400' : 'text-red-400'
+                    }`}>{getMissionLabel(type)}</span>
+                    {pm.mission.isPrivate && <span className="text-white">🔒</span>}
+                    {pm.mission.difficulty && (
+                        <span className={`text-xs px-2 py-0.5 rounded font-bold ${getDifficultyStyle(pm.mission.difficulty).bg} ${getDifficultyStyle(pm.mission.difficulty).text}`}>
+                            {getDifficultyStyle(pm.mission.difficulty).label}
+                        </span>
+                    )}
+                    <span className={`text-sm ${pm.mission.isPrivate ? 'text-white' : 'lol-text-gold'}`}>+{pm.mission.points} pts</span>
+                </div>
+                <p className={`leading-relaxed ${pm.mission.isPrivate ? 'text-white' : 'lol-text-light'}`}>{pm.resolvedText || pm.mission.text}</p>
+            </div>
+            <div className="flex gap-2 flex-shrink-0">
+                <button
+                    onClick={() => onDecide(type, true)}
+                    className={`p-3 rounded-lg font-semibold transition-all border text-xl ${
+                        validated
+                            ? 'bg-green-600 border-green-400 text-white shadow-lg shadow-green-500/30'
+                            : 'bg-[#1E2328] border-[#C8AA6E]/30 text-[#C89B3C] hover:bg-green-900/50 hover:border-green-500/50'
+                    }`}
+                    title="Validée"
+                >
+                    ✅
+                </button>
+                <button
+                    onClick={() => onDecide(type, false)}
+                    className={`p-3 rounded-lg font-semibold transition-all border text-xl ${
+                        failed
+                            ? 'bg-red-600 border-red-400 text-white shadow-lg shadow-red-500/30'
+                            : 'bg-[#1E2328] border-[#C8AA6E]/30 text-[#C89B3C] hover:bg-red-900/50 hover:border-red-500/50'
+                    }`}
+                    title="Échouée"
+                >
+                    ❌
+                </button>
+            </div>
+        </div>
+    );
+}
+
 export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
-    const players = room.players.filter((p: any) => p.missions.length > 0);
+    const players = room.players.filter((p) => p.missions.length > 0);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [localDecisions, setLocalDecisions] = useState<Record<string, Record<string, boolean>>>({});
     const [finishing, setFinishing] = useState(false);
@@ -28,7 +171,7 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
     }, [room.validationStatus]);
 
     // Événements apparus
-    const appearedEvents = (room.roomEvents || []).filter((re: any) => re.appearedAt !== null);
+    const appearedEvents = (room.roomEvents || []).filter((re) => re.appearedAt !== null);
 
     const creatorToken = typeof window !== 'undefined'
         ? localStorage.getItem(`room_${roomCode}_creator`)
@@ -59,15 +202,15 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
     const player = players[currentIndex];
     const playerDecisions = localDecisions[player?.id] || {};
 
-    const startMission = player?.missions.find((m: any) => m.type === 'START');
-    const midMission = player?.missions.find((m: any) => m.type === 'MID');
-    const lateMission = player?.missions.find((m: any) => m.type === 'LATE');
+    const startMission = player?.missions.find((m) => m.type === 'START');
+    const midMission = player?.missions.find((m) => m.type === 'MID');
+    const lateMission = player?.missions.find((m) => m.type === 'LATE');
 
-    const allDecided = player?.missions.every((m: any) => playerDecisions[m.type] !== undefined);
+    const allDecided = player?.missions.every((m) => playerDecisions[m.type] !== undefined);
 
-    const validatedPlayers = players.slice(0, currentIndex).map((p: any) => {
+    const validatedPlayers = players.slice(0, currentIndex).map((p) => {
         const totalPoints = localDecisions[p.id]
-            ? p.missions.reduce((sum: number, m: any) => {
+            ? p.missions.reduce((sum, m) => {
                 return sum + (localDecisions[p.id][m.type] ? m.mission.points : 0);
             }, 0)
             : 0;
@@ -191,99 +334,6 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
         await finishValidation(selectedWinnerTeam || undefined);
     };
 
-    const getMissionIcon = (type: string) => {
-        if (type === 'START') return '⚔️';
-        if (type === 'MID') return '⚡';
-        return '🔥';
-    };
-
-    const getMissionLabel = (type: string) => {
-        if (type === 'START') return 'Début';
-        if (type === 'MID') return 'MID';
-        return 'Finale';
-    };
-
-    const getMissionColor = (type: string) => {
-        if (type === 'START') return 'blue';
-        if (type === 'MID') return 'purple';
-        return 'red';
-    };
-
-    const getDifficultyStyle = (difficulty: string) => {
-        switch (difficulty) {
-            case 'easy':
-                return { bg: 'bg-green-600/80', text: 'text-green-100', label: 'Facile' };
-            case 'medium':
-                return { bg: 'bg-yellow-600/80', text: 'text-yellow-100', label: 'Moyen' };
-            case 'hard':
-                return { bg: 'bg-red-600/80', text: 'text-red-100', label: 'Difficile' };
-            default:
-                return { bg: 'bg-gray-600/80', text: 'text-gray-100', label: difficulty };
-        }
-    };
-
-    const MissionRow = ({ pm, type }: { pm: any; type: string }) => {
-        const color = getMissionColor(type);
-        const decided = playerDecisions[type] !== undefined;
-        const validated = playerDecisions[type] === true;
-        const failed = playerDecisions[type] === false;
-
-        return (
-            <div className={`flex items-start gap-4 p-4 rounded-lg border transition-all ${
-                validated
-                    ? 'bg-green-900/30 border-green-500/50'
-                    : failed
-                        ? 'bg-red-900/30 border-red-500/50'
-                        : pm.mission.isPrivate
-                            ? 'secret-mission-full'
-                            : `bg-${color}-900/20 border-${color}-500/30`
-            }`}>
-                <span className="text-2xl flex-shrink-0 mt-0.5">{getMissionIcon(type)}</span>
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className={`text-sm font-semibold uppercase ${
-                            pm.mission.isPrivate ? 'text-white' :
-                            color === 'blue' ? 'text-blue-400' :
-                            color === 'purple' ? 'text-purple-400' : 'text-red-400'
-                        }`}>{getMissionLabel(type)}</span>
-                        {pm.mission.isPrivate && <span className="text-white">🔒</span>}
-                        {pm.mission.difficulty && (
-                            <span className={`text-xs px-2 py-0.5 rounded font-bold ${getDifficultyStyle(pm.mission.difficulty).bg} ${getDifficultyStyle(pm.mission.difficulty).text}`}>
-                                {getDifficultyStyle(pm.mission.difficulty).label}
-                            </span>
-                        )}
-                        <span className={`text-sm ${pm.mission.isPrivate ? 'text-white' : 'lol-text-gold'}`}>+{pm.mission.points} pts</span>
-                    </div>
-                    <p className={`leading-relaxed ${pm.mission.isPrivate ? 'text-white' : 'lol-text-light'}`}>{pm.resolvedText || pm.mission.text}</p>
-                </div>
-                <div className="flex gap-2 flex-shrink-0">
-                    <button
-                        onClick={() => sendDecision(type, true)}
-                        className={`p-3 rounded-lg font-semibold transition-all border text-xl ${
-                            validated
-                                ? 'bg-green-600 border-green-400 text-white shadow-lg shadow-green-500/30'
-                                : 'bg-[#1E2328] border-[#C8AA6E]/30 text-[#C89B3C] hover:bg-green-900/50 hover:border-green-500/50'
-                        }`}
-                        title="Validée"
-                    >
-                        ✅
-                    </button>
-                    <button
-                        onClick={() => sendDecision(type, false)}
-                        className={`p-3 rounded-lg font-semibold transition-all border text-xl ${
-                            failed
-                                ? 'bg-red-600 border-red-400 text-white shadow-lg shadow-red-500/30'
-                                : 'bg-[#1E2328] border-[#C8AA6E]/30 text-[#C89B3C] hover:bg-red-900/50 hover:border-red-500/50'
-                        }`}
-                        title="Échouée"
-                    >
-                        ❌
-                    </button>
-                </div>
-            </div>
-        );
-    };
-
     // State local optimiste pour les décisions d'événements
     // Clé: eventId, valeur: 'red' | 'blue' | 'none'
     const [localEventDecisions, setLocalEventDecisions] = useState<Record<string, string>>({});
@@ -305,7 +355,7 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
     };
 
     // Helper : état effectif d'un événement (local optimiste > serveur)
-    const getEventWinner = (re: any): { decided: boolean; winner: 'red' | 'blue' | 'none' | null } => {
+    const getEventWinner = (re: RoomEventV): { decided: boolean; winner: 'red' | 'blue' | 'none' | null } => {
         if (re.id in localEventDecisions) {
             return { decided: true, winner: localEventDecisions[re.id] as 'red' | 'blue' | 'none' };
         }
@@ -342,7 +392,7 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
     };
 
     if (showEventsStep) {
-        const allEventsDecided = appearedEvents.every((re: any) => getEventWinner(re).decided);
+        const allEventsDecided = appearedEvents.every((re) => getEventWinner(re).decided);
 
         return (
             <div className="space-y-6">
@@ -353,7 +403,7 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
                 </div>
 
                 <div className="space-y-4">
-                    {appearedEvents.map((re: any) => {
+                    {appearedEvents.map((re) => {
                         const { decided, winner } = getEventWinner(re);
 
                         return (
@@ -503,7 +553,7 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
                     </div>
                 </div>
                 <div className="flex gap-2 justify-center">
-                    {players.map((_: any, i: number) => (
+                    {players.map((_, i) => (
                         <div
                             key={i}
                             className={`h-2 flex-1 rounded-full transition-all ${
@@ -520,6 +570,7 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
             <div className="lol-card rounded-lg p-5 border-2 border-[#0AC8B9]/50 shadow-lg shadow-[#0AC8B9]/20">
                 <div className="flex items-center gap-3 mb-4">
                     {player?.avatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                             src={player.avatar}
                             alt={player.name}
@@ -537,9 +588,9 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
                 </div>
 
                 <div className="space-y-3">
-                    {startMission && <MissionRow pm={startMission} type="START" />}
-                    {midMission && <MissionRow pm={midMission} type="MID" />}
-                    {lateMission && <MissionRow pm={lateMission} type="LATE" />}
+                    {startMission && <MissionRow pm={startMission} type="START" decisions={playerDecisions} onDecide={sendDecision} />}
+                    {midMission && <MissionRow pm={midMission} type="MID" decisions={playerDecisions} onDecide={sendDecision} />}
+                    {lateMission && <MissionRow pm={lateMission} type="LATE" decisions={playerDecisions} onDecide={sendDecision} />}
                 </div>
 
                 <div className="mt-5 flex justify-center">
@@ -563,10 +614,11 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
                 <div className="lol-card rounded-lg p-6">
                     <h3 className="text-lg font-bold lol-title-gold mb-4">📊 Invocateurs validés</h3>
                     <div className="space-y-3">
-                        {validatedPlayers.map((p: any) => (
+                        {validatedPlayers.map((p) => (
                             <div key={p.id} className="flex items-center justify-between bg-[#010A13]/50 rounded-lg p-3 border border-[#C8AA6E]/20">
                                 <div className="flex items-center gap-3">
                                     {p.avatar ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
                                         <img src={p.avatar} alt={p.name} className="w-9 h-9 rounded-full border border-[#C8AA6E]" />
                                     ) : (
                                         <div className="w-9 h-9 bg-gradient-to-br from-[#C8AA6E] to-[#785A28] rounded-full flex items-center justify-center text-[#010A13] font-bold text-sm">
@@ -577,7 +629,7 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <span className="text-sm lol-text">
-                                        {p.missions.filter((m: any) => localDecisions[p.id]?.[m.type]).length}/{p.missions.length} ✓
+                                        {p.missions.filter((m) => localDecisions[p.id]?.[m.type]).length}/{p.missions.length} ✓
                                     </span>
                                     <span className="font-bold lol-text-gold bg-[#C8AA6E]/20 px-3 py-1 rounded-full border border-[#C8AA6E]/50">
                                         {p.totalPoints} pts

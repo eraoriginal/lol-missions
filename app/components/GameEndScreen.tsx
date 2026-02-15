@@ -6,8 +6,42 @@ import { LeaveRoomButton } from './LeaveRoomButton';
 import { ValidationScreen } from '@/app/games/aram-missions/components/ValidationScreen';
 import { ValidationSpectator } from '@/app/games/aram-missions/components/ValidationSpectator';
 
+interface RoomEventData {
+    id: string;
+    appearedAt: string | null;
+    resolvedText?: string | null;
+    redDecided: boolean;
+    redValidated: boolean;
+    blueValidated: boolean;
+    pointsEarnedRed: number;
+    pointsEarnedBlue: number;
+    event: { text: string; points: number; difficulty: string; duration: number };
+}
+
+interface GameEndRoom {
+    validationStatus?: string;
+    players: {
+        id: string;
+        name: string;
+        avatar: string;
+        team: string;
+        missions: {
+            mission: { id: string; text: string; type: string; category: string; isPrivate: boolean; points: number; difficulty: string };
+            type: string;
+            decided: boolean;
+            validated: boolean;
+            pointsEarned: number;
+            resolvedText?: string;
+        }[];
+    }[];
+    victoryBonus?: boolean;
+    winnerTeam?: string | null;
+    victoryBonusPoints?: number;
+    roomEvents?: RoomEventData[];
+}
+
 interface GameEndScreenProps {
-    room: any;
+    room: GameEndRoom;
     roomCode: string;
     isCreator: boolean;
 }
@@ -52,7 +86,7 @@ export function GameEndScreen({ room, roomCode, isCreator }: GameEndScreenProps)
                 victoryBonus={room.victoryBonus}
                 winnerTeam={room.winnerTeam}
                 victoryBonusPoints={room.victoryBonusPoints}
-                roomEvents={(room.roomEvents || []).filter((re: any) => re.appearedAt !== null)}
+                roomEvents={(room.roomEvents || []).filter((re) => re.appearedAt !== null)}
             />
 
             <div className="lol-card rounded-lg p-6">

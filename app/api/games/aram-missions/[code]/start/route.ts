@@ -103,7 +103,7 @@ export async function POST(
 
             // Debug: log des missions avec placeholder
             const missionsWithPlaceholder = Array.from(assignments.entries())
-                .filter(([_, m]) => m.playerPlaceholder)
+                .filter(([, m]) => m.playerPlaceholder)
                 .map(([playerId, m]) => ({
                     playerId,
                     playerName: room.players.find(p => p.id === playerId)?.name,

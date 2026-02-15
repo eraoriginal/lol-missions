@@ -95,7 +95,7 @@ export function GameStatus({
                 }`}
                 style={{ textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}
               >
-                "{currentClue}"
+                &quot;{currentClue}&quot;
               </div>
               <div
                 className={`text-4xl md:text-5xl font-bold px-4 py-2 rounded-xl ${
@@ -115,7 +115,7 @@ export function GameStatus({
         ) : (
           <div className="text-center py-2">
             <div className="text-purple-300/70 text-lg">
-              ⏳ En attente de l'indice du{' '}
+              ⏳ En attente de l&apos;indice du{' '}
               <span className={currentTeam === 'red' ? 'text-red-400' : 'text-blue-400'}>
                 Maître-Espion {currentTeam === 'red' ? 'Rouge' : 'Bleu'}
               </span>

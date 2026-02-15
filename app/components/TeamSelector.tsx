@@ -49,7 +49,7 @@ export function TeamSelector({ players, roomCode, currentPlayerToken, isCreator 
                 setError(data.error || 'Erreur');
                 return;
             }
-        } catch (e) {
+        } catch {
             setError('Erreur de connexion');
         } finally {
             setLoading(false);
@@ -86,6 +86,7 @@ export function TeamSelector({ players, roomCode, currentPlayerToken, isCreator 
     const PlayerSlot = ({ player, showCrown = false }: { player: Player; showCrown?: boolean }) => (
         <div className="flex items-center gap-2 bg-black/30 rounded-lg p-2 border border-white/10">
             {player.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={player.avatar} alt={player.name} className="w-12 h-12 rounded-full border border-[#C8AA6E]" />
             ) : (
                 <div className="w-12 h-12 bg-gradient-to-br from-[#C8AA6E] to-[#785A28] rounded-full flex items-center justify-center text-[#010A13] font-bold text-sm">
@@ -165,6 +166,7 @@ export function TeamSelector({ players, roomCode, currentPlayerToken, isCreator 
                         {spectators.map((p) => (
                             <div key={p.id} className="flex items-center gap-2 bg-[#010A13] rounded-lg px-3 py-2 border border-[#C8AA6E]/20">
                                 {p.avatar ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
                                     <img src={p.avatar} alt={p.name} className="w-12 h-12 rounded-full border border-[#C8AA6E]" />
                                 ) : (
                                     <div className="w-12 h-12 bg-gradient-to-br from-[#0AC8B9] to-[#0397AB] rounded-full flex items-center justify-center text-[#010A13] font-bold text-sm border border-[#C8AA6E]">

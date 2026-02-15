@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useEffect } from 'react';
 
 type MissionVisibility = 'all' | 'team' | 'hidden';
 type GameMap = 'howling_abyss' | 'summoners_rift';
@@ -159,44 +159,8 @@ export function MissionDelayPicker({
     const [selectedMissionChoice, setSelectedMissionChoice] = useState(missionChoiceCount);
     const [selectedMaxEvents, setSelectedMaxEvents] = useState(maxEventsPerGame);
 
-    // Sync depuis le polling quand la room change
-    const prevMid = useRef(midMissionDelay);
-    const prevLate = useRef(lateMissionDelay);
-    const prevVisibility = useRef(missionVisibility);
-    const prevMap = useRef(gameMap);
-    const prevVictoryBonus = useRef(victoryBonus);
-    const prevMissionChoice = useRef(missionChoiceCount);
-    const prevMaxEvents = useRef(maxEventsPerGame);
-
-    if (midMissionDelay !== prevMid.current) {
-        prevMid.current = midMissionDelay;
-        setMidInput(String(Math.round(midMissionDelay / 60)));
-    }
-    if (lateMissionDelay !== prevLate.current) {
-        prevLate.current = lateMissionDelay;
-        setLateInput(String(Math.round(lateMissionDelay / 60)));
-    }
-    if (missionVisibility !== prevVisibility.current) {
-        prevVisibility.current = missionVisibility;
-        setSelectedVisibility(missionVisibility);
-    }
-    if (gameMap !== prevMap.current) {
-        prevMap.current = gameMap;
-        setSelectedMap(gameMap as GameMap);
-    }
-    if (victoryBonus !== prevVictoryBonus.current) {
-        prevVictoryBonus.current = victoryBonus;
-        setSelectedVictoryBonus(victoryBonus);
-    }
-    if (missionChoiceCount !== prevMissionChoice.current) {
-        prevMissionChoice.current = missionChoiceCount;
-        setSelectedMissionChoice(missionChoiceCount);
-    }
-    if (maxEventsPerGame !== prevMaxEvents.current) {
-        prevMaxEvents.current = maxEventsPerGame;
-        setSelectedMaxEvents(maxEventsPerGame);
-    }
-
+    // Sync depuis le polling quand la room change (prop → local state)
+    useEffect(() => { setMidInput(String(Math.round(midMissionDelay / 60))); }, [midMissionDelay]);    useEffect(() => { setLateInput(String(Math.round(lateMissionDelay / 60))); }, [lateMissionDelay]);    useEffect(() => { setSelectedVisibility(missionVisibility); }, [missionVisibility]);    useEffect(() => { setSelectedMap(gameMap as GameMap); }, [gameMap]);    useEffect(() => { setSelectedVictoryBonus(victoryBonus); }, [victoryBonus]);    useEffect(() => { setSelectedMissionChoice(missionChoiceCount); }, [missionChoiceCount]);    useEffect(() => { setSelectedMaxEvents(maxEventsPerGame); }, [maxEventsPerGame]);
     // Filtre la saisie : chiffres uniquement, pas de zéro en début
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement>,

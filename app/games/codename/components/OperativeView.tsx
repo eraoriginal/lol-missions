@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { GameBoard } from './GameBoard';
 
 interface CardInterest {
@@ -38,7 +38,6 @@ export function OperativeView({
   isMyTurn,
   hasClue,
   guessesLeft,
-  currentTeam,
 }: OperativeViewProps) {
   const [guessing, setGuessing] = useState(false);
   const [error, setError] = useState<string | null>(null);

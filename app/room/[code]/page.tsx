@@ -2,6 +2,7 @@
 
 import { use, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useRoom } from '@/app/hooks/useRoom';
 import { RoomLobby } from '@/app/components/RoomLobby';
 import { GameView as AramMissionsGameView } from '@/app/games/aram-missions/components/GameView';
@@ -92,7 +93,7 @@ export default function RoomPage({
                     <form onSubmit={handleJoinRoom} className="space-y-4">
                         <div>
                             <label htmlFor="player-name" className="block text-sm font-medium lol-text-gold mb-2">
-                                Ton pseudo d'invocateur
+                                    Ton pseudo d&apos;invocateur
                             </label>
                             <input
                                 id="player-name"
@@ -122,9 +123,9 @@ export default function RoomPage({
                         </button>
                     </form>
 
-                    <a href="/" className="block text-center mt-4 text-sm lol-text hover:text-[#C8AA6E] transition-colors">
-                        ← Retour à l'accueil
-                    </a>
+                    <Link href="/" className="block text-center mt-4 text-sm lol-text hover:text-[#C8AA6E] transition-colors">
+                        ← Retour &agrave; l&apos;accueil
+                    </Link>
                 </div>
             </main>
         );
@@ -178,7 +179,7 @@ export default function RoomPage({
                         </p>
 
                         {/* Bouton retour amélioré */}
-                        <a
+                        <Link
                             href="/"
                             className="group relative block text-center py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold overflow-hidden transition-all duration-300 hover:shadow-2xl hover:scale-105"
                         >
@@ -190,9 +191,9 @@ export default function RoomPage({
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                Retour à l'accueil
+                Retour &agrave; l&apos;accueil
             </span>
-                        </a>
+                        </Link>
 
                         {/* Message d'aide */}
                         <p className="text-gray-400 text-sm text-center mt-6">

@@ -20,5 +20,5 @@ export interface JoinRoomResponse {
 
 export interface SSEEvent {
     type: 'player-joined' | 'player-left' | 'game-started' | 'mission-assigned' | 'timer-update';
-    data: any;
+    data: Record<string, unknown>;
 }

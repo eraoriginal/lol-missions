@@ -23,7 +23,7 @@ interface Room {
     id: string;
     code: string;
     creatorToken?: string;
-    players: any[];
+    players: { id: string; name: string; avatar: string; team: string; token: string }[];
     midMissionDelay: number;
     lateMissionDelay: number;
     missionVisibility: 'all' | 'team' | 'hidden';

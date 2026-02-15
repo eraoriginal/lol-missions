@@ -87,7 +87,7 @@ export function ClueInput({ roomCode, playerToken, onClueGiven }: ClueInputProps
         {error && <p className="text-red-400 text-sm text-center">{error}</p>}
       </form>
       <p className="text-xs text-purple-300/60 text-center mt-2">
-        ∞ = illimité • L'indice ne peut pas être un mot du plateau
+        ∞ = illimité • L&apos;indice ne peut pas être un mot du plateau
       </p>
     </div>
   );

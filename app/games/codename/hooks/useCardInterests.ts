@@ -49,7 +49,9 @@ export function useCardInterests(
   onCardsUpdate: (updatedCards: Card[]) => void
 ) {
   const cardsRef = useRef(cards);
-  cardsRef.current = cards;
+  useEffect(() => {
+    cardsRef.current = cards;
+  }, [cards]);
 
   const handleInterestUpdate = useCallback((data: InterestUpdate) => {
     const { cardId, playerName, added } = data;

@@ -1,11 +1,10 @@
 'use client';
 
 interface GameViewProps {
-    room: any;
     roomCode: string;
 }
 
-export function GameView({ room, roomCode }: GameViewProps) {
+export function GameView({ roomCode }: GameViewProps) {
     return (
         <div className="space-y-6">
             <div className="bg-white rounded-xl shadow-lg p-8 text-center">

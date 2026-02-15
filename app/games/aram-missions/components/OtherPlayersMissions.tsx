@@ -19,6 +19,7 @@ interface Player {
     name: string;
     avatar: string;
     team?: string;
+    token?: string;
     missions: PlayerMission[];
 }
 
@@ -42,7 +43,7 @@ export function OtherPlayersMissions({
         return null;
     }
 
-    const otherPlayers = players.filter((p: any) => p.token !== currentPlayerToken);
+    const otherPlayers = players.filter((p) => p.token !== currentPlayerToken);
 
     if (otherPlayers.length === 0) {
         return null;
@@ -51,10 +52,10 @@ export function OtherPlayersMissions({
     // Filtrer selon la visibilité
     let visiblePlayers = otherPlayers;
     if (missionVisibility === 'team' && currentPlayerTeam) {
-        visiblePlayers = otherPlayers.filter((p: any) => p.team === currentPlayerTeam);
+        visiblePlayers = otherPlayers.filter((p) => p.team === currentPlayerTeam);
     }
 
-    const playersWithMissions = visiblePlayers.filter((p: any) => p.missions.length > 0);
+    const playersWithMissions = visiblePlayers.filter((p) => p.missions.length > 0);
 
     if (playersWithMissions.length === 0) {
         return null;
@@ -115,7 +116,7 @@ export function OtherPlayersMissions({
             </h3>
 
             <div className="space-y-2">
-                {playersWithMissions.map((player: any) => {
+                {playersWithMissions.map((player) => {
                     const teamStyle = getTeamStyle(player.team);
                     return (
                         <div
@@ -125,6 +126,7 @@ export function OtherPlayersMissions({
                             {/* Colonne 1: Pseudo */}
                             <div className="flex items-center gap-2 min-w-0">
                                 {player.avatar ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
                                     <img
                                         src={player.avatar}
                                         alt={player.name}

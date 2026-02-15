@@ -12,7 +12,7 @@ interface Player {
   team: string;
   role: string | null;
   token: string;
-  missions: any[];
+  missions: { mission: { id: string; text: string; type: string; category: string; difficulty: string; points: number; isPrivate: boolean }; type: string; validated: boolean; decided: boolean; pointsEarned: number; resolvedText?: string }[];
 }
 
 interface Room {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState, useEffect } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 type SoundType = 'correct' | 'wrong_team' | 'neutral' | 'assassin' | 'victory' | 'turn_change';
 
@@ -11,15 +11,12 @@ const MUTE_STORAGE_KEY = 'codename_sound_muted';
 
 export function useCodenameSound() {
   const assassinPlayingRef = useRef(false);
-  const [isMuted, setIsMuted] = useState(false);
-
-  // Load mute preference from localStorage on mount
-  useEffect(() => {
+  const [isMuted, setIsMuted] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(MUTE_STORAGE_KEY);
-      setIsMuted(stored === 'true');
+      return localStorage.getItem(MUTE_STORAGE_KEY) === 'true';
     }
-  }, []);
+    return false;
+  });
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface Category {
   name: string;
@@ -20,15 +20,7 @@ export function CategorySelector({ roomCode, isCreator, selectedCategories: init
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
-  useEffect(() => {
-    fetchCategories();
-  }, [roomCode]);
-
-  useEffect(() => {
-    setSelected(initialSelected);
-  }, [initialSelected]);
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const res = await fetch(`/api/games/codename/${roomCode}/categories`);
       if (res.ok) {
@@ -47,7 +39,16 @@ export function CategorySelector({ roomCode, isCreator, selectedCategories: init
     } finally {
       setLoading(false);
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomCode]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  useEffect(() => {
+    setSelected(initialSelected);
+  }, [initialSelected]);
 
   const autoSelectAllCategories = async (categoryNames: string[]) => {
     try {

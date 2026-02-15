@@ -41,9 +41,9 @@ export function AramRulesModal() {
                   <span>⚔️</span> Équipes
                 </h3>
                 <p className="leading-relaxed">
-                  Choisissez l'équipe Rouge ou Bleue avant le démarrage. Chaque équipe peut avoir
+                  Choisissez l&apos;équipe Rouge ou Bleue avant le démarrage. Chaque équipe peut avoir
                   au plus <span className="lol-text-gold font-semibold">5 joueurs</span>.
-                  Vous pouvez changer d'équipe ou devenir spectateur à tout moment avant que le créateur
+                  Vous pouvez changer d&apos;équipe ou devenir spectateur à tout moment avant que le créateur
                   ne lance la partie.
                 </p>
               </section>
@@ -82,8 +82,8 @@ export function AramRulesModal() {
                   <span>🔒</span> Missions secrètes
                 </h3>
                 <p className="leading-relaxed">
-                  Certaines missions sont <span className="lol-text-gold font-semibold">secrètes</span> : seul l'invocateur concerné voit le texte pendant la partie.
-                  Les autres ne voient qu'un bloc flou avec le badge 🔒. Tout est révélé lors de la validation.
+                  Certaines missions sont <span className="lol-text-gold font-semibold">secrètes</span> : seul l&apos;invocateur concerné voit le texte pendant la partie.
+                  Les autres ne voient qu&apos;un bloc flou avec le badge 🔒. Tout est révélé lors de la validation.
                 </p>
               </section>
 
@@ -123,7 +123,7 @@ export function AramRulesModal() {
                 </h3>
                 <p className="leading-relaxed">
                   À la fin, les points sont additionnés par équipe.
-                  L'équipe avec le <span className="lol-text-gold font-semibold">plus grand total</span> remporte la partie !
+                  L&apos;équipe avec le <span className="lol-text-gold font-semibold">plus grand total</span> remporte la partie !
                 </p>
               </section>
             </div>

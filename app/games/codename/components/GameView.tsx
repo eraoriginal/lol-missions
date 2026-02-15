@@ -61,7 +61,7 @@ interface Player {
   team: string;
   role: string | null;
   token: string;
-  missions: any[];
+  missions: { mission: { id: string; text: string; type: string; category: string; difficulty: string; points: number; isPrivate: boolean }; type: string; validated: boolean; decided: boolean; pointsEarned: number; resolvedText?: string }[];
 }
 
 interface Room {
@@ -361,7 +361,7 @@ export function GameView({ room, roomCode }: GameViewProps) {
       </div>
       {game && game.cards.length > 0 && (
         <p className="text-center text-purple-300/60 text-xs mt-3">
-          Tu rejoindras en tant qu'Agent
+          Tu rejoindras en tant qu&apos;Agent
         </p>
       )}
     </div>

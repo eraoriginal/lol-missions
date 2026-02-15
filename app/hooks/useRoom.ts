@@ -4,12 +4,23 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import Pusher from 'pusher-js';
 import type { Room } from '@/app/types/room';
 
+interface PlayerMissionEntry {
+    type: string;
+    [key: string]: unknown;
+}
+
+interface PendingChoiceEntry {
+    type: string;
+    [key: string]: unknown;
+}
+
 interface Player {
     id: string;
     name: string;
     token?: string;
     avatar?: string;
-    missions?: any[];
+    missions?: PlayerMissionEntry[];
+    pendingChoices?: PendingChoiceEntry[];
 }
 
 // Singleton Pusher client — une seule connexion pour toute la vie de l'onglet
@@ -120,7 +131,7 @@ export function useRoom(roomCode: string | null) {
             // Log détaillé des missions
             const missionCounts = newRoom.players.map((p: Player) => ({
                 name: p.name,
-                missions: p.missions?.map((m: any) => m.type) || []
+                missions: p.missions?.map((m: PlayerMissionEntry) => m.type) || []
             }));
             console.log(`[useRoom] Room fetched, missions:`, JSON.stringify(missionCounts));
 
@@ -141,9 +152,9 @@ export function useRoom(roomCode: string | null) {
                 if (currentPlayer) {
                     const hasMissions = currentPlayer.missions || [];
                     const hasPendingChoices = currentPlayer.pendingChoices || [];
-                    const hasStart = hasMissions.some((m: any) => m.type === 'START') || hasPendingChoices.some((c: any) => c.type === 'START');
-                    const hasMid = hasMissions.some((m: any) => m.type === 'MID') || hasPendingChoices.some((c: any) => c.type === 'MID');
-                    const hasLate = hasMissions.some((m: any) => m.type === 'LATE') || hasPendingChoices.some((c: any) => c.type === 'LATE');
+                    const hasStart = hasMissions.some((m: PlayerMissionEntry) => m.type === 'START') || hasPendingChoices.some((c: PendingChoiceEntry) => c.type === 'START');
+                    const hasMid = hasMissions.some((m: PlayerMissionEntry) => m.type === 'MID') || hasPendingChoices.some((c: PendingChoiceEntry) => c.type === 'MID');
+                    const hasLate = hasMissions.some((m: PlayerMissionEntry) => m.type === 'LATE') || hasPendingChoices.some((c: PendingChoiceEntry) => c.type === 'LATE');
 
                     const shouldHaveStart = true; // Toujours attendu au démarrage
                     const shouldHaveMid = elapsed >= midDelay;
@@ -166,12 +177,12 @@ export function useRoom(roomCode: string | null) {
 
             // Détecte si un joueur a quitté
             if (!isInitialLoad && roomRef.current && newRoom.players.length < previousPlayerCountRef.current) {
-                const previousPlayers = roomRef.current.players.map((p: Player) => p.id);
+                const previousPlayers = roomRef.current.players.map((p) => p.id);
                 const currentPlayers = newRoom.players.map((p: Player) => p.id);
                 const leftPlayerId = previousPlayers.find((id: string) => !currentPlayers.includes(id));
 
                 if (leftPlayerId) {
-                    const leftPlayer = roomRef.current.players.find((p: any) => p.id === leftPlayerId);
+                    const leftPlayer = roomRef.current.players.find((p) => p.id === leftPlayerId);
                     const wasCreator = roomRef.current.players[0]?.id === leftPlayerId;
 
                     if (wasCreator && leftPlayer) {
@@ -199,7 +210,7 @@ export function useRoom(roomCode: string | null) {
     // Chargement initial
     useEffect(() => {
         fetchRoom('initial');
-    }, [roomCode]);
+    }, [roomCode, fetchRoom]);
 
     // Subscription Pusher (real-time updates)
     useEffect(() => {

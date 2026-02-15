@@ -89,6 +89,7 @@ export function EventOverlay({ event, onDismiss }: EventOverlayProps) {
                 musicRef.current = null;
             }
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- playEventMusic is stable via useCallback pattern
     }, [displayText]);
 
     // Countdown basé sur appearedAt (server-authoritative, synchronisé multi-clients)

@@ -1,3 +1,27 @@
+interface RoomPlayer {
+    token: string;
+    missions?: PlayerMissionEntry[];
+    pendingChoices?: unknown[];
+    [key: string]: unknown;
+}
+
+interface PlayerMissionEntry {
+    mission?: {
+        isPrivate?: boolean;
+        text: string | null;
+        [key: string]: unknown;
+    };
+    resolvedText?: string | null;
+    [key: string]: unknown;
+}
+
+interface FilterableRoom {
+    gameStopped: boolean;
+    validationStatus: string;
+    players: RoomPlayer[];
+    [key: string]: unknown;
+}
+
 /**
  * Filtre les missions secrètes des autres joueurs pendant la partie.
  *
@@ -8,7 +32,7 @@
  * @param currentPlayerToken - Le token du joueur actuel (null si inconnu)
  * @returns La room avec les missions filtrées
  */
-export function filterPrivateMissions(room: any, currentPlayerToken: string | null): any {
+export function filterPrivateMissions(room: FilterableRoom | null, currentPlayerToken: string | null): FilterableRoom | null {
     if (!room) return room;
 
     // Pendant la validation ou après la fin, on montre tout
@@ -17,10 +41,10 @@ export function filterPrivateMissions(room: any, currentPlayerToken: string | nu
     }
 
     // Pendant la partie, on masque le texte des missions secrètes des autres joueurs
-    const filteredPlayers = room.players.map((player: any) => {
+    const filteredPlayers = room.players.map((player: RoomPlayer) => {
         const isCurrentPlayer = currentPlayerToken && player.token === currentPlayerToken;
 
-        const filteredMissions = player.missions?.map((pm: any) => {
+        const filteredMissions = player.missions?.map((pm: PlayerMissionEntry) => {
             // Si c'est le joueur actuel, on montre tout
             if (isCurrentPlayer) {
                 return pm;

@@ -137,7 +137,7 @@ export async function POST(
                 }, { isolationLevel: 'Serializable' });
                 createdByUs = wasCreated;
                 if (createdByUs) console.log(`[check-late-missions] LATE pending choices assigned to room ${code}`);
-            } catch (createError: any) {
+            } catch {
                 console.log(`[check-late-missions] LATE pending choices already created for room ${code}`);
             }
 
@@ -193,9 +193,11 @@ export async function POST(
             });
             createdByUs = true;
             console.log(`[check-late-missions] LATE missions assigned to room ${code}`);
-        } catch (createError: any) {
-            const isUniqueConstraint = createError?.code === 'P2002' ||
-                (createError?.message && createError.message.includes('Unique constraint'));
+        } catch (createError: unknown) {
+            const isPrismaError = createError && typeof createError === 'object';
+            const errorCode = isPrismaError && 'code' in createError ? (createError as { code: string }).code : null;
+            const errorMessage = isPrismaError && 'message' in createError ? (createError as { message: string }).message : '';
+            const isUniqueConstraint = errorCode === 'P2002' || errorMessage.includes('Unique constraint');
 
             if (isUniqueConstraint) {
                 console.log(`[check-late-missions] LATE missions already created by another request for room ${code}`);
@@ -227,7 +229,7 @@ export async function POST(
             });
 
             allPlayersHaveLateMission = roomAfterCreate?.players.every(p =>
-                p.missions.some((m: any) => m.type === 'LATE')
+                p.missions.some((m: { type: string }) => m.type === 'LATE')
             ) ?? false;
 
             if (allPlayersHaveLateMission) break;

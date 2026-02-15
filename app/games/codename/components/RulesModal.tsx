@@ -1,15 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
 
 export function RulesModal() {
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const [mounted] = useState(() => typeof window !== 'undefined');
 
   const modalContent = isOpen ? (
     <div className="fixed inset-0 z-[9999] flex items-start justify-center p-4 pt-8 overflow-y-auto">
@@ -36,8 +32,8 @@ export function RulesModal() {
               <section>
                 <h3 className="text-lg font-bold text-red-400 mb-2">🎯 Objectif</h3>
                 <p>
-                  Deux équipes s'affrontent. Chaque équipe doit retrouver tous ses agents
-                  (mots) avant l'équipe adverse, en se basant sur les indices donnés par
+                  Deux équipes s&apos;affrontent. Chaque équipe doit retrouver tous ses agents
+                  (mots) avant l&apos;équipe adverse, en se basant sur les indices donnés par
                   leur Maître-Espion.
                 </p>
               </section>
@@ -47,7 +43,7 @@ export function RulesModal() {
                 <ul className="list-disc list-inside space-y-1">
                   <li>
                     <strong className="text-pink-400">Maître-Espion (🔮)</strong> : Voit toutes les couleurs. Donne
-                    un indice d'un seul mot + un nombre.
+                    un indice d&apos;un seul mot + un nombre.
                   </li>
                   <li>
                     <strong className="text-pink-400">Agent (🎯)</strong> : Ne voit que les mots. Devine les cartes
@@ -63,7 +59,7 @@ export function RulesModal() {
                   <li>Les Agents devinent les cartes (nombre + 1 essais max)</li>
                   <li>Si bonne réponse : continuez à deviner</li>
                   <li>Si mauvaise couleur ou neutre : fin du tour</li>
-                  <li>Les Agents peuvent "passer" pour finir leur tour</li>
+                  <li>Les Agents peuvent &quot;passer&quot; pour finir leur tour</li>
                 </ol>
               </section>
 
@@ -93,16 +89,16 @@ export function RulesModal() {
                 <h3 className="text-lg font-bold text-green-400 mb-2">🏆 Victoire</h3>
                 <ul className="list-disc list-inside space-y-1">
                   <li>Trouvez tous vos agents en premier !</li>
-                  <li>Évitez l'Assassin à tout prix (défaite immédiate)</li>
+                  <li>Évitez l&apos;Assassin à tout prix (défaite immédiate)</li>
                 </ul>
               </section>
 
               <section>
                 <h3 className="text-lg font-bold text-cyan-400 mb-2">💡 Conseils</h3>
                 <ul className="list-disc list-inside space-y-1">
-                  <li>L'indice doit être un seul mot</li>
-                  <li>L'indice ne peut pas être un mot du plateau</li>
-                  <li>0 = essais illimités (jusqu'à erreur)</li>
+                  <li>L&apos;indice doit être un seul mot</li>
+                  <li>L&apos;indice ne peut pas être un mot du plateau</li>
+                  <li>0 = essais illimités (jusqu&apos;à erreur)</li>
                   <li>Communiquez avec votre équipe !</li>
                 </ul>
               </section>

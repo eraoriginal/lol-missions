@@ -48,7 +48,7 @@ function getDifficultyStyle(difficulty: string) {
     }
 }
 
-export function MissionChoiceOverlay({ choices, type, roomCode, missionVisibility, onChosen }: MissionChoiceOverlayProps) {
+export function MissionChoiceOverlay({ choices, type, roomCode, missionVisibility }: MissionChoiceOverlayProps) {
     const [choosingId, setChoosingId] = useState<string | null>(null);
 
     const handleChoose = async (choice: PendingChoice) => {

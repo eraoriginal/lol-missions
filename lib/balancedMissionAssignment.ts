@@ -38,7 +38,7 @@ function shuffle<T>(array: T[]): T[] {
 export function assignBalancedMissions(
     players: Player[] | PlayerWithMissions[],
     missions: Mission[],
-    missionType: 'START' | 'MID' | 'LATE' = 'START'
+    _missionType: 'START' | 'MID' | 'LATE' = 'START' // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Map<string, Mission> {
     const assignments = new Map<string, Mission>();
     const playersWithMissions = players as PlayerWithMissions[];
@@ -119,7 +119,7 @@ export function assignBalancedMissionChoices(
     players: Player[] | PlayerWithMissions[],
     missions: Mission[],
     choiceCount: number,
-    missionType: 'START' | 'MID' | 'LATE' = 'START'
+    _missionType: 'START' | 'MID' | 'LATE' = 'START' // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Map<string, Mission[]> {
     const assignments = new Map<string, Mission[]>();
     const playersWithMissions = players as PlayerWithMissions[];

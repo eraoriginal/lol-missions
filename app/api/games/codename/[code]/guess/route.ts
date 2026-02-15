@@ -97,7 +97,7 @@ export async function POST(
 
     let newRedRemaining = game.redRemaining;
     let newBlueRemaining = game.blueRemaining;
-    let newGuessesLeft = game.guessesLeft - 1;
+    const newGuessesLeft = game.guessesLeft - 1;
     let newCurrentTeam = game.currentTeam;
     let gameOver = false;
     let winner: string | null = null;

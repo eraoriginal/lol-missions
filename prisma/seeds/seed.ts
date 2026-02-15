@@ -12,7 +12,7 @@ async function main() {
         await prisma.room.deleteMany();
         await prisma.mission.deleteMany();
         console.log('✅ Existing missions deleted');
-    } catch (e) {
+    } catch {
         console.log('⚠️ No existing missions to delete');
     }
 

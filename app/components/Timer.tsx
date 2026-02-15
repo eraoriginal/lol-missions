@@ -103,6 +103,7 @@ export function Timer({ gameStartTime, roomCode, gameStopped = false, midMission
             midSoundPlayedRef.current = false;
             lateSoundPlayedRef.current = false;
             lastEventCheckRef.current = 0;
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- reset state on prop change is intentional
             setElapsed(0);
         }
     }, [gameStartTime]);

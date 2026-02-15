@@ -72,7 +72,7 @@ export function GameHistory({ history }: GameHistoryProps) {
     <div className="poki-panel p-3">
       <h4 className="text-xs font-bold text-purple-300 mb-2">📜 Historique</h4>
       <div className="space-y-2 max-h-48 overflow-y-auto text-xs">
-        {groupedHistory.map((group, index) => (
+        {groupedHistory.map((group) => (
           <div key={group.clue.id} className="border-b border-purple-500/20 pb-2 last:border-b-0">
             {/* Clue */}
             <div className={`flex items-center gap-1 ${group.clue.team === 'red' ? 'text-red-400' : 'text-blue-400'}`}>

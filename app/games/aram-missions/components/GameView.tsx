@@ -8,7 +8,7 @@ import { Timer } from '@/app/components/Timer';
 import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
 import { StopGameButton } from '@/app/components/StopGameButton';
 import { GameEndScreen } from '@/app/components/GameEndScreen';
-import type { RoomEvent } from '@/app/types/room';
+import type { Player, PlayerMission, RoomEvent } from '@/app/types/room';
 
 interface Room {
     id: string;
@@ -23,7 +23,7 @@ interface Room {
     eventPausedAt?: string | null;
     totalPausedDuration?: number;
     roomEvents?: RoomEvent[];
-    players: any[];
+    players: Player[];
 }
 
 interface GameViewProps {
@@ -76,7 +76,7 @@ function MissionCard({
     missionVisibility,
     getDifficultyStyle
 }: {
-    mission: any;
+    mission: PlayerMission;
     type: 'START' | 'MID' | 'LATE';
     gameStopped: boolean;
     enableTTS: boolean;
@@ -206,18 +206,18 @@ export function GameView({ room, roomCode }: GameViewProps) {
     const isCreator = !!creatorToken;
 
     // Cherche le joueur par playerToken
-    const currentPlayer = room.players.find((p: any) => p.token === playerToken);
+    const currentPlayer = room.players.find((p) => p.token === playerToken);
 
     // Missions du joueur actuel
-    const startMission = currentPlayer?.missions.find((m: any) => m.type === 'START');
-    const midMission = currentPlayer?.missions.find((m: any) => m.type === 'MID');
-    const lateMission = currentPlayer?.missions.find((m: any) => m.type === 'LATE');
+    const startMission = currentPlayer?.missions.find((m) => m.type === 'START');
+    const midMission = currentPlayer?.missions.find((m) => m.type === 'MID');
+    const lateMission = currentPlayer?.missions.find((m) => m.type === 'LATE');
 
     // Pending choices du joueur actuel
     const pendingChoices = currentPlayer?.pendingChoices || [];
-    const startPending = pendingChoices.filter((c: any) => c.type === 'START');
-    const midPending = pendingChoices.filter((c: any) => c.type === 'MID');
-    const latePending = pendingChoices.filter((c: any) => c.type === 'LATE');
+    const startPending = pendingChoices.filter((c) => c.type === 'START');
+    const midPending = pendingChoices.filter((c) => c.type === 'MID');
+    const latePending = pendingChoices.filter((c) => c.type === 'LATE');
 
     // Détermine le type actif (priorité START > MID > LATE)
     const activePendingType = startPending.length > 0 ? 'START'
@@ -518,8 +518,9 @@ export function GameView({ room, roomCode }: GameViewProps) {
                         <div>
                             <h3 className="text-sm font-bold uppercase text-red-400 mb-2">Rouge</h3>
                             <div className="space-y-1">
-                                {room.players.filter((p: any) => p.team === 'red').map((p: any) => (
+                                {room.players.filter((p) => p.team === 'red').map((p) => (
                                     <div key={p.id} className="flex items-center gap-2 text-sm text-red-200">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
                                         {p.avatar && <img src={p.avatar} alt={p.name} className="w-6 h-6 rounded-full" />}
                                         <span className={p.token === playerToken ? 'font-bold' : ''}>{p.name}</span>
                                     </div>
@@ -529,8 +530,9 @@ export function GameView({ room, roomCode }: GameViewProps) {
                         <div>
                             <h3 className="text-sm font-bold uppercase text-blue-400 mb-2">Bleue</h3>
                             <div className="space-y-1">
-                                {room.players.filter((p: any) => p.team === 'blue').map((p: any) => (
+                                {room.players.filter((p) => p.team === 'blue').map((p) => (
                                     <div key={p.id} className="flex items-center gap-2 text-sm text-blue-200">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
                                         {p.avatar && <img src={p.avatar} alt={p.name} className="w-6 h-6 rounded-full" />}
                                         <span className={p.token === playerToken ? 'font-bold' : ''}>{p.name}</span>
                                     </div>

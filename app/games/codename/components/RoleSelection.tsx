@@ -124,6 +124,7 @@ export function RoleSelection({
           {spymaster ? (
             <div>
               <div className="flex items-center gap-3 p-3 rounded-lg bg-black/30 border border-purple-500/30">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={spymaster.avatar}
                   alt={spymaster.name}
@@ -187,6 +188,7 @@ export function RoleSelection({
                   key={player.id}
                   className="flex items-center gap-2 p-2 rounded-lg bg-black/20 border border-purple-500/20"
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={player.avatar}
                     alt={player.name}

@@ -2,13 +2,126 @@
 
 import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
 
+interface MissionData {
+    id: string;
+    text: string;
+    type: string;
+    category: string;
+    difficulty: string;
+    points: number;
+    isPrivate: boolean;
+}
+
+interface PlayerMissionData {
+    type: string;
+    decided: boolean;
+    validated: boolean;
+    pointsEarned: number;
+    resolvedText?: string;
+    mission: MissionData;
+}
+
+interface PlayerData {
+    id: string;
+    name: string;
+    avatar: string;
+    team: string;
+    token?: string;
+    missions: PlayerMissionData[];
+}
+
+interface RoomEventData {
+    id: string;
+    appearedAt: string | null;
+    resolvedText?: string | null;
+    redDecided: boolean;
+    redValidated: boolean;
+    blueValidated: boolean;
+    event: { text: string; points: number; duration: number };
+}
+
+interface ValidationSpectatorRoom {
+    validationStatus?: string;
+    winnerTeam?: string | null;
+    players: PlayerData[];
+    roomEvents?: RoomEventData[];
+}
+
 interface ValidationSpectatorProps {
-    room: any;
+    room: ValidationSpectatorRoom;
     roomCode: string;
 }
 
+function getMissionIcon(type: string) {
+    if (type === 'START') return '⚔️';
+    if (type === 'MID') return '⚡';
+    return '🔥';
+}
+
+function getMissionLabel(type: string) {
+    if (type === 'START') return 'Début';
+    if (type === 'MID') return 'MID';
+    return 'Finale';
+}
+
+function getMissionColor(type: string) {
+    if (type === 'START') return 'blue';
+    if (type === 'MID') return 'purple';
+    return 'red';
+}
+
+function MissionRow({ pm, type }: { pm: PlayerMissionData; type: string }) {
+    const color = getMissionColor(type);
+    const validated = pm.decided && pm.validated;
+    const failed = pm.decided && !pm.validated;
+    const isPrivate = pm.mission.isPrivate;
+
+    return (
+        <div className={`flex items-start gap-4 p-4 rounded-lg border transition-all ${
+            validated
+                ? 'bg-green-900/30 border-green-500/50'
+                : failed
+                    ? 'bg-red-900/30 border-red-500/50'
+                    : isPrivate
+                        ? 'secret-mission-full'
+                        : `bg-${color}-900/20 border-${color}-500/30`
+        }`}>
+            <span className="text-2xl flex-shrink-0 mt-0.5">{getMissionIcon(type)}</span>
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-sm font-semibold uppercase ${
+                        isPrivate ? 'text-white' :
+                        color === 'blue' ? 'text-blue-400' :
+                        color === 'purple' ? 'text-purple-400' : 'text-red-400'
+                    }`}>{getMissionLabel(type)}</span>
+                    {isPrivate && <span className="text-white">🔒</span>}
+                    <span className={`text-sm ${isPrivate ? 'text-white' : 'lol-text-gold'}`}>+{pm.mission.points} pts</span>
+                </div>
+                <p className={`leading-relaxed ${isPrivate ? 'text-white' : 'lol-text-light'}`}>{pm.resolvedText || pm.mission.text}</p>
+            </div>
+            <div className="flex-shrink-0">
+                {pm.decided ? (
+                    validated ? (
+                        <span className="px-4 py-2 rounded-lg font-semibold bg-green-600 border border-green-400 text-white">
+                            +{pm.mission.points}
+                        </span>
+                    ) : (
+                        <span className="px-4 py-2 rounded-lg font-semibold bg-red-600 border border-red-400 text-white">
+                            0
+                        </span>
+                    )
+                ) : (
+                    <span className="px-4 py-2 rounded-lg text-sm lol-text italic bg-[#1E2328] border border-[#C8AA6E]/20">
+                        En attente...
+                    </span>
+                )}
+            </div>
+        </div>
+    );
+}
+
 export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps) {
-    const players = room.players.filter((p: any) => p.missions.length > 0);
+    const players = room.players.filter((p) => p.missions.length > 0);
 
     // L'index du joueur courant vient directement du serveur via validationStatus
     // Format: "in_progress:0", "in_progress:1", etc.
@@ -23,86 +136,18 @@ export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps
     const currentPlayer = players[currentIndex];
 
     // Joueurs avant le courant = déjà finalisés par le créateur
-    const validatedPlayers = players.slice(0, currentIndex).map((p: any) => ({
+    const validatedPlayers = players.slice(0, currentIndex).map((p) => ({
         ...p,
-        totalPoints: p.missions.reduce((sum: number, m: any) => sum + (m.pointsEarned || 0), 0),
+        totalPoints: p.missions.reduce((sum, m) => sum + (m.pointsEarned || 0), 0),
     }));
 
-    const startMission = currentPlayer?.missions.find((m: any) => m.type === 'START');
-    const midMission = currentPlayer?.missions.find((m: any) => m.type === 'MID');
-    const lateMission = currentPlayer?.missions.find((m: any) => m.type === 'LATE');
-
-    const getMissionIcon = (type: string) => {
-        if (type === 'START') return '⚔️';
-        if (type === 'MID') return '⚡';
-        return '🔥';
-    };
-
-    const getMissionLabel = (type: string) => {
-        if (type === 'START') return 'Début';
-        if (type === 'MID') return 'MID';
-        return 'Finale';
-    };
-
-    const getMissionColor = (type: string) => {
-        if (type === 'START') return 'blue';
-        if (type === 'MID') return 'purple';
-        return 'red';
-    };
-
-    const MissionRow = ({ pm, type }: { pm: any; type: string }) => {
-        const color = getMissionColor(type);
-        const validated = pm.decided && pm.validated;
-        const failed = pm.decided && !pm.validated;
-        const isPrivate = pm.mission.isPrivate;
-
-        return (
-            <div className={`flex items-start gap-4 p-4 rounded-lg border transition-all ${
-                validated
-                    ? 'bg-green-900/30 border-green-500/50'
-                    : failed
-                        ? 'bg-red-900/30 border-red-500/50'
-                        : isPrivate
-                            ? 'secret-mission-full'
-                            : `bg-${color}-900/20 border-${color}-500/30`
-            }`}>
-                <span className="text-2xl flex-shrink-0 mt-0.5">{getMissionIcon(type)}</span>
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-sm font-semibold uppercase ${
-                            isPrivate ? 'text-white' :
-                            color === 'blue' ? 'text-blue-400' :
-                            color === 'purple' ? 'text-purple-400' : 'text-red-400'
-                        }`}>{getMissionLabel(type)}</span>
-                        {isPrivate && <span className="text-white">🔒</span>}
-                        <span className={`text-sm ${isPrivate ? 'text-white' : 'lol-text-gold'}`}>+{pm.mission.points} pts</span>
-                    </div>
-                    <p className={`leading-relaxed ${isPrivate ? 'text-white' : 'lol-text-light'}`}>{pm.resolvedText || pm.mission.text}</p>
-                </div>
-                <div className="flex-shrink-0">
-                    {pm.decided ? (
-                        validated ? (
-                            <span className="px-4 py-2 rounded-lg font-semibold bg-green-600 border border-green-400 text-white">
-                                ✅ +{pm.mission.points}
-                            </span>
-                        ) : (
-                            <span className="px-4 py-2 rounded-lg font-semibold bg-red-600 border border-red-400 text-white">
-                                ❌ 0
-                            </span>
-                        )
-                    ) : (
-                        <span className="px-4 py-2 rounded-lg text-sm lol-text italic bg-[#1E2328] border border-[#C8AA6E]/20">
-                            En attente...
-                        </span>
-                    )}
-                </div>
-            </div>
-        );
-    };
+    const startMission = currentPlayer?.missions.find((m) => m.type === 'START');
+    const midMission = currentPlayer?.missions.find((m) => m.type === 'MID');
+    const lateMission = currentPlayer?.missions.find((m) => m.type === 'LATE');
 
     // Écran événements visible par les spectateurs
     if (room.validationStatus === 'events_validation') {
-        const appearedEvents = (room.roomEvents || []).filter((re: any) => re.appearedAt !== null);
+        const appearedEvents = (room.roomEvents || []).filter((re) => re.appearedAt !== null);
 
         return (
             <div className="space-y-6">
@@ -113,7 +158,7 @@ export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps
                 </div>
 
                 <div className="space-y-4">
-                    {appearedEvents.map((re: any) => {
+                    {appearedEvents.map((re) => {
                         const decided = re.redDecided;
                         const winner = decided ? (re.redValidated ? 'red' : re.blueValidated ? 'blue' : 'none') : null;
 
@@ -222,7 +267,7 @@ export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps
                     <LeaveRoomButton roomCode={roomCode} />
                 </div>
                 <div className="flex gap-2 justify-center">
-                    {players.map((_: any, i: number) => (
+                    {players.map((_, i) => (
                         <div
                             key={i}
                             className={`h-2 flex-1 rounded-full transition-all ${
@@ -240,6 +285,7 @@ export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps
                 <div className="lol-card rounded-lg p-5 border-2 border-[#0AC8B9]/50 shadow-lg shadow-[#0AC8B9]/20">
                     <div className="flex items-center gap-3 mb-4">
                         {currentPlayer.avatar ? (
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img
                                 src={currentPlayer.avatar}
                                 alt={currentPlayer.name}
@@ -269,10 +315,11 @@ export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps
                 <div className="lol-card rounded-lg p-6">
                     <h3 className="text-lg font-bold lol-title-gold mb-4">📊 Invocateurs validés</h3>
                     <div className="space-y-3">
-                        {validatedPlayers.map((p: any) => (
+                        {validatedPlayers.map((p) => (
                             <div key={p.id} className="flex items-center justify-between bg-[#010A13]/50 rounded-lg p-3 border border-[#C8AA6E]/20">
                                 <div className="flex items-center gap-3">
                                     {p.avatar ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
                                         <img src={p.avatar} alt={p.name} className="w-9 h-9 rounded-full border border-[#C8AA6E]" />
                                     ) : (
                                         <div className="w-9 h-9 bg-gradient-to-br from-[#C8AA6E] to-[#785A28] rounded-full flex items-center justify-center text-[#010A13] font-bold text-sm">
@@ -283,7 +330,7 @@ export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <span className="text-sm lol-text">
-                                        {p.missions.filter((m: any) => m.validated).length}/{p.missions.length} ✓
+                                        {p.missions.filter((m) => m.validated).length}/{p.missions.length} ✓
                                     </span>
                                     <span className="font-bold lol-text-gold bg-[#C8AA6E]/20 px-3 py-1 rounded-full border border-[#C8AA6E]/50">
                                         {p.totalPoints} pts
