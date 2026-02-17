@@ -21,6 +21,7 @@ async function main() {
     // ========================================
     const startMissions = [
         // Missions publiques
+        { text: "Tu ne peux acheter que des objets complets", type: "START", category: "Build",      difficulty: "easy",   points: 100, isPrivate: false, maps: "all" },
         { text: "Obtenir le premier sang", type: "START", category: "Combat",      difficulty: "medium",   points: 200, isPrivate: false, maps: "all" },
         { text: "Ne pas mourir avant 5 minutes de jeu", type: "START", category: "Survie",      difficulty: "easy",   points: 100, isPrivate: false, maps: "all" },
         { text: "N'achète aucun item au début de la partie", type: "START", category: "items",        difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
@@ -50,6 +51,7 @@ async function main() {
         { text: "Acheter des items de couleur rouge", type: "START", category: "Build",    difficulty: "easy", points: 100, isPrivate: false, maps: "all"  },
         { text: "Avoir que des objets ayant une caractéristique vitesse de déplacement", type: "START", category: "Build",    difficulty: "easy", points: 100, isPrivate: false, maps: "all"  },
         { text: "Avoir seulement des objets vol de vie ou omnivampirisme (hors bottes)", type: "START", category: "Build",    difficulty: "easy", points: 100, isPrivate: false, maps: "all"  },
+        { text: "Être le joueur qui inflige le plus de dégâts aux tourelles de ton équipe", type: "START", category: "Meta",    difficulty: "hard", points: 300, isPrivate: false, maps: "all"  },
 
         { text: "Avoir 85% d'accélération de compétences",                       type: "START", category: "Build",    difficulty: "medium", points: 200, isPrivate: false, maps: "all"  },
         { text: "Faire tout les items possibles avec l'objet Larme de la déesse",                       type: "START", category: "Handicap",    difficulty: "medium", points: 200, isPrivate: false, maps: "all"  },
@@ -139,7 +141,8 @@ async function main() {
         { text: "Avoir plus de morts que {player}", type: "START", category: "Survie", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
         { text: "Faire plus de dégâts que {player}", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
         { text: "Faire moins de dégâts que {player}", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
-        { text: "Se faire tuer par {player} dès que tu spawn (1 spawn possible)", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
+        { text: "Se faire tuer par {player} dès que tu spawn. Si tu y arrives, dit \"Merci pour les 300 points!\"", type: "START", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
+        { text: "Atteindre 300 stack de Cœuracier avant {player}.", type: "START", category: "Build", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
     ];
 
     // ========================================
@@ -169,6 +172,7 @@ async function main() {
         { text: "Donner un surnom à chaque ennemi et ne les appeler que par ce surnom en vocal", type: "MID", category: "Vocal", difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
         { text: "Donner un surnom à chaque coéquipier et ne les appeler que par ce surnom en vocal", type: "MID", category: "Vocal", difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
         { text: "Ne plus utiliser ton clavier pendant 2 minutes (souris uniquement)", type: "MID", category: "Combat",         difficulty: "easy",   points: 100, isPrivate: false, maps: "all"  },
+        { text: "Faire un résumé des 3 prochains teamfights.", type: "MID", category: "Analyste",         difficulty: "easy",   points: 100, isPrivate: false, maps: "all"  },
 
         // 🔒 Missions secrètes
         { text: "Insulter et provoquer l'équipe adverse en vocal",                       type: "MID", category: "Toxic",       difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
@@ -195,20 +199,27 @@ async function main() {
         { text: "Raconter l'histoire de ta journée en détail pendant un teamfight", type: "MID", category: "Troll", difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
         { text: "Dire 'selon mon analyse...' avant chaque prise de décision en vocal", type: "MID", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
         { text: "Faire un bilan mi-temps en vocal comme un commentateur de foot (stats, classement, pronostic)", type: "MID", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
-        { text: "Crier 'PENTAKILL' à chaque kill, même si c'est le premier", type: "MID", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
+        { text: "Crier 'PENTAKILL' à chaque kill pendant 4 minutes", type: "MID", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
 
         // 🎭 Missions avec placeholder joueur
         { text: "Demander à {player} de t'apprendre le Q-click jusqu'à ce qu'il accepte", type: "MID", category: "Troll", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "teammate" },
         { text: "Suivre {player} partout pendant 2 minutes (jamais à plus de 500 unités)", type: "MID", category: "Troll", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "teammate" },
         { text: "Défendre {player} à chaque fois qu'il se fait attaquer verbalement", type: "MID", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "teammate" },
         { text: "Annoncer chaque action de {player} comme un commentateur sportif", type: "MID", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "any" },
-        { text: "Convaincre {player} de duoQ", type: "MID", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "any" },
-        { text: "Supplier {player} de duoQ. J'insite sur le terme supplier. Il doit refuser ", type: "MID", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "any" },
+        { text: "CONVAINCRE {player} de duoQ jusqu'à la prochaine missions. Il doit accepter", type: "MID", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "any" },
+        { text: "SUPPLIER {player} de duoQ jusqu'à la prochaine missions. Il doit refuser ", type: "MID", category: "Vocal", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "any" },
         { text: "Chaque fois que {player} meurt, tu dois écrire une phrase poétique dans le chat", type: "MID", category: "Poésie", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "any" },
         { text: "Rédiger un bulletin scolaire de {player} en vocal, avec appréciation du prof", type: "MID", category: "Notation", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "any" },
+        { text: "Répéter le dernier mot de chaque phrase de {player}", type: "MID", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "any" },
 
         // ⚔️ Missions duel (même mission pour 2 joueurs adverses)
         { text: "Tu dois être le prochain joueur à tuer {player}", type: "MID", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
+        { text: "Tu as jusqu'à la prochaine mission pour te faire exécuter avant {player}", type: "MID", category: "Suicide", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
+        { text: "Danser côte à côte avec {player} sans bouger. Le 1er à mourir a perdu", type: "MID", category: "Suicide", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
+        { text: "Compléter la Muramana avant {player}. Une fois completée, le premier qui chante \"I'm blue Da ba dee da ba di Da ba dee da ba di\" gagne ", type: "MID", category: "Build", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
+        { text: "Compléter le Bâton de l'Archange avant {player}. Une fois completée, le premier qui chante \"I'm blue Da ba dee da ba di Da ba dee da ba di\" gagne ", type: "MID", category: "Build", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
+        { text: "Compléter l'Approche de l'Hiver avant {player}. Une fois completée, le premier qui chante \"I'm blue Da ba dee da ba di Da ba dee da ba di\" gagne ", type: "MID", category: "Build", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
+        { text: "Compléter le Diadème Murmurant avant {player}. Une fois completée, le premier qui chante \"I'm blue Da ba dee da ba di Da ba dee da ba di\" gagne ", type: "MID", category: "Build", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
 
     ];
 
@@ -218,11 +229,12 @@ async function main() {
     const lateMissions = [
         // Missions publiques
         { text: "Crier 'WORTH' après chaque mort", type: "LATE", category: "Communication", difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
+        { text: "Ne parler qu'en questions pendant 4 minutes", type: "LATE", category: "Communication", difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
         { text: "Prendre le TP adverse",                                                 type: "LATE", category: "Combat",      difficulty: "medium",   points: 200, isPrivate: false, maps: "all" },
         { text: "Faire un discours dramatique avant un teamfight", type: "LATE", category: "Communication", difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
         { text: "Tu ne peux pas avoir plus de 5 items",                        type: "LATE", category: "Build",        difficulty: "hard", points: 300, isPrivate: false, maps: "all" },
         { text: "Crier 'PAS GRAVE' après chaque mort alliée", type: "LATE", category: "Mental", difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
-        { text: "Faire un discours de coach sportif après chaque défaite de fight", type: "LATE", category: "Communication", difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
+        { text: "Faire un discours de coach sportif après chaque défaite de fight pendant 3 minutes", type: "LATE", category: "Communication", difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
         { text: "Acheter un Coiffe de Rabadon", type: "LATE", category: "Build", difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
         { text: "Acheter un Sablier de Zhonya", type: "LATE", category: "Build", difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
         { text: "Acheter un Bâton du vide", type: "LATE", category: "Build", difficulty: "easy", points: 100, isPrivate: false, maps: "all" },
@@ -260,13 +272,20 @@ async function main() {
         { text: "Annoncer un plan catastrophique et l'exécuter. Ton équipe doit se faire ACE", type: "LATE", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all" },
         { text: "Spam ping '?' sur le joueur avec le plus de kills pendant 2 minutes", type: "LATE", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
         { text: "Spam ping '?' sur tes alliés pendant 2 minutes",                                  type: "LATE", category: "Toxic",       difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
-        { text: "Accuser le lag et ta freebox après chaque mort", type: "LATE", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
-        { text: "Après chaque kill de ta part, crier le nom de ta ville bien fort",                                  type: "LATE", category: "Toxic",       difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
+        { text: "Accuser le lag et ta freebox après chaque mort pendant 3 minutes", type: "LATE", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true, maps: "all" },
+        { text: "Après chaque kill de ta part, crier le nom de ta ville bien fort pendant 5 minutes", type: "LATE", category: "Toxic",       difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
+        { text: "Fais comme si tu faisais caca et que tu poussais fort : 30 secondes de poussage", type: "LATE", category: "Maladie", difficulty: "easy",   points: 100, isPrivate: true, maps: "all"  },
+        { text: "Faire le dernier kill de la partie", type: "LATE", category: "Honneur", difficulty: "hard",   points: 300, isPrivate: true, maps: "all"  },
 
         // 🎭 Missions avec placeholder joueur
+        { text: "Interpeler {player} mais ne jamais lui répondre. La mission est validée à la 1ère insulte et tu dois lui crier AHAHAH PETIT BOUFFON", type: "LATE", category: "Troll", difficulty: "medium", points: 200, isPrivate: true, maps: "all", playerPlaceholder: "any" },
         { text: "Critiquer le build de {player} pendant 1 minute", type: "LATE", category: "Toxic", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "opponent" },
         { text: "Déclarer que {player} est le MVP de la partie et argumenter pendant 30 secondes", type: "LATE", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "any" },
-        { text: "Venger 3 morts de {player} en te ruant tête baissée dans l'équipe adverse en criant \"POUR FRODON\"", type: "LATE", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "teammate" }
+        { text: "Venger 3 morts de {player} en te ruant tête baissée dans l'équipe adverse en criant \"POUR FRODON\"", type: "LATE", category: "Vocal", difficulty: "easy", points: 100, isPrivate: true, maps: "all", playerPlaceholder: "teammate" },
+
+        // ⚔️ Missions duel (même mission pour 2 joueurs adverses)
+        { text: "Acheter un Creuset de Mikael avant {player}. Une fois l'objet dans ton inventaire, tu dois narguer ton adversaire en lui proposant de l'argent", type: "LATE", category: "Combat", difficulty: "hard", points: 300, isPrivate: true, maps: "all", playerPlaceholder: "duel" },
+
     ];
 
     // ========================================
