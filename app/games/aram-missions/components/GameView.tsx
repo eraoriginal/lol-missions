@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { OtherPlayersMissions } from './OtherPlayersMissions';
 import { MissionChoiceOverlay } from './MissionChoiceOverlay';
+import { MissionOverlay } from './MissionOverlay';
 import { EventOverlay } from './EventOverlay';
 import { Timer } from '@/app/components/Timer';
 import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
@@ -193,6 +194,8 @@ export function GameView({ room, roomCode }: GameViewProps) {
     const [restarting, setRestarting] = useState(false);
     const [resettingToTeams, setResettingToTeams] = useState(false);
     const dismissedEventsRef = useRef(new Set<string>());
+    const shownMissionOverlaysRef = useRef(new Set<string>());
+    const [activeMissionOverlay, setActiveMissionOverlay] = useState<{ mission: PlayerMission; type: 'START' | 'MID' | 'LATE' } | null>(null);
     const [, forceUpdate] = useState(0);
 
     const playerToken = typeof window !== 'undefined'
@@ -236,16 +239,41 @@ export function GameView({ room, roomCode }: GameViewProps) {
         if (currentStartId && prevStartMissionIdRef.current && currentStartId !== prevStartMissionIdRef.current) {
             console.log('[GameView] Nouvelles missions détectées, reset du Set global');
             announcedMissionsGlobal.clear();
+            shownMissionOverlaysRef.current.clear();
+            setActiveMissionOverlay(null);
         }
         prevStartMissionIdRef.current = currentStartId;
     }, [startMission]);
+
+    // Détecte les nouvelles missions pour afficher l'overlay
+    useEffect(() => {
+        if (room.gameStopped) return;
+        // Ne pas afficher l'overlay si un choix est en cours
+        if (activePendingType) return;
+        // Ne pas empiler si un overlay est déjà actif
+        if (activeMissionOverlay) return;
+
+        const missions: { mission: PlayerMission | undefined; type: 'START' | 'MID' | 'LATE' }[] = [
+            { mission: startMission, type: 'START' },
+            { mission: midMission, type: 'MID' },
+            { mission: lateMission, type: 'LATE' },
+        ];
+
+        for (const { mission, type } of missions) {
+            if (mission && !shownMissionOverlaysRef.current.has(mission.mission.id)) {
+                shownMissionOverlaysRef.current.add(mission.mission.id);
+                setActiveMissionOverlay({ mission, type });
+                break;
+            }
+        }
+    }, [startMission, midMission, lateMission, activePendingType, activeMissionOverlay, room.gameStopped]);
 
     const getDifficultyStyle = (difficulty: string) => {
         switch (difficulty) {
             case 'easy':
                 return { bg: 'bg-green-600/80', text: 'text-green-100', label: 'Facile' };
             case 'medium':
-                return { bg: 'bg-yellow-600/80', text: 'text-yellow-100', label: 'Moyen' };
+                return { bg: 'bg-blue-600/80', text: 'text-blue-100', label: 'Moyen' };
             case 'hard':
                 return { bg: 'bg-red-600/80', text: 'text-red-100', label: 'Difficile' };
             default:
@@ -552,6 +580,17 @@ export function GameView({ room, roomCode }: GameViewProps) {
                     roomCode={roomCode}
                     missionVisibility={room.missionVisibility}
                     onChosen={() => {}}
+                />
+            )}
+
+            {/* Overlay de mission (affichage 30s quand une mission apparaît) */}
+            {room.gameStartTime && activeMissionOverlay && !room.gameStopped && (
+                <MissionOverlay
+                    key={activeMissionOverlay.mission.mission.id}
+                    mission={activeMissionOverlay.mission}
+                    type={activeMissionOverlay.type}
+                    missionVisibility={room.missionVisibility}
+                    onDismiss={() => setActiveMissionOverlay(null)}
                 />
             )}
 

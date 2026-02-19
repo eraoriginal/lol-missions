@@ -77,7 +77,7 @@ function getDifficultyStyle(difficulty: string) {
         case 'easy':
             return { bg: 'bg-green-600/80', text: 'text-green-100', label: 'Facile' };
         case 'medium':
-            return { bg: 'bg-yellow-600/80', text: 'text-yellow-100', label: 'Moyen' };
+            return { bg: 'bg-blue-600/80', text: 'text-blue-100', label: 'Moyen' };
         case 'hard':
             return { bg: 'bg-red-600/80', text: 'text-red-100', label: 'Difficile' };
         default:

@@ -40,7 +40,7 @@ function getDifficultyStyle(difficulty: string) {
         case 'easy':
             return { bg: 'bg-green-600/80', text: 'text-green-100', label: 'Facile', points: '100' };
         case 'medium':
-            return { bg: 'bg-yellow-600/80', text: 'text-yellow-100', label: 'Moyen', points: '200' };
+            return { bg: 'bg-blue-600/80', text: 'text-blue-100', label: 'Moyen', points: '200' };
         case 'hard':
             return { bg: 'bg-red-600/80', text: 'text-red-100', label: 'Difficile', points: '300' };
         default:
