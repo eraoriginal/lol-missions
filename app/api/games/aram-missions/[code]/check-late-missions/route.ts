@@ -81,6 +81,21 @@ export async function POST(
             });
         }
 
+        // Vérifie que TOUS les joueurs d'équipe ont une mission MID confirmée
+        // (pas juste des pending choices) avant d'assigner LATE.
+        // Cela évite :
+        // 1. Race condition si check-mid et check-late sont appelés simultanément
+        // 2. Assignation de LATE sans connaître la difficulté de MID (choix pas encore fait)
+        const teamPlayersForMidCheck = room.players.filter(p => p.team === 'red' || p.team === 'blue');
+        const allHaveMidMission = teamPlayersForMidCheck.every(p => p.missions.some(m => m.type === 'MID'));
+        if (!allHaveMidMission) {
+            console.log(`[check-late-missions] Not all team players have MID missions yet for room ${code}, skipping`);
+            return Response.json({
+                message: 'Waiting for all MID missions to be confirmed',
+                shouldAssign: false,
+            });
+        }
+
         // Récupère toutes les missions LATE disponibles (y compris duel)
         const playerCount = room.players.length;
         const lateMissions = await prisma.mission.findMany({

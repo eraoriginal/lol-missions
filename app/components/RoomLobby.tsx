@@ -29,6 +29,7 @@ interface Room {
     missionVisibility: 'all' | 'team' | 'hidden';
     gameMap: string;
     victoryBonus: boolean;
+    betsEnabled: boolean;
     missionChoiceCount: number;
     maxEventsPerGame: number;
     gameHistories?: GameHistoryItem[];
@@ -214,6 +215,7 @@ export function RoomLobby({ room, roomCode }: RoomLobbyProps) {
                 missionVisibility={room.missionVisibility}
                 gameMap={room.gameMap}
                 victoryBonus={room.victoryBonus}
+                betsEnabled={room.betsEnabled}
                 missionChoiceCount={room.missionChoiceCount}
                 maxEventsPerGame={room.maxEventsPerGame}
                 isCreator={isCreator}

@@ -45,6 +45,9 @@ export async function POST(
         await prisma.roomEvent.deleteMany({
             where: { roomId: room.id },
         });
+        await prisma.playerBet.deleteMany({
+            where: { roomId: room.id },
+        });
 
         // Récupère et mélange les missions START
         const playerCount = room.players.length;

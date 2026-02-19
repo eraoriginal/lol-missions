@@ -11,6 +11,7 @@ const settingsSchema = z.object({
     missionVisibility: z.enum(['all', 'team', 'hidden']).optional(),
     gameMap: z.enum(['howling_abyss', 'summoners_rift']).optional(),
     victoryBonus: z.boolean().optional(),
+    betsEnabled: z.boolean().optional(),
     missionChoiceCount: z.number().int().min(1).max(3).optional(),
     maxEventsPerGame: z.number().int().min(0).max(4).optional(),
 });
@@ -22,10 +23,10 @@ export async function PATCH(
     try {
         const { code } = await params;
         const body = await request.json();
-        const { creatorToken, midMissionDelay, lateMissionDelay, missionVisibility, gameMap, victoryBonus, missionChoiceCount, maxEventsPerGame } = settingsSchema.parse(body);
+        const { creatorToken, midMissionDelay, lateMissionDelay, missionVisibility, gameMap, victoryBonus, betsEnabled, missionChoiceCount, maxEventsPerGame } = settingsSchema.parse(body);
 
         // Au moins un paramètre doit être fourni
-        if (midMissionDelay === undefined && lateMissionDelay === undefined && missionVisibility === undefined && gameMap === undefined && victoryBonus === undefined && missionChoiceCount === undefined && maxEventsPerGame === undefined) {
+        if (midMissionDelay === undefined && lateMissionDelay === undefined && missionVisibility === undefined && gameMap === undefined && victoryBonus === undefined && betsEnabled === undefined && missionChoiceCount === undefined && maxEventsPerGame === undefined) {
             return Response.json(
                 { error: 'At least one setting must be provided' },
                 { status: 400 }
@@ -73,6 +74,7 @@ export async function PATCH(
                 ...(missionVisibility !== undefined && { missionVisibility }),
                 ...(gameMap !== undefined && { gameMap }),
                 ...(victoryBonus !== undefined && { victoryBonus }),
+                ...(betsEnabled !== undefined && { betsEnabled }),
                 ...(missionChoiceCount !== undefined && { missionChoiceCount }),
                 ...(maxEventsPerGame !== undefined && { maxEventsPerGame }),
             },
@@ -87,6 +89,7 @@ export async function PATCH(
             missionVisibility: updatedRoom.missionVisibility,
             gameMap: updatedRoom.gameMap,
             victoryBonus: updatedRoom.victoryBonus,
+            betsEnabled: updatedRoom.betsEnabled,
             missionChoiceCount: updatedRoom.missionChoiceCount,
             maxEventsPerGame: updatedRoom.maxEventsPerGame,
         });

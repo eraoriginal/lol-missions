@@ -11,6 +11,7 @@ interface MissionDelayPickerProps {
     missionVisibility: MissionVisibility;
     gameMap: string;
     victoryBonus: boolean;
+    betsEnabled: boolean;
     missionChoiceCount: number;
     maxEventsPerGame: number;
     isCreator: boolean;
@@ -142,6 +143,7 @@ export function MissionDelayPicker({
     missionVisibility,
     gameMap,
     victoryBonus,
+    betsEnabled,
     missionChoiceCount,
     maxEventsPerGame,
     isCreator,
@@ -156,11 +158,12 @@ export function MissionDelayPicker({
     const [selectedVisibility, setSelectedVisibility] = useState<MissionVisibility>(missionVisibility);
     const [selectedMap, setSelectedMap] = useState<GameMap>(gameMap as GameMap);
     const [selectedVictoryBonus, setSelectedVictoryBonus] = useState(victoryBonus);
+    const [selectedBetsEnabled, setSelectedBetsEnabled] = useState(betsEnabled);
     const [selectedMissionChoice, setSelectedMissionChoice] = useState(missionChoiceCount);
     const [selectedMaxEvents, setSelectedMaxEvents] = useState(maxEventsPerGame);
 
     // Sync depuis le polling quand la room change (prop → local state)
-    useEffect(() => { setMidInput(String(Math.round(midMissionDelay / 60))); }, [midMissionDelay]);    useEffect(() => { setLateInput(String(Math.round(lateMissionDelay / 60))); }, [lateMissionDelay]);    useEffect(() => { setSelectedVisibility(missionVisibility); }, [missionVisibility]);    useEffect(() => { setSelectedMap(gameMap as GameMap); }, [gameMap]);    useEffect(() => { setSelectedVictoryBonus(victoryBonus); }, [victoryBonus]);    useEffect(() => { setSelectedMissionChoice(missionChoiceCount); }, [missionChoiceCount]);    useEffect(() => { setSelectedMaxEvents(maxEventsPerGame); }, [maxEventsPerGame]);
+    useEffect(() => { setMidInput(String(Math.round(midMissionDelay / 60))); }, [midMissionDelay]);    useEffect(() => { setLateInput(String(Math.round(lateMissionDelay / 60))); }, [lateMissionDelay]);    useEffect(() => { setSelectedVisibility(missionVisibility); }, [missionVisibility]);    useEffect(() => { setSelectedMap(gameMap as GameMap); }, [gameMap]);    useEffect(() => { setSelectedVictoryBonus(victoryBonus); }, [victoryBonus]);    useEffect(() => { setSelectedBetsEnabled(betsEnabled); }, [betsEnabled]);    useEffect(() => { setSelectedMissionChoice(missionChoiceCount); }, [missionChoiceCount]);    useEffect(() => { setSelectedMaxEvents(maxEventsPerGame); }, [maxEventsPerGame]);
     // Filtre la saisie : chiffres uniquement, pas de zéro en début
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement>,
@@ -300,6 +303,28 @@ export function MissionDelayPicker({
             }
         } catch {
             setSelectedVictoryBonus(victoryBonus);
+        }
+    };
+
+    // Gère le changement des paris
+    const handleBetsEnabledChange = async (value: boolean) => {
+        const token = localStorage.getItem(`room_${roomCode}_creator`);
+        if (!token) return;
+
+        setSelectedBetsEnabled(value);
+
+        try {
+            const res = await fetch(`/api/games/aram-missions/${roomCode}/settings`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ creatorToken: token, betsEnabled: value }),
+            });
+
+            if (!res.ok) {
+                setSelectedBetsEnabled(betsEnabled);
+            }
+        } catch {
+            setSelectedBetsEnabled(betsEnabled);
         }
     };
 
@@ -554,6 +579,63 @@ export function MissionDelayPicker({
                             <button
                                 key={String(value)}
                                 onClick={() => handleVictoryBonusChange(value)}
+                                className={`
+                                    flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all cursor-pointer
+                                    ${isSelected
+                                        ? 'border-[#0AC8B9] bg-[#0AC8B9]/10'
+                                        : 'border-[#C8AA6E]/30 bg-[#1E2328] hover:border-[#C8AA6E]/50'
+                                    }
+                                `}
+                            >
+                                <div className={`
+                                    w-4 h-4 rounded-full border-2 flex items-center justify-center
+                                    ${isSelected
+                                        ? 'border-[#0AC8B9] bg-[#0AC8B9]'
+                                        : 'border-[#C8AA6E]/50 bg-transparent'
+                                    }
+                                `}>
+                                    {isSelected && (
+                                        <div className="w-1.5 h-1.5 rounded-full bg-[#010A13]"></div>
+                                    )}
+                                </div>
+                                <span className={`text-sm font-semibold ${isSelected ? 'text-[#0AC8B9]' : 'lol-text-light'}`}>
+                                    {value ? 'Oui' : 'Non'}
+                                </span>
+                            </button>
+                        ) : (
+                            <div
+                                key={String(value)}
+                                className={`
+                                    flex items-center px-3 py-2 rounded-lg border-2
+                                    ${isSelected
+                                        ? 'border-[#0AC8B9] bg-[#0AC8B9]/10'
+                                        : 'border-[#C8AA6E]/20 bg-[#1E2328]/50 opacity-40'
+                                    }
+                                `}
+                            >
+                                <span className={`text-sm font-semibold ${isSelected ? 'text-[#0AC8B9]' : 'lol-text-light'}`}>
+                                    {value ? 'Oui' : 'Non'}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Séparateur */}
+            <div className="h-px bg-[#C8AA6E]/20 my-5"></div>
+
+            {/* Paris */}
+            <div>
+                <p className="text-sm lol-text mb-1">Paris</p>
+                <p className="text-xs lol-text mb-3 opacity-75">Chaque joueur peut parier sur un autre joueur</p>
+                <div className="flex gap-2">
+                    {[true, false].map((value) => {
+                        const isSelected = selectedBetsEnabled === value;
+                        return isCreator ? (
+                            <button
+                                key={String(value)}
+                                onClick={() => handleBetsEnabledChange(value)}
                                 className={`
                                     flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all cursor-pointer
                                     ${isSelected

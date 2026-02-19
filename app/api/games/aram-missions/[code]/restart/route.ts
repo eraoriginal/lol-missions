@@ -57,6 +57,9 @@ export async function POST(
         await prisma.roomEvent.deleteMany({
             where: { roomId: room.id },
         });
+        await prisma.playerBet.deleteMany({
+            where: { roomId: room.id },
+        });
 
         // Réinitialise la room
         const updatedRoom = await prisma.room.update({

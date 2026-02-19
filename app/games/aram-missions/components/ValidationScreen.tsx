@@ -41,12 +41,27 @@ interface RoomEventV {
     event: { text: string; points: number; duration: number };
 }
 
+interface PlayerBetV {
+    id: string;
+    playerId: string;
+    playerName: string;
+    playerTeam: string;
+    betType: { id: string; text: string; category: string };
+    targetPlayerName: string;
+    targetPlayerId: string;
+    points: number;
+    validated: boolean;
+    decided: boolean;
+}
+
 interface ValidationScreenRoom {
     validationStatus?: string;
     winnerTeam?: string | null;
     victoryBonus?: boolean;
+    betsEnabled?: boolean;
     players: PlayerV[];
     roomEvents?: RoomEventV[];
+    playerBets?: PlayerBetV[];
 }
 
 interface ValidationScreenProps {
@@ -164,6 +179,7 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
     // L'étape bonus est pilotée par le serveur pour que tous les joueurs la voient
     const showBonusStep = room.validationStatus === 'bonus_selection';
     const showEventsStep = room.validationStatus === 'events_validation';
+    const showBetsStep = room.validationStatus === 'bets_validation';
 
     // Réinitialiser finishing quand on change d'écran (via Pusher)
     useEffect(() => {
@@ -334,6 +350,52 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
         await finishValidation(selectedWinnerTeam || undefined);
     };
 
+    // State local optimiste pour les décisions de paris
+    const [localBetDecisions, setLocalBetDecisions] = useState<Record<string, boolean>>({});
+
+    const sendBetDecision = async (playerBetId: string, validated: boolean) => {
+        setLocalBetDecisions(prev => ({ ...prev, [playerBetId]: validated }));
+
+        const creatorToken = localStorage.getItem(`room_${roomCode}_creator`);
+        try {
+            await fetch(`/api/games/aram-missions/${roomCode}/validate-bet`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ creatorToken, playerBetId, validated }),
+            });
+        } catch (e) {
+            console.error('Erreur validation pari:', e);
+        }
+    };
+
+    const getBetDecision = (bet: PlayerBetV): { decided: boolean; validated: boolean } => {
+        if (bet.id in localBetDecisions) {
+            return { decided: true, validated: localBetDecisions[bet.id] };
+        }
+        return { decided: bet.decided, validated: bet.validated };
+    };
+
+    const goNextFromBets = async () => {
+        setFinishing(true);
+        const creatorToken = localStorage.getItem(`room_${roomCode}_creator`);
+
+        try {
+            const res = await fetch(`/api/games/aram-missions/${roomCode}/validate`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    creatorToken,
+                    winnerTeam: selectedWinnerTeam || null,
+                }),
+            });
+            if (!res.ok) throw new Error('Finalisation échouée');
+        } catch (e) {
+            console.error(e);
+            alert('Erreur lors de la finalisation');
+            setFinishing(false);
+        }
+    };
+
     // State local optimiste pour les décisions d'événements
     // Clé: eventId, valeur: 'red' | 'blue' | 'none'
     const [localEventDecisions, setLocalEventDecisions] = useState<Record<string, string>>({});
@@ -367,7 +429,7 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
         return { decided: false, winner: null };
     };
 
-    // Passer des événements au bonus (ou finaliser)
+    // Passer des événements au bonus (ou paris, ou finaliser)
     const goNextFromEvents = async () => {
         setFinishing(true);
         const creatorToken = localStorage.getItem(`room_${roomCode}_creator`);
@@ -381,6 +443,7 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
                 });
                 if (!res.ok) throw new Error('Passage au bonus échoué');
             } else {
+                // finishValidation va vérifier s'il faut d'abord passer par bets_validation
                 await finishValidation();
                 return;
             }
@@ -390,6 +453,98 @@ export function ValidationScreen({ room, roomCode }: ValidationScreenProps) {
             setFinishing(false);
         }
     };
+
+    if (showBetsStep) {
+        const bets = [...(room.playerBets || [])].sort((a, b) => a.id.localeCompare(b.id));
+        const allBetsDecided = bets.every(b => getBetDecision(b).decided);
+        const blueBets = bets.filter(b => b.playerTeam === 'blue');
+        const redBets = bets.filter(b => b.playerTeam === 'red');
+
+        const renderBetCard = (bet: PlayerBetV) => {
+            const { decided, validated } = getBetDecision(bet);
+            return (
+                <div key={bet.id} className="bg-[#010A13]/60 rounded-lg p-3 border border-[#C8AA6E]/20">
+                    <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-sm lol-text-light">{bet.playerName}</span>
+                        <span className="lol-text-gold font-bold text-xs">{bet.points} pts</span>
+                    </div>
+                    <p className="text-[#0AC8B9] text-xs font-medium mb-0.5">{bet.betType.text}</p>
+                    <p className="lol-text text-xs mb-2">
+                        sur <span className="lol-text-light font-medium">{bet.targetPlayerName}</span>
+                    </p>
+                    <div className="flex gap-1.5">
+                        <button
+                            onClick={() => sendBetDecision(bet.id, true)}
+                            className={`flex-1 py-1.5 rounded font-bold text-xs transition-all border ${
+                                decided && validated
+                                    ? 'bg-green-600 border-green-400 text-white'
+                                    : decided && !validated
+                                        ? 'bg-green-900/20 border-green-500/20 text-green-400/50'
+                                        : 'bg-green-900/30 border-green-500/30 text-green-400 hover:bg-green-900/50'
+                            }`}
+                        >
+                            ✅ Réussi
+                        </button>
+                        <button
+                            onClick={() => sendBetDecision(bet.id, false)}
+                            className={`flex-1 py-1.5 rounded font-bold text-xs transition-all border ${
+                                decided && !validated
+                                    ? 'bg-red-600 border-red-400 text-white'
+                                    : decided && validated
+                                        ? 'bg-red-900/20 border-red-500/20 text-red-400/50'
+                                        : 'bg-red-900/30 border-red-500/30 text-red-400 hover:bg-red-900/50'
+                            }`}
+                        >
+                            ❌ Raté
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        return (
+            <div className="space-y-6">
+                <div className="lol-card rounded-lg p-6 text-center">
+                    <div className="text-4xl mb-2">🎰</div>
+                    <h1 className="text-3xl font-bold lol-title-gold mb-1 uppercase tracking-wide">Validation des paris</h1>
+                    <p className="lol-text">Les paris ont-ils été réussis ?</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    {/* Colonne Bleue */}
+                    <div>
+                        <h3 className="text-sm font-bold text-blue-400 uppercase tracking-wide mb-3 text-center">🔵 Bleue</h3>
+                        <div className="space-y-3">
+                            {blueBets.map(renderBetCard)}
+                            {blueBets.length === 0 && (
+                                <p className="text-xs lol-text text-center italic">Aucun pari</p>
+                            )}
+                        </div>
+                    </div>
+                    {/* Colonne Rouge */}
+                    <div>
+                        <h3 className="text-sm font-bold text-red-400 uppercase tracking-wide mb-3 text-center">🔴 Rouge</h3>
+                        <div className="space-y-3">
+                            {redBets.map(renderBetCard)}
+                            {redBets.length === 0 && (
+                                <p className="text-xs lol-text text-center italic">Aucun pari</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-center">
+                    <button
+                        onClick={goNextFromBets}
+                        disabled={!allBetsDecided || finishing}
+                        className="lol-button-hextech px-6 py-3 rounded-lg font-bold transition-all hextech-pulse disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                        {finishing ? 'En cours...' : 'Finaliser'}
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     if (showEventsStep) {
         const allEventsDecided = appearedEvents.every((re) => getEventWinner(re).decided);

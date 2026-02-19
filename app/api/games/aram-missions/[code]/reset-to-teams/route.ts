@@ -43,6 +43,9 @@ export async function POST(
         await prisma.roomEvent.deleteMany({
             where: { roomId: room.id },
         });
+        await prisma.playerBet.deleteMany({
+            where: { roomId: room.id },
+        });
 
         // Reset la room à l'état de sélection des équipes
         await prisma.room.update({

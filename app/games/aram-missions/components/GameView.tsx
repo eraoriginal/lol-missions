@@ -8,8 +8,9 @@ import { EventOverlay } from './EventOverlay';
 import { Timer } from '@/app/components/Timer';
 import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
 import { StopGameButton } from '@/app/components/StopGameButton';
+import { BettingPanel } from './BettingPanel';
 import { GameEndScreen } from '@/app/components/GameEndScreen';
-import type { Player, PlayerMission, RoomEvent } from '@/app/types/room';
+import type { Player, PlayerMission, PlayerBet, RoomEvent } from '@/app/types/room';
 
 interface Room {
     id: string;
@@ -24,6 +25,8 @@ interface Room {
     eventPausedAt?: string | null;
     totalPausedDuration?: number;
     roomEvents?: RoomEvent[];
+    betsEnabled?: boolean;
+    playerBets?: PlayerBet[];
     players: Player[];
 }
 
@@ -424,33 +427,45 @@ export function GameView({ room, roomCode }: GameViewProps) {
                     totalPausedDuration={room.totalPausedDuration}
                 />
             ) : (
-                <div className="lol-card rounded-lg p-8 text-center">
-                    <h2 className="text-2xl font-bold lol-title-gold mb-2">
-                        Préparez-vous, invocateurs !
-                    </h2>
-                    <p className="lol-text mb-6">
-                        Vos missions apparaîtront quand le combat sera lancé.
-                    </p>
-
-                    {isCreator ? (
-                        <div className="space-y-3">
-                            <button
-                                onClick={handleLaunch}
-                                disabled={launching}
-                                className="lol-button-hextech px-10 py-4 rounded-lg font-bold text-xl transition-all hextech-pulse"
-                            >
-                                {launching ? '⏳ Préparation...' : 'LANCER LE COMBAT'}
-                            </button>
-                            {launchError && (
-                                <p className="text-red-400 text-sm">{launchError}</p>
-                            )}
-                        </div>
-                    ) : (
-                        <p className="lol-text italic">
-                            En attente que le créateur lance le combat...
+                <>
+                    <div className="lol-card rounded-lg p-8 text-center">
+                        <h2 className="text-2xl font-bold lol-title-gold mb-2">
+                            Préparez-vous, invocateurs !
+                        </h2>
+                        <p className="lol-text mb-6">
+                            Vos missions apparaîtront quand le combat sera lancé.
                         </p>
+
+                        {isCreator ? (
+                            <div className="space-y-3">
+                                <button
+                                    onClick={handleLaunch}
+                                    disabled={launching}
+                                    className="lol-button-hextech px-10 py-4 rounded-lg font-bold text-xl transition-all hextech-pulse"
+                                >
+                                    {launching ? '⏳ Préparation...' : 'LANCER LE COMBAT'}
+                                </button>
+                                {launchError && (
+                                    <p className="text-red-400 text-sm">{launchError}</p>
+                                )}
+                            </div>
+                        ) : (
+                            <p className="lol-text italic">
+                                En attente que le créateur lance le combat...
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Panel de paris — affiché dans l'écran pré-combat */}
+                    {room.betsEnabled && currentPlayer && currentPlayer.team && (
+                        <BettingPanel
+                            roomCode={roomCode}
+                            players={room.players}
+                            currentPlayerToken={playerToken}
+                            existingBet={(room.playerBets || []).find(b => b.playerId === currentPlayer.id)}
+                        />
                     )}
-                </div>
+                </>
             )}
 
             {/* Missions unifiées — visibles uniquement après le lancement du compteur */}

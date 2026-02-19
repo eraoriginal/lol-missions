@@ -57,6 +57,7 @@ model Room {
   missionVisibility   String    @default("team")         // 'all', 'team', 'hidden'
   gameMap             String    @default("howling_abyss") // 'howling_abyss', 'summoners_rift'
   victoryBonus        Boolean   @default(true)            // bonus de 0-500 pts pour l'équipe victorieuse
+  betsEnabled         Boolean   @default(true)            // paris activés
   missionChoiceCount  Int       @default(1)               // 1 = imposée, 2 ou 3 = choix parmi N missions
   maxEventsPerGame    Int       @default(0)               // 0-5, nombre d'événements aléatoires par partie
   eventPausedAt       DateTime?                           // set quand un événement est actif (timer en pause)
@@ -70,6 +71,7 @@ model Room {
   codenameGame     CodenameGame?
   gameHistories    GameHistory[]
   roomEvents       RoomEvent[]
+  playerBets       PlayerBet[]
 
   @@index([code])
 }
@@ -91,6 +93,7 @@ model GameHistory {
   // Snapshot des joueurs et missions (JSON pour simplicité)
   playersSnapshot    String   // JSON: [{ name, team, avatar, missions: [{ text, type, validated, points }] }]
   eventsSnapshot     String?  // JSON: snapshot des événements de la partie
+  betsSnapshot       String?  // JSON: snapshot des paris de la partie
 
   playedAt           DateTime @default(now())
 
@@ -132,6 +135,8 @@ model Player {
 
   missions       PlayerMission[]
   pendingChoices PendingMissionChoice[]
+  bets           PlayerBet[]  @relation("PlayerBets")
+  betTargets     PlayerBet[]  @relation("BetTargets")
 
   @@index([roomId])
   @@index([token])
@@ -165,6 +170,33 @@ model PlayerMission {
 
   @@unique([playerId, type])
   @@index([playerId])
+}
+
+model BetType {
+  id         String      @id @default(cuid())
+  text       String
+  category   String      @default("general")
+  createdAt  DateTime    @default(now())
+  playerBets PlayerBet[]
+}
+
+model PlayerBet {
+  id             String   @id @default(cuid())
+  playerId       String
+  player         Player   @relation("PlayerBets", fields: [playerId], references: [id], onDelete: Cascade)
+  roomId         String
+  room           Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  betTypeId      String
+  betType        BetType  @relation(fields: [betTypeId], references: [id])
+  targetPlayerId String
+  targetPlayer   Player   @relation("BetTargets", fields: [targetPlayerId], references: [id])
+  points         Int      // 100, 200, 300, 400, 500
+  validated      Boolean  @default(false)
+  decided        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@unique([playerId, roomId]) // 1 pari par joueur par partie
+  @@index([roomId])
 }
 
 // Codename du CEO - Word bank

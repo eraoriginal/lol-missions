@@ -93,9 +93,10 @@ export function assignBalancedMissions(
             }
         }
 
-        // Fallback : si aucune mission disponible dans les difficultés restantes,
-        // prend n'importe quelle mission disponible
+        // Fallback : les pools des difficultés disponibles sont épuisées.
+        // On log un warning car ça ne devrait pas arriver avec assez de missions.
         if (!assigned) {
+            console.warn(`[balancedMissionAssignment] No missions left for available difficulties [${availableDifficulties.join(',')}] for player ${player.id}, falling back`);
             for (const diff of allDifficulties) {
                 const pool = byDifficulty.get(diff);
                 if (pool && pool.length > 0) {
@@ -177,7 +178,9 @@ export function assignBalancedMissionChoices(
         }
 
         // Fallback : complète avec d'autres difficultés si pas assez
+        // (ne devrait pas arriver avec assez de missions seedées)
         if (choices.length < choiceCount) {
+            console.warn(`[balancedMissionChoices] Not enough missions in available difficulties [${availableDifficulties.join(',')}] for player ${player.id}, falling back`);
             for (const diff of allDifficulties) {
                 const pool = byDifficulty.get(diff);
                 if (!pool) continue;

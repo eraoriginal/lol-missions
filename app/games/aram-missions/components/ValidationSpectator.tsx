@@ -40,11 +40,25 @@ interface RoomEventData {
     event: { text: string; points: number; duration: number };
 }
 
+interface PlayerBetData {
+    id: string;
+    playerId: string;
+    playerName: string;
+    playerTeam: string;
+    betType: { id: string; text: string; category: string };
+    targetPlayerName: string;
+    targetPlayerId: string;
+    points: number;
+    validated: boolean;
+    decided: boolean;
+}
+
 interface ValidationSpectatorRoom {
     validationStatus?: string;
     winnerTeam?: string | null;
     players: PlayerData[];
     roomEvents?: RoomEventData[];
+    playerBets?: PlayerBetData[];
 }
 
 interface ValidationSpectatorProps {
@@ -144,6 +158,79 @@ export function ValidationSpectator({ room, roomCode }: ValidationSpectatorProps
     const startMission = currentPlayer?.missions.find((m) => m.type === 'START');
     const midMission = currentPlayer?.missions.find((m) => m.type === 'MID');
     const lateMission = currentPlayer?.missions.find((m) => m.type === 'LATE');
+
+    // Écran paris visible par les spectateurs
+    if (room.validationStatus === 'bets_validation') {
+        const bets = [...(room.playerBets || [])].sort((a, b) => a.id.localeCompare(b.id));
+        const blueBets = bets.filter(b => b.playerTeam === 'blue');
+        const redBets = bets.filter(b => b.playerTeam === 'red');
+
+        const renderBetCard = (bet: PlayerBetData) => (
+            <div key={bet.id} className="bg-[#010A13]/60 rounded-lg p-3 border border-[#C8AA6E]/20">
+                <div className="flex items-center justify-between mb-1">
+                    <span className="font-bold text-sm lol-text-light">{bet.playerName}</span>
+                    <span className="lol-text-gold font-bold text-xs">{bet.points} pts</span>
+                </div>
+                <p className="text-[#0AC8B9] text-xs font-medium mb-0.5">{bet.betType.text}</p>
+                <p className="lol-text text-xs mb-2">
+                    sur <span className="lol-text-light font-medium">{bet.targetPlayerName}</span>
+                </p>
+                <div className="flex gap-1.5">
+                    <div className={`flex-1 py-1.5 rounded font-bold text-xs text-center border ${
+                        bet.decided && bet.validated
+                            ? 'bg-green-600 border-green-400 text-white'
+                            : bet.decided && !bet.validated
+                                ? 'bg-green-900/20 border-green-500/20 text-green-400/50'
+                                : 'bg-green-900/30 border-green-500/30 text-green-400'
+                    }`}>
+                        ✅ Réussi
+                    </div>
+                    <div className={`flex-1 py-1.5 rounded font-bold text-xs text-center border ${
+                        bet.decided && !bet.validated
+                            ? 'bg-red-600 border-red-400 text-white'
+                            : bet.decided && bet.validated
+                                ? 'bg-red-900/20 border-red-500/20 text-red-400/50'
+                                : 'bg-red-900/30 border-red-500/30 text-red-400'
+                    }`}>
+                        ❌ Raté
+                    </div>
+                </div>
+            </div>
+        );
+
+        return (
+            <div className="space-y-6">
+                <div className="lol-card rounded-lg p-6 text-center">
+                    <div className="text-4xl mb-2 animate-bounce">🎰</div>
+                    <h1 className="text-3xl font-bold lol-title-gold mb-1 uppercase tracking-wide">Validation des paris</h1>
+                    <p className="lol-text">Le créateur valide les paris des joueurs...</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    {/* Colonne Bleue */}
+                    <div>
+                        <h3 className="text-sm font-bold text-blue-400 uppercase tracking-wide mb-3 text-center">🔵 Bleue</h3>
+                        <div className="space-y-3">
+                            {blueBets.map(renderBetCard)}
+                            {blueBets.length === 0 && (
+                                <p className="text-xs lol-text text-center italic">Aucun pari</p>
+                            )}
+                        </div>
+                    </div>
+                    {/* Colonne Rouge */}
+                    <div>
+                        <h3 className="text-sm font-bold text-red-400 uppercase tracking-wide mb-3 text-center">🔴 Rouge</h3>
+                        <div className="space-y-3">
+                            {redBets.map(renderBetCard)}
+                            {redBets.length === 0 && (
+                                <p className="text-xs lol-text text-center italic">Aucun pari</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     // Écran événements visible par les spectateurs
     if (room.validationStatus === 'events_validation') {

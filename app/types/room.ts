@@ -81,6 +81,25 @@ export interface RoomEvent {
     };
 }
 
+export interface BetType {
+    id: string;
+    text: string;
+    category: string;
+}
+
+export interface PlayerBet {
+    id: string;
+    playerId: string;
+    playerName: string;
+    playerTeam: string;
+    betType: BetType;
+    targetPlayerName: string;
+    targetPlayerId: string;
+    points: number;
+    validated: boolean;
+    decided: boolean;
+}
+
 export interface Room {
     id: string;
     code: string;
@@ -93,6 +112,7 @@ export interface Room {
     missionVisibility: 'all' | 'team' | 'hidden';
     gameMap: string;
     victoryBonus: boolean;
+    betsEnabled: boolean;
     missionChoiceCount: number;
     maxEventsPerGame: number;
     eventPausedAt: string | null;
@@ -103,4 +123,5 @@ export interface Room {
     players: Player[];
     codenameGame?: CodenameGame | null;
     roomEvents?: RoomEvent[];
+    playerBets?: PlayerBet[];
 }

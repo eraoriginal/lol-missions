@@ -18,6 +18,19 @@ interface RoomEventData {
     event: { text: string; points: number; difficulty: string; duration: number };
 }
 
+interface PlayerBetData {
+    id: string;
+    playerId: string;
+    playerName: string;
+    playerTeam: string;
+    betType: { id: string; text: string; category: string };
+    targetPlayerName: string;
+    targetPlayerId: string;
+    points: number;
+    validated: boolean;
+    decided: boolean;
+}
+
 interface GameEndRoom {
     validationStatus?: string;
     players: {
@@ -35,9 +48,11 @@ interface GameEndRoom {
         }[];
     }[];
     victoryBonus?: boolean;
+    betsEnabled?: boolean;
     winnerTeam?: string | null;
     victoryBonusPoints?: number;
     roomEvents?: RoomEventData[];
+    playerBets?: PlayerBetData[];
 }
 
 interface GameEndScreenProps {
@@ -49,7 +64,7 @@ interface GameEndScreenProps {
 export function GameEndScreen({ room, roomCode, isCreator }: GameEndScreenProps) {
     const [restarting, setRestarting] = useState(false);
 
-    if (room.validationStatus?.startsWith('in_progress') || room.validationStatus === 'events_validation' || room.validationStatus === 'bonus_selection') {
+    if (room.validationStatus?.startsWith('in_progress') || room.validationStatus === 'events_validation' || room.validationStatus === 'bonus_selection' || room.validationStatus === 'bets_validation') {
         if (isCreator) {
             return <ValidationScreen room={room} roomCode={roomCode} />;
         }
@@ -84,9 +99,11 @@ export function GameEndScreen({ room, roomCode, isCreator }: GameEndScreenProps)
             <GameSummary
                 players={room.players}
                 victoryBonus={room.victoryBonus}
+                betsEnabled={room.betsEnabled}
                 winnerTeam={room.winnerTeam}
                 victoryBonusPoints={room.victoryBonusPoints}
                 roomEvents={(room.roomEvents || []).filter((re) => re.appearedAt !== null)}
+                playerBets={room.playerBets}
             />
 
             <div className="lol-card rounded-lg p-6">

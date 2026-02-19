@@ -63,7 +63,7 @@ export async function PATCH(
 ) {
     try {
         const { code } = await params;
-        const { creatorToken, currentPlayerIndex, bonusSelection, eventsValidation, winnerTeam } = await request.json();
+        const { creatorToken, currentPlayerIndex, bonusSelection, eventsValidation, betsValidation, winnerTeam } = await request.json();
 
         if (!creatorToken) {
             return NextResponse.json({ error: 'Missing creatorToken' }, { status: 400 });
@@ -88,6 +88,9 @@ export async function PATCH(
         }
         if (bonusSelection) {
             data.validationStatus = 'bonus_selection';
+        }
+        if (betsValidation) {
+            data.validationStatus = 'bets_validation';
         }
         if (winnerTeam !== undefined) {
             data.winnerTeam = winnerTeam;
@@ -131,6 +134,13 @@ export async function PUT(
                     },
                 },
                 gameHistories: true,
+                playerBets: {
+                    include: {
+                        betType: true,
+                        player: true,
+                        targetPlayer: true,
+                    },
+                },
             },
         });
 
@@ -143,6 +153,17 @@ export async function PUT(
 
         // Garde d'idempotence : si déjà finalisé, ne pas recréer d'historique
         if (room.validationStatus === 'completed') {
+            return NextResponse.json({ success: true });
+        }
+
+        // Si des paris existent et qu'on n'est pas encore en bets_validation, y aller d'abord
+        const hasBets = room.playerBets.length > 0;
+        if (hasBets && room.betsEnabled && room.validationStatus !== 'bets_validation') {
+            await prisma.room.update({
+                where: { code },
+                data: { validationStatus: 'bets_validation' },
+            });
+            await pushRoomUpdate(code);
             return NextResponse.json({ success: true });
         }
 
@@ -196,6 +217,28 @@ export async function PUT(
             teamScores[winnerTeam] += randomBonus;
         }
 
+        // Calculer les scores de paris par équipe
+        if (hasBets && room.betsEnabled) {
+            const betsByTeam: Record<string, typeof room.playerBets> = { red: [], blue: [] };
+            for (const bet of room.playerBets) {
+                const team = bet.player.team;
+                if (team === 'red' || team === 'blue') {
+                    betsByTeam[team].push(bet);
+                }
+            }
+
+            for (const team of ['red', 'blue'] as const) {
+                const teamBets = betsByTeam[team];
+                const wonBets = teamBets.filter(b => b.decided && b.validated);
+                const lostBets = teamBets.filter(b => b.decided && !b.validated);
+                const wonTotal = wonBets.reduce((sum, b) => sum + b.points, 0);
+                const lostTotal = lostBets.reduce((sum, b) => sum + b.points, 0);
+                const multiplier = wonBets.length >= 2 ? wonBets.length : 1;
+                const betScore = (wonTotal * multiplier) - lostTotal;
+                teamScores[team] += betScore;
+            }
+        }
+
         // Le vainqueur est l'équipe avec le plus de points (bonus inclus)
         const actualWinner = teamScores.blue > teamScores.red ? 'blue'
             : teamScores.red > teamScores.blue ? 'red'
@@ -216,6 +259,19 @@ export async function PUT(
                     isPrivate: pm.mission.isPrivate,
                 })),
             }));
+
+        // Créer le snapshot des paris
+        const betsSnapshot = hasBets && room.betsEnabled
+            ? JSON.stringify(room.playerBets.map(bet => ({
+                playerName: bet.player.name,
+                playerTeam: bet.player.team,
+                betTypeText: bet.betType.text,
+                targetPlayerName: bet.targetPlayer.name,
+                points: bet.points,
+                validated: bet.validated,
+                decided: bet.decided,
+            })))
+            : null;
 
         // Créer le snapshot des événements
         const eventsSnapshot = roomEvents.length > 0
@@ -244,6 +300,7 @@ export async function PUT(
                 bonusTeam: winnerTeam || null,
                 playersSnapshot: JSON.stringify(playersSnapshot),
                 eventsSnapshot,
+                betsSnapshot,
             },
         });
 
