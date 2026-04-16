@@ -47,6 +47,11 @@ export async function GET(
                         },
                     },
                 },
+                beatEikichiGame: {
+                    include: {
+                        playerStates: true,
+                    },
+                },
                 gameHistories: {
                     orderBy: { gameNumber: 'asc' },
                 },

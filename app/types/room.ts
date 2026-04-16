@@ -100,6 +100,41 @@ export interface PlayerBet {
     decided: boolean;
 }
 
+export interface BeatEikichiQuestion {
+    position: number;
+    gameId: string;
+    name: string;
+    aliases: string[];
+    imageUrl: string;
+}
+
+export interface BeatEikichiPlayerAnswer {
+    position: number;
+    submittedText: string;
+    correct: boolean;
+    answeredAtMs: number | null;
+}
+
+export interface BeatEikichiPlayerState {
+    id: string;
+    playerId: string;
+    currentTyping: string;
+    answers: BeatEikichiPlayerAnswer[];
+    score: number;
+}
+
+export type BeatEikichiPhase = 'playing' | 'review_intro' | 'review' | 'leaderboard';
+
+export interface BeatEikichiGame {
+    id: string;
+    questions: BeatEikichiQuestion[];
+    phase: BeatEikichiPhase;
+    currentIndex: number;
+    questionStartedAt: string | null;
+    eikichiPlayerId: string | null;
+    playerStates: BeatEikichiPlayerState[];
+}
+
 export interface Room {
     id: string;
     code: string;
@@ -120,8 +155,10 @@ export interface Room {
     winnerTeam?: string | null;
     victoryBonusPoints: number;
     creatorToken?: string;
+    beatEikichiEikichiId?: string | null;
     players: Player[];
     codenameGame?: CodenameGame | null;
+    beatEikichiGame?: BeatEikichiGame | null;
     roomEvents?: RoomEvent[];
     playerBets?: PlayerBet[];
 }

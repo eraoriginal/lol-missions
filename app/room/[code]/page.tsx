@@ -7,6 +7,7 @@ import { useRoom } from '@/app/hooks/useRoom';
 import { RoomLobby } from '@/app/components/RoomLobby';
 import { GameView as AramMissionsGameView } from '@/app/games/aram-missions/components/GameView';
 import { GameView as CodenameGameView } from '@/app/games/codename/components/GameView';
+import { GameView as BeatEikichiGameView, BeatEikichiLobby } from '@/app/games/beat-eikichi/components';
 import { Toast } from '@/app/components/Toast';
 import { ComingSoonGame } from "@/app/components/ComingSoonGame";
 
@@ -230,11 +231,16 @@ export default function RoomPage({
                         )
                     ) : room.gameType === 'codename-ceo' ? (
                         <CodenameGameView room={room} roomCode={code} />
+                    ) : room.gameType === 'beat-eikichi' ? (
+                        room.gameStarted ? (
+                            <BeatEikichiGameView room={room} roomCode={code} />
+                        ) : (
+                            <BeatEikichiLobby room={room} roomCode={code} />
+                        )
                     ) : (
                         <ComingSoonGame
                             roomCode={code}
                             gameName={
-                                room.gameType === 'break-room-quiz' ? 'Quiz de la salle de pause' :
                                 room.gameType === 'coming-game' ? 'Coming Game' :
                                 'À venir'
                             }

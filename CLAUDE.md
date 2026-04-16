@@ -18,6 +18,7 @@ Application web de mini-jeux League of Legends (missions ARAM, Codename du CEO, 
 - `npx prisma db push` — Appliquer le schéma à la DB (préférer à `migrate dev`)
 - `npx prisma studio` — UI pour explorer la DB
 - `npm run prisma:seed` — Seeder les missions/events
+- `npm run seed:beat-eikichi` — Seeder le catalogue Beat Eikichi (500 jeux depuis RAWG API, idempotent)
 
 ## Structure du projet
 ```
@@ -88,3 +89,14 @@ prisma/
 - `DATABASE_URL` — URL PostgreSQL (Neon)
 - `PUSHER_APP_ID`, `PUSHER_APP_KEY`, `PUSHER_APP_SECRET`, `PUSHER_APP_CLUSTER`
 - `NEXT_PUBLIC_PUSHER_APP_KEY`, `NEXT_PUBLIC_PUSHER_APP_CLUSTER`
+- `RAWG_API_KEY` — clé API RAWG (gratuite sur https://rawg.io/apidocs) utilisée UNIQUEMENT par `seed:beat-eikichi` pour peupler le catalogue. Runtime n'en a pas besoin (URLs persistées en DB).
+- `GIPHY_API_KEY` — clé GIPHY (gratuite sur https://developers.giphy.com) utilisée UNIQUEMENT par `seed:beat-eikichi-gifs` pour enrichir les jeux avec 5 GIFs chacun.
+
+## Beat Eikichi
+- **Jeu** : devine le jeu vidéo à partir d'un GIF ou image. 20 questions tirées aléatoirement par partie (rejouable à volonté). Multi-joueur compétitif.
+- **Config** : `lib/beatEikichi/config.ts` (timer, fuzzy ratio, etc.).
+- **Tirage aléatoire** : `generateQuestionSet()` — fresh pick à chaque `/start` et `/restart`.
+- **Catalogue** : 1000 jeux, chacun avec 5 images (RAWG) + 5 GIFs (GIPHY). Au tirage on prend 1 GIF si dispo, sinon 1 image.
+- **Fuzzy matching** : `isAcceptedAnswer()` dans `lib/beatEikichi/fuzzyMatch.ts` (normalisation + Levenshtein).
+- **Synchro timer** : n'importe quel client appelle `/next` au timeout local ; la route est idempotente côté serveur (check `questionStartedAt + TIMER_MS`).
+- **Seeds** : `npm run seed:beat-eikichi` (catalogue + images, ~5 min), puis `npm run seed:beat-eikichi-gifs` (GIFs GIPHY, ~10 min).

@@ -130,15 +130,15 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-purple-900/10 border border-purple-500/10 opacity-50">
-              <div className="arcane-step arcane-step-gold w-12 h-12 text-base opacity-50">
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-purple-900/20 border border-purple-500/20 hover:border-amber-500/30 hover:bg-purple-900/30 transition-all">
+              <div className="arcane-step arcane-step-gold w-12 h-12 text-base">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
               <div>
-                <h5 className="text-sm font-medium text-purple-300/50">Quiz de la salle de pause</h5>
-                <p className="text-xs text-purple-400/30">Bientôt disponible</p>
+                <h5 className="text-sm font-semibold text-purple-100">Beat Eikichi</h5>
+                <p className="text-xs text-purple-300/50">Devine le jeu vidéo à partir d&apos;une image</p>
               </div>
             </div>
 

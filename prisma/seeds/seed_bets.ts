@@ -28,7 +28,6 @@ async function main() {
         { text: "Fera le plus de dégâts de son équipe", category: "Combat" },
         { text: "Fera le premier kill de la partie", category: "Combat" },
         { text: "Mourra en premier dans la partie", category: "Combat" },
-        { text: "Fera un quadra kill ou plus", category: "Combat" },
         { text: "Fera un pentakill", category: "Combat" },
         { text: "Fera le dernier kill de la partie", category: "Combat" },
         { text: "Aura plus de kills que tout le reste de son équipe combiné", category: "Combat" },

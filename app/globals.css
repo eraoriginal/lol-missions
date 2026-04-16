@@ -1073,3 +1073,84 @@ body {
   box-shadow: inset 0 0 100px rgba(59, 130, 246, 0.3);
   border-radius: 16px;
 }
+
+/* ========== BEAT EIKICHI ANIMATIONS ========== */
+
+@keyframes beat-eikichi-shake-frames {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+
+.beat-eikichi-shake {
+  animation: beat-eikichi-shake-frames 0.35s ease-in-out;
+  border-color: rgba(239, 68, 68, 0.8) !important;
+}
+
+@keyframes beat-eikichi-pulse-frames {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(52, 211, 153, 0)); }
+  50% { transform: scale(1.2); filter: drop-shadow(0 0 12px rgba(52, 211, 153, 0.8)); }
+}
+
+.beat-eikichi-pulse {
+  animation: beat-eikichi-pulse-frames 0.9s ease-out 1;
+}
+
+@keyframes beat-eikichi-checkmark-frames {
+  0% { opacity: 0; transform: scale(0.3); }
+  60% { opacity: 1; transform: scale(1.4); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.beat-eikichi-checkmark {
+  animation: beat-eikichi-checkmark-frames 0.7s ease-out 1;
+}
+
+@keyframes beat-eikichi-reveal-frames {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.beat-eikichi-reveal {
+  animation: beat-eikichi-reveal-frames 0.6s ease-out 1 both;
+}
+
+/* Style distinctif pour le joueur "Je suis Eikichi" — visible partout */
+@keyframes beat-eikichi-highlight-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.7), 0 0 20px rgba(250, 204, 21, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.95), 0 0 32px rgba(250, 204, 21, 0.55);
+  }
+}
+
+.beat-eikichi-highlight {
+  background: linear-gradient(135deg, rgba(250, 204, 21, 0.12) 0%, rgba(220, 38, 38, 0.12) 100%) !important;
+  border: 1px solid rgba(250, 204, 21, 0.6) !important;
+  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.7), 0 0 20px rgba(250, 204, 21, 0.3);
+  animation: beat-eikichi-highlight-pulse 2.4s ease-in-out infinite;
+}
+
+.beat-eikichi-avatar {
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.9), 0 0 12px rgba(250, 204, 21, 0.5);
+}
+
+.beat-eikichi-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #fde68a;
+  background: linear-gradient(135deg, #b91c1c 0%, #f59e0b 100%);
+  border: 1px solid rgba(250, 204, 21, 0.8);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 8px rgba(250, 204, 21, 0.4);
+  white-space: nowrap;
+}

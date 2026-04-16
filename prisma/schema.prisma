@@ -65,10 +65,12 @@ model Room {
   winnerTeam          String?                             // "red" ou "blue", null si pas encore défini
   victoryBonusPoints  Int       @default(0)              // points bonus attribués à l'équipe gagnante
   selectedCategories  String[]  @default([])             // catégories sélectionnées pour Codename
+  beatEikichiEikichiId String?                           // joueur désigné comme "Je suis Eikichi" (Beat Eikichi) - setté depuis le lobby, visible par tous
   createdAt           DateTime  @default(now())
 
   players          Player[]
   codenameGame     CodenameGame?
+  beatEikichiGame  BeatEikichiGame?
   gameHistories    GameHistory[]
   roomEvents       RoomEvent[]
   playerBets       PlayerBet[]
@@ -137,6 +139,7 @@ model Player {
   pendingChoices PendingMissionChoice[]
   bets           PlayerBet[]  @relation("PlayerBets")
   betTargets     PlayerBet[]  @relation("BetTargets")
+  beatEikichiStates BeatEikichiPlayerState[]
 
   @@index([roomId])
   @@index([token])
@@ -275,4 +278,55 @@ model CardInterest {
 
   @@unique([cardId, playerName])
   @@index([cardId])
+}
+
+// Beat Eikichi - catalogue de jeux vidéo (seedé depuis RAWG API + GIPHY/Tenor pour les GIFs)
+model VideoGame {
+  id        String   @id @default(cuid())
+  rawgId    Int      @unique
+  name      String          // nom canonique pour l'affichage en review
+  aliases   String[] @default([])  // alternative_names RAWG + variantes générées
+  images    String[] @default([])  // 5 URLs de screenshots (fallback si pas de GIFs)
+  gifs      String[] @default([])  // 5 URLs de GIFs (3 GIPHY + 2 Tenor) — prioritaires à l'affichage
+  createdAt DateTime @default(now())
+
+  @@index([name])
+}
+
+// Beat Eikichi - état de la partie pour une room
+model BeatEikichiGame {
+  id                String    @id @default(cuid())
+  roomId            String    @unique
+  room              Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  questions         Json      // snapshot des 20 questions tirées au démarrage de CETTE partie
+
+  phase             String    @default("playing") // "playing" | "review_intro" | "review" | "leaderboard"
+  currentIndex      Int       @default(0)        // 0..19 — réutilisé en review
+  questionStartedAt DateTime?                    // début de la question courante (source du timer)
+
+  // ID du joueur désigné comme "Je suis Eikichi" (optionnel). S'il trouve la bonne réponse,
+  // la question avance immédiatement pour tous les joueurs (les autres ont perdu leur chance).
+  eikichiPlayerId   String?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  playerStates      BeatEikichiPlayerState[]
+}
+
+// Beat Eikichi - état par-joueur
+model BeatEikichiPlayerState {
+  id            String   @id @default(cuid())
+  gameId        String
+  game          BeatEikichiGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  playerId      String
+  player        Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  currentTyping String   @default("")       // dernière saisie (persistée throttle ~1s, fallback review)
+  answers       Json     @default("[]")     // Array<{ position, submittedText, correct, answeredAtMs }>
+  score         Int      @default(0)
+
+  @@unique([gameId, playerId])
+  @@index([gameId])
 }
