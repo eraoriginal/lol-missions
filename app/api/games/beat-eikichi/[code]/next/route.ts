@@ -51,10 +51,15 @@ export async function POST(
       return Response.json({ ok: true, skipped: 'already advanced' });
     }
 
-    // Anti-race : on exige que le timer soit réellement écoulé.
+    // Anti-race : le timer doit être raisonnablement écoulé.
+    // On applique une tolérance large (5s) pour absorber :
+    //   - le décalage d'horloge client/serveur (peut atteindre plusieurs secondes)
+    //   - un éventuel désalignement entre bundle client caché et config serveur
+    // Un avancement ~5s trop tôt est un dommage mineur comparé à un jeu bloqué.
+    const TIMER_TOLERANCE_MS = 5000;
     if (game.questionStartedAt) {
       const elapsed = Date.now() - new Date(game.questionStartedAt).getTime();
-      if (elapsed < QUESTION_TIMER_MS) {
+      if (elapsed < QUESTION_TIMER_MS - TIMER_TOLERANCE_MS) {
         return Response.json({ ok: true, skipped: 'timer not elapsed' });
       }
     }

@@ -53,7 +53,7 @@ export function PlayingView({
     if (nextTriggeredRef.current === currentIndex) return;
     nextTriggeredRef.current = currentIndex;
     try {
-      await fetch(`/api/games/beat-eikichi/${roomCode}/next`, {
+      const res = await fetch(`/api/games/beat-eikichi/${roomCode}/next`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -61,8 +61,20 @@ export function PlayingView({
           expectedIndex: currentIndex,
         }),
       });
+      const data: { ok?: boolean; skipped?: string } = await res
+        .json()
+        .catch(() => ({}));
+      // Si le serveur a rejeté parce que son horloge trouve le timer pas écoulé
+      // (ex. décalage d'horloge client/serveur), on relâche le verrou pour retenter
+      // 1 s plus tard. Sinon on serait bloqué indéfiniment.
+      if (!res.ok || data.skipped === 'timer not elapsed') {
+        setTimeout(() => {
+          if (nextTriggeredRef.current === currentIndex) {
+            nextTriggeredRef.current = null;
+          }
+        }, 1000);
+      }
     } catch {
-      // réessaiera au prochain tick
       nextTriggeredRef.current = null;
     }
   };

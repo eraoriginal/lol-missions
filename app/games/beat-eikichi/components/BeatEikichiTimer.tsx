@@ -6,13 +6,15 @@ import { BEAT_EIKICHI_CONFIG } from '@/lib/beatEikichi/config';
 interface BeatEikichiTimerProps {
   /** ISO datetime du début de la question courante. */
   questionStartedAt: string | null;
-  /** Appelé une seule fois quand le timer atteint 0 (côté client). */
+  /** Appelé à chaque tick une fois le timer écoulé. Le caller doit dédupliquer. */
   onTimeout?: () => void;
 }
 
 /**
  * Timer côté client dérivé du `questionStartedAt` serveur.
- * Déclenche `onTimeout` une seule fois au passage à 0.
+ * Appelle `onTimeout` à chaque tick (≈200ms) tant que le timer est dépassé —
+ * le parent (via un ref) dédup le premier appel ; il pourra relâcher le verrou
+ * si le serveur rejette (décalage d'horloge) pour déclencher une retry automatique.
  */
 export function BeatEikichiTimer({
   questionStartedAt,
@@ -25,7 +27,6 @@ export function BeatEikichiTimer({
   useEffect(() => {
     if (!questionStartedAt) return;
 
-    let fired = false;
     const startMs = new Date(questionStartedAt).getTime();
     const total = BEAT_EIKICHI_CONFIG.QUESTION_TIMER_SECONDS;
 
@@ -33,8 +34,7 @@ export function BeatEikichiTimer({
       const elapsed = (Date.now() - startMs) / 1000;
       const left = Math.max(0, total - elapsed);
       setRemaining(Math.ceil(left));
-      if (left <= 0 && !fired) {
-        fired = true;
+      if (left <= 0) {
         onTimeout?.();
       }
     };

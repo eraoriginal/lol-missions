@@ -4,7 +4,7 @@
  */
 export const BEAT_EIKICHI_CONFIG = {
   /** Durée d'une question en secondes. Modifier ici si trop court / trop long. */
-  QUESTION_TIMER_SECONDS: 45,
+  QUESTION_TIMER_SECONDS: 30,
 
   /** Nombre de questions par partie. Chaque partie a son propre tirage aléatoire. */
   QUESTIONS_PER_GAME: 20,
