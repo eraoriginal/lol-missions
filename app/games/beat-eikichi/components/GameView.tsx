@@ -85,7 +85,6 @@ export function GameView({ room, roomCode }: GameViewProps) {
         room={room}
         roomCode={roomCode}
         isCreator={isCreator}
-        creatorToken={creatorToken}
       />
     );
   }

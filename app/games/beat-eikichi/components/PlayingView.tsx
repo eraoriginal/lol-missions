@@ -8,6 +8,7 @@ import { PlayerScoreList } from './PlayerScoreList';
 import type { CatalogEntry } from './AutocompleteInput';
 import { BEAT_EIKICHI_CONFIG } from '@/lib/beatEikichi/config';
 import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
+import { BackToLobbyButton } from './BackToLobbyButton';
 
 interface PlayingViewProps {
   room: Room;
@@ -76,7 +77,8 @@ export function PlayingView({
 
   return (
     <div className="min-h-screen arcane-bg p-4 md:p-6">
-      <div className="max-w-6xl mx-auto flex justify-end mb-3">
+      <div className="max-w-6xl mx-auto flex justify-end items-center gap-2 mb-3">
+        <BackToLobbyButton roomCode={roomCode} />
         <LeaveRoomButton roomCode={roomCode} />
       </div>
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 md:gap-6">

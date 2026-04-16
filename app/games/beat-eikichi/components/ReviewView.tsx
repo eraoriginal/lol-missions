@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { Room } from '@/app/types/room';
 import { BEAT_EIKICHI_CONFIG } from '@/lib/beatEikichi/config';
 import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
+import { BackToLobbyButton } from './BackToLobbyButton';
 
 interface ReviewViewProps {
   room: Room;
@@ -41,7 +42,8 @@ export function ReviewView({
 
   return (
     <div className="min-h-screen arcane-bg p-4 md:p-6">
-      <div className="max-w-5xl mx-auto flex justify-end mb-3">
+      <div className="max-w-5xl mx-auto flex justify-end items-center gap-2 mb-3">
+        <BackToLobbyButton roomCode={roomCode} />
         <LeaveRoomButton roomCode={roomCode} />
       </div>
       <div className="max-w-5xl mx-auto space-y-6">

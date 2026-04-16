@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
+import { BackToLobbyButton } from './BackToLobbyButton';
 
 interface ReviewIntroViewProps {
   roomCode: string;
@@ -43,7 +44,8 @@ export function ReviewIntroView({
 
   return (
     <div className="min-h-screen arcane-bg p-4 md:p-8 flex flex-col">
-      <div className="max-w-2xl w-full mx-auto flex justify-end mb-4">
+      <div className="max-w-2xl w-full mx-auto flex justify-end items-center gap-2 mb-4">
+        <BackToLobbyButton roomCode={roomCode} />
         <LeaveRoomButton roomCode={roomCode} />
       </div>
       <div className="flex-1 flex items-center justify-center">

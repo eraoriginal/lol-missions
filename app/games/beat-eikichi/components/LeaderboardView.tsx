@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import type { Room } from '@/app/types/room';
 import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
+import { BackToLobbyButton } from './BackToLobbyButton';
 
 interface LeaderboardViewProps {
   room: Room;
   roomCode: string;
   isCreator: boolean;
-  creatorToken: string | null;
 }
 
 interface LeaderboardRow {
@@ -25,7 +25,6 @@ export function LeaderboardView({
   room,
   roomCode,
   isCreator,
-  creatorToken,
 }: LeaderboardViewProps) {
   const game = room.beatEikichiGame!;
 
@@ -53,7 +52,6 @@ export function LeaderboardView({
 
   // Révélation du dernier vers le premier.
   const [revealedCount, setRevealedCount] = useState(0);
-  const [restarting, setRestarting] = useState(false);
 
   useEffect(() => {
     if (revealedCount >= rows.length) return;
@@ -65,20 +63,6 @@ export function LeaderboardView({
 
   // Les joueurs révélés sont les derniers du classement (plus petit score révélé d'abord).
   const revealedRows = rows.slice(rows.length - revealedCount);
-
-  const handleBackToLobby = async () => {
-    if (!creatorToken) return;
-    setRestarting(true);
-    try {
-      await fetch(`/api/games/beat-eikichi/${roomCode}/back-to-lobby`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ creatorToken }),
-      });
-    } finally {
-      setRestarting(false);
-    }
-  };
 
   const podiumClass = (rank: number) => {
     if (rank === 0)
@@ -144,15 +128,7 @@ export function LeaderboardView({
 
         {revealedCount >= rows.length && (
           <div className="arcane-card p-4 flex flex-col sm:flex-row items-center justify-center gap-3">
-            {isCreator && (
-              <button
-                onClick={handleBackToLobby}
-                disabled={restarting}
-                className="px-6 py-3 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-semibold transition disabled:opacity-50"
-              >
-                {restarting ? 'Retour…' : '↻ Retour au lobby'}
-              </button>
-            )}
+            <BackToLobbyButton roomCode={roomCode} confirm={false} />
             <LeaveRoomButton roomCode={roomCode} />
           </div>
         )}
