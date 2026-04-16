@@ -45,8 +45,10 @@ export async function generateQuestionSet(): Promise<BeatEikichiQuestion[]> {
   const picked = sample(allGames, BEAT_EIKICHI_CONFIG.QUESTIONS_PER_GAME);
 
   return picked.map((game, index) => {
-    // Priorité aux GIFs ; fallback sur les images si le jeu n'a pas de GIFs.
-    const pool = game.gifs.length > 0 ? game.gifs : game.images;
+    // Si USE_GIFS est off, on ignore les GIFs et on pioche dans les images.
+    // Sinon, on prend un GIF si dispo, sinon on retombe sur les images.
+    const preferGifs = BEAT_EIKICHI_CONFIG.USE_GIFS && game.gifs.length > 0;
+    const pool = preferGifs ? game.gifs : game.images;
     const candidates = pool.length > 0 ? pool : [''];
     const imageUrl = candidates[Math.floor(Math.random() * candidates.length)] ?? '';
     return {

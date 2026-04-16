@@ -20,6 +20,14 @@ export const BEAT_EIKICHI_CONFIG = {
 
   /** Tolérance Levenshtein relative à la longueur de la cible (min 1). */
   FUZZY_DISTANCE_RATIO: 0.15,
+
+  /**
+   * Active l'utilisation des GIFs (GIPHY) comme média de question.
+   * Désactivé temporairement : les GIFs GIPHY sont souvent hors-sujet vs le jeu recherché.
+   * Quand c'est `false`, on tire toujours une image RAWG (plus fiable).
+   * Les GIFs en DB sont conservés — il suffit de repasser à `true` pour les réactiver.
+   */
+  USE_GIFS: false,
 } as const;
 
 /** Durée du timer en millisecondes (dérivée). */
