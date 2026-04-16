@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
 
 interface ReviewIntroViewProps {
   roomCode: string;
@@ -41,7 +42,11 @@ export function ReviewIntroView({
   };
 
   return (
-    <div className="min-h-screen arcane-bg flex items-center justify-center p-8">
+    <div className="min-h-screen arcane-bg p-4 md:p-8 flex flex-col">
+      <div className="max-w-2xl w-full mx-auto flex justify-end mb-4">
+        <LeaveRoomButton roomCode={roomCode} />
+      </div>
+      <div className="flex-1 flex items-center justify-center">
       <div className="arcane-card p-10 max-w-lg w-full text-center space-y-6">
         {isCreator ? (
           <>
@@ -74,6 +79,7 @@ export function ReviewIntroView({
             </div>
           </>
         )}
+      </div>
       </div>
     </div>
   );

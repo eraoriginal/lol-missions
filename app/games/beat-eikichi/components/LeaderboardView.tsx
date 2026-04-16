@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { Room } from '@/app/types/room';
+import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
 
 interface LeaderboardViewProps {
   room: Room;
@@ -65,11 +66,11 @@ export function LeaderboardView({
   // Les joueurs révélés sont les derniers du classement (plus petit score révélé d'abord).
   const revealedRows = rows.slice(rows.length - revealedCount);
 
-  const handleRestart = async () => {
+  const handleBackToLobby = async () => {
     if (!creatorToken) return;
     setRestarting(true);
     try {
-      await fetch(`/api/games/beat-eikichi/${roomCode}/restart`, {
+      await fetch(`/api/games/beat-eikichi/${roomCode}/back-to-lobby`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ creatorToken }),
@@ -141,15 +142,18 @@ export function LeaderboardView({
           })}
         </ul>
 
-        {revealedCount >= rows.length && isCreator && (
-          <div className="arcane-card p-4 text-center">
-            <button
-              onClick={handleRestart}
-              disabled={restarting}
-              className="px-6 py-3 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-semibold transition disabled:opacity-50"
-            >
-              {restarting ? 'Redémarrage…' : '↻ Rejouer'}
-            </button>
+        {revealedCount >= rows.length && (
+          <div className="arcane-card p-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+            {isCreator && (
+              <button
+                onClick={handleBackToLobby}
+                disabled={restarting}
+                className="px-6 py-3 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-semibold transition disabled:opacity-50"
+              >
+                {restarting ? 'Retour…' : '↻ Retour au lobby'}
+              </button>
+            )}
+            <LeaveRoomButton roomCode={roomCode} />
           </div>
         )}
 
