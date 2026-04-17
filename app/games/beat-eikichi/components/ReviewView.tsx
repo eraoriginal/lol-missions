@@ -5,6 +5,7 @@ import type { Room } from '@/app/types/room';
 import { BEAT_EIKICHI_CONFIG } from '@/lib/beatEikichi/config';
 import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
 import { BackToLobbyButton } from './BackToLobbyButton';
+import { ZoomPanImage } from './ZoomPanImage';
 
 interface ReviewViewProps {
   room: Room;
@@ -42,11 +43,11 @@ export function ReviewView({
 
   return (
     <div className="min-h-screen arcane-bg p-4 md:p-6">
-      <div className="max-w-5xl mx-auto flex justify-end items-center gap-2 mb-3">
+      <div className="max-w-6xl mx-auto flex justify-end items-center gap-2 mb-3">
         <BackToLobbyButton roomCode={roomCode} />
         <LeaveRoomButton roomCode={roomCode} />
       </div>
-      <div className="max-w-5xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div className="text-sm text-purple-300/70">
             Révision{' '}
@@ -67,15 +68,17 @@ export function ReviewView({
           )}
         </div>
 
-        <div className="arcane-card p-4 flex items-center justify-center aspect-video overflow-hidden bg-black/40">
+        <div className="arcane-card p-0 aspect-[16/10] overflow-hidden bg-black/40">
           {question.imageUrl ? (
-            <img
+            <ZoomPanImage
               src={question.imageUrl}
-              alt={question.name}
-              className="max-h-full max-w-full object-contain"
+              alt={question.name ?? ''}
+              className="object-contain"
             />
           ) : (
-            <div className="text-purple-300/50">Image indisponible</div>
+            <div className="w-full h-full flex items-center justify-center text-purple-300/50">
+              Image indisponible
+            </div>
           )}
         </div>
 
@@ -84,7 +87,7 @@ export function ReviewView({
             La bonne réponse était
           </div>
           <h2 className="text-2xl md:text-3xl font-semibold text-amber-300">
-            {question.name}
+            {question.name ?? ''}
           </h2>
         </div>
 

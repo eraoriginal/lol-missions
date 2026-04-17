@@ -71,6 +71,23 @@ export async function pushSoundEvent(
 }
 
 /**
+ * Pushes a "beat-eikichi-sound" event to play a Beat Eikichi specific sound on all clients.
+ */
+export async function pushBeatEikichiSound(
+    roomCode: string,
+    soundType: 'eikichi-found'
+): Promise<void> {
+    try {
+        await pusher.trigger(`room-${roomCode}`, 'beat-eikichi-sound', {
+            soundType,
+            timestamp: Date.now(),
+        });
+    } catch (error) {
+        console.error(`[Pusher] Failed to push beat-eikichi-sound for room ${roomCode}:`, error);
+    }
+}
+
+/**
  * Pushes a "stop-sounds" event to all clients to stop all playing sounds.
  * Used when starting a new game.
  */

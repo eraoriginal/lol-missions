@@ -14,6 +14,8 @@ interface PlayerAnswerInputProps {
   questionKey: string | number;
 }
 
+type Closeness = 'close' | 'medium' | 'far';
+
 export function PlayerAnswerInput({
   roomCode,
   playerToken,
@@ -24,6 +26,11 @@ export function PlayerAnswerInput({
   const [value, setValue] = useState('');
   const [shakeKey, setShakeKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  // Feedback de proximité affiché après une mauvaise réponse.
+  const [feedback, setFeedback] = useState<{
+    closeness: Closeness;
+    at: number;
+  } | null>(null);
 
   const lastTypingSentRef = useRef<{ text: string; at: number }>({
     text: '',
@@ -34,8 +41,16 @@ export function PlayerAnswerInput({
   useEffect(() => {
     setValue('');
     setShakeKey(0);
+    setFeedback(null);
     lastTypingSentRef.current = { text: '', at: 0 };
   }, [questionKey]);
+
+  // Efface le feedback après ~2.5s s'il n'y a pas eu de nouvelle soumission.
+  useEffect(() => {
+    if (!feedback) return;
+    const t = setTimeout(() => setFeedback(null), 2500);
+    return () => clearTimeout(t);
+  }, [feedback]);
 
   // Throttle persistance de la saisie côté serveur.
   useEffect(() => {
@@ -71,21 +86,51 @@ export function PlayerAnswerInput({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerToken, text: trimmed }),
       });
-      const data = await res.json().catch(() => ({}));
+      const data: { correct?: boolean; closeness?: Closeness } = await res
+        .json()
+        .catch(() => ({}));
       if (res.ok && data.correct) {
         // succès : on laisse le serveur pousser la mise à jour ;
         // le parent verra `alreadyFound=true` et verrouillera.
         setValue(trimmed);
+        setFeedback(null);
       } else {
-        // mauvaise réponse : shake + reset du champ
+        // mauvaise réponse : shake + reset du champ + feedback de proximité
         setShakeKey((k) => k + 1);
         setValue('');
+        if (data.closeness) {
+          setFeedback({ closeness: data.closeness, at: Date.now() });
+        }
       }
     } catch {
       setShakeKey((k) => k + 1);
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const feedbackConfig: Record<
+    Closeness,
+    { label: string; emoji: string; className: string }
+  > = {
+    close: {
+      label: 'Très chaud !',
+      emoji: '🔥',
+      className:
+        'bg-orange-900/40 border-orange-400/60 text-orange-100 beat-eikichi-feedback-hot',
+    },
+    medium: {
+      label: 'Tiède…',
+      emoji: '😐',
+      className:
+        'bg-amber-900/30 border-amber-500/40 text-amber-100',
+    },
+    far: {
+      label: 'Froid. Loin du jeu recherché.',
+      emoji: '❄️',
+      className:
+        'bg-sky-900/30 border-sky-500/40 text-sky-100',
+    },
   };
 
   if (alreadyFound) {
@@ -97,14 +142,27 @@ export function PlayerAnswerInput({
   }
 
   return (
-    <AutocompleteInput
-      catalog={catalog}
-      value={value}
-      onChange={setValue}
-      onSubmit={handleSubmit}
-      disabled={submitting}
-      shakeKey={shakeKey}
-      placeholder="Tape le nom du jeu puis Entrée…"
-    />
+    <div className="space-y-2">
+      <AutocompleteInput
+        catalog={catalog}
+        value={value}
+        onChange={setValue}
+        onSubmit={handleSubmit}
+        disabled={submitting}
+        shakeKey={shakeKey}
+        placeholder="Tape le nom du jeu puis Entrée…"
+      />
+      {feedback && (
+        <div
+          key={feedback.at}
+          className={`px-4 py-2 rounded-lg border text-sm text-center beat-eikichi-feedback-fade ${feedbackConfig[feedback.closeness].className}`}
+        >
+          <span className="text-lg mr-1">
+            {feedbackConfig[feedback.closeness].emoji}
+          </span>
+          {feedbackConfig[feedback.closeness].label}
+        </div>
+      )}
+    </div>
   );
 }

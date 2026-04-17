@@ -105,6 +105,37 @@ export async function GET(
             ? mappedBets.filter((b: { playerId: string }) => b.playerId === currentPlayer.id)
             : mappedBets;
 
+        // Beat Eikichi : en phase "playing", masquer name/aliases des questions pour
+        // éviter que les clients voient les réponses via devtools. Le serveur valide
+        // les réponses internement. On expose name/aliases seulement en phase review
+        // et leaderboard. Les indices (hintGenre/hintTerm/hintPlatforms) ne sont
+        // révélés que si la room a `beatEikichiHintsEnabled` activé.
+        const beGame = (filteredRoom as { beatEikichiGame?: {
+            phase?: string;
+            questions?: Array<{
+                position: number;
+                gameId: string;
+                name?: string;
+                aliases?: string[];
+                imageUrl: string;
+                hintGenre?: string | null;
+                hintTerm?: string | null;
+                hintPlatforms?: string | null;
+            }>;
+        } | null }).beatEikichiGame;
+        const hintsEnabled = (filteredRoom as { beatEikichiHintsEnabled?: boolean }).beatEikichiHintsEnabled === true;
+        if (beGame && beGame.phase === 'playing' && Array.isArray(beGame.questions)) {
+            beGame.questions = beGame.questions.map((q) => ({
+                position: q.position,
+                gameId: q.gameId,
+                imageUrl: q.imageUrl,
+                // name et aliases masqués côté client tant que la partie n'est pas terminée
+                hintGenre: hintsEnabled ? q.hintGenre ?? null : null,
+                hintTerm: hintsEnabled ? q.hintTerm ?? null : null,
+                hintPlatforms: hintsEnabled ? q.hintPlatforms ?? null : null,
+            }));
+        }
+
         const responseRoom = {
             ...filteredRoom,
             playerBets: filteredBets,

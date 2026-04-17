@@ -18,7 +18,7 @@ export default function RoomPage({
 }) {
     const { code } = use(params);
     const router = useRouter();
-    const { room, loading, error, notification } = useRoom(code);
+    const { room, loading, error, notification, refetch } = useRoom(code);
     const [showJoinModal, setShowJoinModal] = useState(false);
     const [playerName, setPlayerName] = useState('');
     const [joining, setJoining] = useState(false);
@@ -233,7 +233,7 @@ export default function RoomPage({
                         <CodenameGameView room={room} roomCode={code} />
                     ) : room.gameType === 'beat-eikichi' ? (
                         room.gameStarted ? (
-                            <BeatEikichiGameView room={room} roomCode={code} />
+                            <BeatEikichiGameView room={room} roomCode={code} refetch={refetch} />
                         ) : (
                             <BeatEikichiLobby room={room} roomCode={code} />
                         )

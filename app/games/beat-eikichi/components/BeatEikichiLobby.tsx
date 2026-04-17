@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Room } from '@/app/types/room';
 import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
 
@@ -12,7 +12,8 @@ interface BeatEikichiLobbyProps {
 export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const creatorToken =
     typeof window !== 'undefined'
@@ -23,6 +24,56 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
   // La source de vérité est le serveur (room.beatEikichiEikichiId) — partagée par Pusher.
   const eikichiPlayerId = room.beatEikichiEikichiId ?? null;
   const eikichiPlayer = room.players.find((p) => p.id === eikichiPlayerId);
+  const hintsEnabled = room.beatEikichiHintsEnabled ?? false;
+  const timerSeconds = room.beatEikichiTimerSeconds ?? 30;
+  const mode: 'standard' | 'blur' = room.beatEikichiMode ?? 'standard';
+
+  // État local pour le champ timer : permet de taper librement avant de persister.
+  const [timerInput, setTimerInput] = useState(String(timerSeconds));
+  useEffect(() => {
+    // Si la source serveur change (autre client), on sync l'input pour rester aligné.
+    setTimerInput(String(timerSeconds));
+  }, [timerSeconds]);
+
+  const handleSetTimer = async (value: number) => {
+    if (!creatorToken) return;
+    const clamped = Math.max(10, Math.min(300, Math.round(value)));
+    try {
+      await fetch(`/api/games/beat-eikichi/${roomCode}/set-timer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creatorToken, timerSeconds: clamped }),
+      });
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleSetMode = async (newMode: 'standard' | 'blur') => {
+    if (!creatorToken) return;
+    try {
+      await fetch(`/api/games/beat-eikichi/${roomCode}/set-mode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creatorToken, mode: newMode }),
+      });
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleToggleHints = async (enabled: boolean) => {
+    if (!creatorToken) return;
+    try {
+      await fetch(`/api/games/beat-eikichi/${roomCode}/set-hints-enabled`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creatorToken, enabled }),
+      });
+    } catch {
+      /* ignore */
+    }
+  };
 
   const handleSetEikichi = async (newId: string | null) => {
     if (!creatorToken) return;
@@ -59,11 +110,26 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
     }
   };
 
-  const handleCopy = async () => {
+  const shareUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/room/${roomCode}`
+      : '';
+
+  const handleCopyCode = async () => {
     try {
       await navigator.clipboard.writeText(roomCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 1500);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 1500);
     } catch {
       /* ignore */
     }
@@ -80,7 +146,7 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
         </div>
 
         <div className="arcane-card p-6 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <div className="text-xs uppercase tracking-widest text-purple-400/70">
                 Code de la room
@@ -89,15 +155,26 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
                 {roomCode}
               </div>
             </div>
-            <button
-              onClick={handleCopy}
-              className="px-4 py-2 rounded-lg bg-purple-900/40 border border-purple-500/30 text-purple-100 hover:bg-purple-900/60 transition"
-            >
-              {copied ? '✓ Copié' : 'Copier'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCopyCode}
+                className="px-4 py-2 rounded-lg bg-purple-900/40 border border-purple-500/30 text-purple-100 hover:bg-purple-900/60 transition text-sm"
+                title="Copier le code"
+              >
+                {copiedCode ? '✓ Code copié' : '📋 Copier le code'}
+              </button>
+              <button
+                onClick={handleCopyLink}
+                className="px-4 py-2 rounded-lg bg-pink-900/40 border border-pink-500/40 text-pink-100 hover:bg-pink-900/60 transition text-sm"
+                title="Copier le lien d'invitation"
+              >
+                {copiedLink ? '✓ Lien copié' : '🔗 Copier le lien'}
+              </button>
+            </div>
           </div>
           <p className="text-sm text-purple-300/70">
-            Partage ce code avec tes amis pour qu&apos;ils rejoignent la partie.
+            Partage le code <span className="font-semibold">ou</span> le lien
+            avec tes amis pour qu&apos;ils rejoignent la partie.
           </p>
         </div>
 
@@ -147,19 +224,22 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
           </ul>
         </div>
 
-        {isCreator && (
-          <div className="arcane-card p-6 space-y-3">
-            <h2 className="text-lg font-semibold text-purple-100">
-              Désigner un &laquo; Je suis Eikichi &raquo;{' '}
-              <span className="text-sm font-normal text-purple-300/60">
-                (optionnel)
-              </span>
-            </h2>
-            <p className="text-sm text-purple-300/70">
-              Si l&apos;Eikichi trouve la bonne réponse, la question passe
-              immédiatement à la suivante pour tout le monde — les autres ont
-              perdu leur chance.
-            </p>
+        <div className="arcane-card p-6 space-y-3">
+          <h2 className="text-lg font-semibold text-purple-100">
+            Le rôle du &laquo; Je suis Eikichi &raquo;{' '}
+            <span className="text-sm font-normal text-purple-300/60">
+              (optionnel)
+            </span>
+          </h2>
+          <p className="text-sm text-purple-300/70">
+            Le maître de la room peut désigner un joueur comme Eikichi. Si
+            l&apos;Eikichi trouve la bonne réponse, la question passe
+            immédiatement à la suivante pour tout le monde — les autres ont
+            perdu leur chance. S&apos;il n&apos;y a pas d&apos;Eikichi, les
+            questions se terminent au timer.
+          </p>
+
+          {isCreator ? (
             <select
               value={eikichiPlayerId ?? ''}
               onChange={(e) => handleSetEikichi(e.target.value || null)}
@@ -172,27 +252,168 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
                 </option>
               ))}
             </select>
-          </div>
-        )}
-
-        {!isCreator && eikichiPlayer && (
-          <div className="arcane-card p-4 text-center">
-            <span className="text-sm text-purple-300/70">
-              Le maître a désigné{' '}
+          ) : eikichiPlayer ? (
+            <div className="px-4 py-2.5 rounded-lg bg-purple-950/40 border border-purple-500/30 text-sm text-purple-200">
+              Eikichi désigné :{' '}
               <span className="text-amber-300 font-semibold">
                 {eikichiPlayer.name}
-              </span>{' '}
-              comme &laquo; Je suis Eikichi &raquo;
+              </span>
+            </div>
+          ) : (
+            <div className="px-4 py-2.5 rounded-lg bg-purple-950/40 border border-purple-500/30 text-sm text-purple-300/60 italic">
+              Aucun Eikichi désigné pour l&apos;instant.
+            </div>
+          )}
+        </div>
+
+        <div className="arcane-card p-6 space-y-3">
+          <h2 className="text-lg font-semibold text-purple-100">
+            Indices{' '}
+            <span className="text-sm font-normal text-purple-300/60">
+              (optionnel)
             </span>
-          </div>
-        )}
+          </h2>
+          <p className="text-sm text-purple-300/70">
+            Si les indices sont activés, 3 indices seront révélés au cours de
+            chaque question : le <strong>genre</strong> dès l&apos;affichage de
+            l&apos;image, un <strong>terme distinctif</strong> à la moitié du
+            timer, et les <strong>plateformes</strong> à 10 secondes de la fin.
+          </p>
+          {isCreator ? (
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={hintsEnabled}
+                onChange={(e) => handleToggleHints(e.target.checked)}
+                className="w-5 h-5 rounded accent-pink-500"
+              />
+              <span className="text-sm text-purple-100">
+                Activer les indices pour cette partie
+              </span>
+            </label>
+          ) : (
+            <div className="px-4 py-2.5 rounded-lg bg-purple-950/40 border border-purple-500/30 text-sm text-purple-200">
+              Indices :{' '}
+              <span
+                className={
+                  hintsEnabled
+                    ? 'text-emerald-300 font-semibold'
+                    : 'text-purple-300/60'
+                }
+              >
+                {hintsEnabled ? 'activés' : 'désactivés'}
+              </span>{' '}
+              <span className="text-purple-300/60">
+                (choix du maître)
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="arcane-card p-6 space-y-3">
+          <h2 className="text-lg font-semibold text-purple-100">
+            Durée d&apos;une question
+          </h2>
+          <p className="text-sm text-purple-300/70">
+            Réglable entre 10 et 300 secondes. Affecte aussi les déclenchements
+            des indices (mi-temps et -10 s).
+          </p>
+          {isCreator ? (
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                min={10}
+                max={300}
+                step={5}
+                value={timerInput}
+                onChange={(e) => setTimerInput(e.target.value)}
+                onBlur={() => {
+                  const n = parseInt(timerInput, 10);
+                  if (!Number.isFinite(n)) {
+                    setTimerInput(String(timerSeconds));
+                    return;
+                  }
+                  const clamped = Math.max(10, Math.min(300, n));
+                  setTimerInput(String(clamped));
+                  if (clamped !== timerSeconds) handleSetTimer(clamped);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                }}
+                className="w-28 px-3 py-2.5 rounded-lg bg-purple-950/40 border border-purple-500/40 text-purple-100 focus:outline-none focus:border-amber-400 text-center text-lg font-semibold"
+              />
+              <span className="text-sm text-purple-300/70">secondes</span>
+            </div>
+          ) : (
+            <div className="px-4 py-2.5 rounded-lg bg-purple-950/40 border border-purple-500/30 text-sm text-purple-200">
+              Durée :{' '}
+              <span className="text-amber-300 font-semibold">
+                {timerSeconds} s
+              </span>{' '}
+              <span className="text-purple-300/60">(choix du maître)</span>
+            </div>
+          )}
+        </div>
+
+        <div className="arcane-card p-6 space-y-3">
+          <h2 className="text-lg font-semibold text-purple-100">Mode de jeu</h2>
+          {isCreator ? (
+            <div className="space-y-2">
+              <label className="flex items-start gap-3 p-3 rounded-lg bg-purple-950/30 border border-purple-500/30 cursor-pointer hover:border-purple-500/60 transition">
+                <input
+                  type="radio"
+                  name="beat-eikichi-mode"
+                  value="standard"
+                  checked={mode === 'standard'}
+                  onChange={() => handleSetMode('standard')}
+                  className="mt-1 accent-pink-500"
+                />
+                <div>
+                  <div className="text-sm font-semibold text-purple-100">
+                    Standard
+                  </div>
+                  <div className="text-xs text-purple-300/70">
+                    L&apos;image est affichée normalement dès le début.
+                  </div>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 p-3 rounded-lg bg-purple-950/30 border border-purple-500/30 cursor-pointer hover:border-purple-500/60 transition">
+                <input
+                  type="radio"
+                  name="beat-eikichi-mode"
+                  value="blur"
+                  checked={mode === 'blur'}
+                  onChange={() => handleSetMode('blur')}
+                  className="mt-1 accent-pink-500"
+                />
+                <div>
+                  <div className="text-sm font-semibold text-purple-100">
+                    Flou
+                  </div>
+                  <div className="text-xs text-purple-300/70">
+                    L&apos;image est fortement floutée au début, puis se révèle
+                    progressivement. Nette à 10 s de la fin du timer.
+                  </div>
+                </div>
+              </label>
+            </div>
+          ) : (
+            <div className="px-4 py-2.5 rounded-lg bg-purple-950/40 border border-purple-500/30 text-sm text-purple-200">
+              Mode :{' '}
+              <span className="text-amber-300 font-semibold">
+                {mode === 'blur' ? 'Flou' : 'Standard'}
+              </span>{' '}
+              <span className="text-purple-300/60">(choix du maître)</span>
+            </div>
+          )}
+        </div>
 
         {isCreator ? (
           <div className="arcane-card p-6 space-y-3">
             <h2 className="text-lg font-semibold text-purple-100">Lancement</h2>
             <p className="text-sm text-purple-300/70">
-              20 images de jeux vidéo à deviner. 60 secondes par question. Tous
-              les joueurs répondent en même temps.
+              20 images de jeux vidéo à deviner. {timerSeconds} secondes par
+              question. Tous les joueurs répondent en même temps.
             </p>
             <button
               onClick={handleStart}

@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { pushRoomUpdate } from '@/lib/pusher';
-import { isAcceptedAnswer } from '@/lib/beatEikichi/fuzzyMatch';
+import { pushRoomUpdate, pushBeatEikichiSound } from '@/lib/pusher';
+import { isAcceptedAnswer, computeCloseness } from '@/lib/beatEikichi/fuzzyMatch';
 import type { BeatEikichiQuestion } from '@/lib/beatEikichi/dailyQuestions';
 import {
   advanceQuestion,
@@ -89,7 +89,14 @@ export async function POST(
     const correct = isAcceptedAnswer(text, currentQuestion.name, currentQuestion.aliases);
 
     if (!correct) {
-      return Response.json({ correct: false });
+      // Feedback de proximité informatif — ne change PAS la validation (stricte),
+      // mais guide le joueur (chaud / tiède / froid).
+      const closeness = computeCloseness(
+        text,
+        currentQuestion.name,
+        currentQuestion.aliases,
+      );
+      return Response.json({ correct: false, closeness });
     }
 
     // Bonne réponse : enregistre l'answer + incrémente le score.
@@ -120,6 +127,8 @@ export async function POST(
     const isEikichi = game.eikichiPlayerId === player.id;
 
     if (isEikichi) {
+      // L'Eikichi a trouvé → son spécifique joué pour tous les joueurs.
+      await pushBeatEikichiSound(code, 'eikichi-found');
       await advanceQuestion(game.id);
       advanced = true;
     } else {

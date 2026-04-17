@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { pushRoomUpdate } from '@/lib/pusher';
-import { QUESTION_TIMER_MS } from '@/lib/beatEikichi/config';
 import { advanceQuestion } from '@/lib/beatEikichi/advanceQuestion';
 
 const bodySchema = z.object({
@@ -52,14 +51,12 @@ export async function POST(
     }
 
     // Anti-race : le timer doit être raisonnablement écoulé.
-    // On applique une tolérance large (5s) pour absorber :
-    //   - le décalage d'horloge client/serveur (peut atteindre plusieurs secondes)
-    //   - un éventuel désalignement entre bundle client caché et config serveur
-    // Un avancement ~5s trop tôt est un dommage mineur comparé à un jeu bloqué.
+    // Tolérance large (5s) pour absorber décalage d'horloge client/serveur + bundle désaligné.
     const TIMER_TOLERANCE_MS = 5000;
+    const timerMs = game.timerSeconds * 1000;
     if (game.questionStartedAt) {
       const elapsed = Date.now() - new Date(game.questionStartedAt).getTime();
-      if (elapsed < QUESTION_TIMER_MS - TIMER_TOLERANCE_MS) {
+      if (elapsed < timerMs - TIMER_TOLERANCE_MS) {
         return Response.json({ ok: true, skipped: 'timer not elapsed' });
       }
     }

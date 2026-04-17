@@ -10,6 +10,10 @@ export interface BeatEikichiQuestion {
   name: string;
   aliases: string[];
   imageUrl: string;
+  /** Indices optionnels (du catalogue VideoGame). */
+  hintGenre: string | null;
+  hintTerm: string | null;
+  hintPlatforms: string | null;
 }
 
 /**
@@ -33,7 +37,16 @@ function sample<T>(arr: T[], count: number): T[] {
  */
 export async function generateQuestionSet(): Promise<BeatEikichiQuestion[]> {
   const allGames = await prisma.videoGame.findMany({
-    select: { id: true, name: true, aliases: true, images: true, gifs: true },
+    select: {
+      id: true,
+      name: true,
+      aliases: true,
+      images: true,
+      gifs: true,
+      hintGenre: true,
+      hintTerm: true,
+      hintPlatforms: true,
+    },
   });
 
   if (allGames.length < BEAT_EIKICHI_CONFIG.QUESTIONS_PER_GAME) {
@@ -57,6 +70,9 @@ export async function generateQuestionSet(): Promise<BeatEikichiQuestion[]> {
       name: game.name,
       aliases: game.aliases,
       imageUrl,
+      hintGenre: game.hintGenre,
+      hintTerm: game.hintTerm,
+      hintPlatforms: game.hintPlatforms,
     };
   });
 }

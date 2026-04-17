@@ -1154,3 +1154,51 @@ body {
   box-shadow: 0 0 8px rgba(250, 204, 21, 0.4);
   white-space: nowrap;
 }
+
+/* Scrollbar custom pour la liste de suggestions d'autocomplete. */
+.beat-eikichi-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 85, 247, 0.6) rgba(26, 15, 46, 0);
+}
+.beat-eikichi-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.beat-eikichi-scroll::-webkit-scrollbar-track {
+  background: rgba(26, 15, 46, 0);
+}
+.beat-eikichi-scroll::-webkit-scrollbar-thumb {
+  background: rgba(168, 85, 247, 0.5);
+  border-radius: 4px;
+}
+.beat-eikichi-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(168, 85, 247, 0.8);
+}
+
+/* Feedback de proximité (close / medium / far) — fade in doux. */
+@keyframes beat-eikichi-feedback-fade-frames {
+  0% { opacity: 0; transform: translateY(-6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.beat-eikichi-feedback-fade {
+  animation: beat-eikichi-feedback-fade-frames 0.25s ease-out 1;
+}
+
+/* Effet "chaud bouillant" pour la proximité close. */
+@keyframes beat-eikichi-feedback-hot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.5); }
+  50% { box-shadow: 0 0 14px 2px rgba(251, 146, 60, 0.55); }
+}
+.beat-eikichi-feedback-hot {
+  animation:
+    beat-eikichi-feedback-fade-frames 0.25s ease-out 1,
+    beat-eikichi-feedback-hot-pulse 1.2s ease-in-out infinite;
+}
+
+/* Zoom overlay — fade-in. */
+@keyframes beat-eikichi-zoom-fade-frames {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.beat-eikichi-zoom-fade {
+  animation: beat-eikichi-zoom-fade-frames 0.2s ease-out 1;
+}

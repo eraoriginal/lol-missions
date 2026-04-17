@@ -103,9 +103,14 @@ export interface PlayerBet {
 export interface BeatEikichiQuestion {
     position: number;
     gameId: string;
-    name: string;
-    aliases: string[];
+    /** Name est retiré de la réponse API pendant la phase playing (anti-spoil via devtools). */
+    name?: string;
+    aliases?: string[];
     imageUrl: string;
+    /** Indices, exposés uniquement si beatEikichiHintsEnabled est vrai. */
+    hintGenre?: string | null;
+    hintTerm?: string | null;
+    hintPlatforms?: string | null;
 }
 
 export interface BeatEikichiPlayerAnswer {
@@ -132,6 +137,8 @@ export interface BeatEikichiGame {
     currentIndex: number;
     questionStartedAt: string | null;
     eikichiPlayerId: string | null;
+    timerSeconds: number;
+    mode: 'standard' | 'blur';
     playerStates: BeatEikichiPlayerState[];
 }
 
@@ -156,6 +163,9 @@ export interface Room {
     victoryBonusPoints: number;
     creatorToken?: string;
     beatEikichiEikichiId?: string | null;
+    beatEikichiHintsEnabled?: boolean;
+    beatEikichiTimerSeconds?: number;
+    beatEikichiMode?: 'standard' | 'blur';
     players: Player[];
     codenameGame?: CodenameGame | null;
     beatEikichiGame?: BeatEikichiGame | null;

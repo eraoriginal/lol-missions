@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BEAT_EIKICHI_CONFIG } from '@/lib/beatEikichi/config';
 
 interface BeatEikichiTimerProps {
   /** ISO datetime du début de la question courante. */
   questionStartedAt: string | null;
+  /** Durée totale de la question en secondes (provient de game.timerSeconds). */
+  timerSeconds: number;
   /** Appelé à chaque tick une fois le timer écoulé. Le caller doit dédupliquer. */
   onTimeout?: () => void;
 }
@@ -18,17 +19,16 @@ interface BeatEikichiTimerProps {
  */
 export function BeatEikichiTimer({
   questionStartedAt,
+  timerSeconds,
   onTimeout,
 }: BeatEikichiTimerProps) {
-  const [remaining, setRemaining] = useState<number>(
-    BEAT_EIKICHI_CONFIG.QUESTION_TIMER_SECONDS,
-  );
+  const [remaining, setRemaining] = useState<number>(timerSeconds);
 
   useEffect(() => {
     if (!questionStartedAt) return;
 
     const startMs = new Date(questionStartedAt).getTime();
-    const total = BEAT_EIKICHI_CONFIG.QUESTION_TIMER_SECONDS;
+    const total = timerSeconds;
 
     const tick = () => {
       const elapsed = (Date.now() - startMs) / 1000;
@@ -41,7 +41,7 @@ export function BeatEikichiTimer({
     tick();
     const id = setInterval(tick, 200);
     return () => clearInterval(id);
-  }, [questionStartedAt, onTimeout]);
+  }, [questionStartedAt, timerSeconds, onTimeout]);
 
   const danger = remaining <= 10;
 

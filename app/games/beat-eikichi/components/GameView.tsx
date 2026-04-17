@@ -7,14 +7,19 @@ import { ReviewIntroView } from './ReviewIntroView';
 import { ReviewView } from './ReviewView';
 import { LeaderboardView } from './LeaderboardView';
 import type { CatalogEntry } from './AutocompleteInput';
+import { useBeatEikichiSound } from '../hooks/useBeatEikichiSound';
 
 interface GameViewProps {
   room: Room;
   roomCode: string;
+  refetch?: () => void;
 }
 
-export function GameView({ room, roomCode }: GameViewProps) {
+export function GameView({ room, roomCode, refetch }: GameViewProps) {
   const [catalog, setCatalog] = useState<CatalogEntry[] | null>(null);
+
+  // Abonnement aux sons Beat Eikichi (ex: "blah" quand l'Eikichi trouve).
+  useBeatEikichiSound(roomCode);
 
   const creatorToken =
     typeof window !== 'undefined'
@@ -104,6 +109,7 @@ export function GameView({ room, roomCode }: GameViewProps) {
       roomCode={roomCode}
       playerToken={playerToken}
       catalog={catalog}
+      refetch={refetch}
     />
   );
 }

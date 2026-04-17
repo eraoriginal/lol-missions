@@ -1,5 +1,3 @@
-import { BEAT_EIKICHI_CONFIG } from './config';
-
 // Table de conversion chiffres romains <-> arabes (jusqu'à 20, suffisant pour les titres de jeux).
 const ROMAN_TO_ARABIC: Record<string, string> = {
   i: '1',
@@ -25,6 +23,23 @@ const ROMAN_TO_ARABIC: Record<string, string> = {
 };
 
 /**
+ * Tokenise une chaîne en mots normalisés :
+ * - lowercase
+ * - suppression des diacritiques
+ * - suppression du « the » en préfixe
+ * - split sur tout ce qui n'est pas alphanumérique
+ * - chiffres romains convertis en arabes
+ */
+export function tokenize(input: string): string[] {
+  if (!input) return [];
+  let s = input.toLowerCase().trim();
+  s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  s = s.replace(/^the\s+/, '');
+  const tokens = s.split(/[^a-z0-9]+/).filter(Boolean);
+  return tokens.map((t) => ROMAN_TO_ARABIC[t] ?? t);
+}
+
+/**
  * Normalise une chaîne pour le matching fuzzy :
  * - lowercase
  * - suppression des diacritiques (accents)
@@ -33,19 +48,23 @@ const ROMAN_TO_ARABIC: Record<string, string> = {
  * - suppression de toute ponctuation / espace
  */
 export function normalize(input: string): string {
-  if (!input) return '';
-  let s = input.toLowerCase().trim();
+  return tokenize(input).join('');
+}
 
-  // Suppression des diacritiques
-  s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+/**
+ * Stop-words ignorés dans les comparaisons par token — trop communs pour signifier
+ * une vraie proximité.
+ */
+export const STOP_WORDS = new Set([
+  'a', 'an', 'the', 'of', 'and', 'or', 'to', 'in', 'on', 'at', 'for',
+  'de', 'la', 'le', 'les', 'du', 'des', 'et', 'un', 'une',
+]);
 
-  // Retire « the » en préfixe (avec espace)
-  s = s.replace(/^the\s+/, '');
-
-  // Sépare en tokens alphanumériques pour détecter les chiffres romains isolés
-  const tokens = s.split(/[^a-z0-9]+/).filter(Boolean);
-  const converted = tokens.map((t) => ROMAN_TO_ARABIC[t] ?? t);
-  return converted.join('');
+/**
+ * Tokens "signifiants" : tokens de longueur ≥ 3, hors stop-words.
+ */
+export function meaningfulTokens(input: string): string[] {
+  return tokenize(input).filter((t) => t.length >= 3 && !STOP_WORDS.has(t));
 }
 
 /**
@@ -81,7 +100,10 @@ export function levenshtein(a: string, b: string): number {
 
 /**
  * Vérifie si `input` est une réponse acceptable pour `name` ou une de ses `aliases`.
- * Matche exactement ou avec une distance de Levenshtein tolérée, proportionnelle à la longueur.
+ * Match STRICT après normalisation (casse, accents, ponctuation, « the » initial,
+ * chiffres romains ↔ arabes). Pas de tolérance aux fautes de frappe pour éviter
+ * les faux positifs entre des jeux similaires (ex. "Halo 2" vs "Halo 3",
+ * distance Levenshtein = 1).
  */
 export function isAcceptedAnswer(
   input: string,
@@ -97,18 +119,88 @@ export function isAcceptedAnswer(
     const normalizedTarget = normalize(target);
     if (!normalizedTarget) continue;
 
-    if (normalizedInput === normalizedTarget) return true;
-
-    // Tolérance proportionnelle à la longueur de la cible, min 1.
-    const maxDistance = Math.max(
-      1,
-      Math.floor(normalizedTarget.length * BEAT_EIKICHI_CONFIG.FUZZY_DISTANCE_RATIO),
-    );
-
-    if (levenshtein(normalizedInput, normalizedTarget) <= maxDistance) {
+    if (normalizedInput === normalizedTarget) {
       return true;
     }
   }
 
   return false;
+}
+
+/**
+ * Calcule un niveau de proximité "close / medium / far" entre une réponse donnée
+ * et la liste des cibles (name + aliases). Utilisé uniquement pour le feedback
+ * visuel après une mauvaise réponse — n'impacte pas la validation.
+ *
+ * Critères (meilleur des cibles testées) :
+ *   - close  : Levenshtein ratio ≤ 0.25, OU franchise partagée (premier token
+ *              signifiant identique + les deux titres ont plusieurs tokens),
+ *              OU l'un est préfixe de l'autre (longueur ≥ 4)
+ *   - medium : Levenshtein ratio ≤ 0.55, OU au moins un token signifiant commun
+ *   - far    : sinon
+ */
+export function computeCloseness(
+  input: string,
+  name: string,
+  aliases: string[] = [],
+): 'close' | 'medium' | 'far' {
+  const normalizedInput = normalize(input);
+  const inputTokens = meaningfulTokens(input);
+  if (!normalizedInput) return 'far';
+
+  const targets = [name, ...aliases].filter(Boolean);
+
+  let bestLevRatio = 1;
+  let franchiseMatch = false;
+  let prefixMatch = false;
+  let sharedToken = false;
+
+  for (const target of targets) {
+    const normalizedTarget = normalize(target);
+    if (!normalizedTarget) continue;
+
+    // Levenshtein relative
+    const maxLen = Math.max(normalizedInput.length, normalizedTarget.length);
+    if (maxLen > 0) {
+      const ratio = levenshtein(normalizedInput, normalizedTarget) / maxLen;
+      if (ratio < bestLevRatio) bestLevRatio = ratio;
+    }
+
+    // Franchise : même premier token signifiant + au moins un autre token de chaque
+    // côté (ex: "Styx: A" vs "Styx: B" = franchise commune).
+    const targetTokens = meaningfulTokens(target);
+    if (
+      inputTokens.length >= 2 &&
+      targetTokens.length >= 2 &&
+      inputTokens[0] === targetTokens[0]
+    ) {
+      franchiseMatch = true;
+    }
+
+    // Préfixe (l'un contient le début de l'autre), plus court ≥ 4 chars
+    // Couvre "Halo" vs "Halo 3", "BioShock" vs "BioShock Infinite".
+    if (
+      normalizedInput.length >= 4 &&
+      normalizedTarget.startsWith(normalizedInput)
+    ) {
+      prefixMatch = true;
+    } else if (
+      normalizedTarget.length >= 4 &&
+      normalizedInput.startsWith(normalizedTarget)
+    ) {
+      prefixMatch = true;
+    }
+
+    // Token signifiant commun (≥ 3 chars, non stop-word)
+    if (inputTokens.some((t) => targetTokens.includes(t))) {
+      sharedToken = true;
+    }
+  }
+
+  if (bestLevRatio < 0.25) return 'close';
+  if (franchiseMatch) return 'close';
+  if (prefixMatch) return 'close';
+  if (bestLevRatio < 0.55) return 'medium';
+  if (sharedToken) return 'medium';
+  return 'far';
 }

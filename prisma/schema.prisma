@@ -66,6 +66,9 @@ model Room {
   victoryBonusPoints  Int       @default(0)              // points bonus attribués à l'équipe gagnante
   selectedCategories  String[]  @default([])             // catégories sélectionnées pour Codename
   beatEikichiEikichiId String?                           // joueur désigné comme "Je suis Eikichi" (Beat Eikichi) - setté depuis le lobby, visible par tous
+  beatEikichiHintsEnabled Boolean @default(false)        // indices activés par le créateur (Beat Eikichi)
+  beatEikichiTimerSeconds Int     @default(30)           // durée d'une question (Beat Eikichi) - réglable par le créateur
+  beatEikichiMode         String  @default("standard")   // mode de jeu (Beat Eikichi) : "standard" ou "blur"
   createdAt           DateTime  @default(now())
 
   players          Player[]
@@ -280,14 +283,21 @@ model CardInterest {
   @@index([cardId])
 }
 
-// Beat Eikichi - catalogue de jeux vidéo (seedé depuis RAWG API + GIPHY/Tenor pour les GIFs)
+// Beat Eikichi - catalogue de jeux vidéo (seedé depuis RAWG API + GIPHY pour les GIFs)
 model VideoGame {
   id        String   @id @default(cuid())
   rawgId    Int      @unique
   name      String          // nom canonique pour l'affichage en review
   aliases   String[] @default([])  // alternative_names RAWG + variantes générées
   images    String[] @default([])  // 5 URLs de screenshots (fallback si pas de GIFs)
-  gifs      String[] @default([])  // 5 URLs de GIFs (3 GIPHY + 2 Tenor) — prioritaires à l'affichage
+  gifs      String[] @default([])  // 5 URLs de GIFs (GIPHY) — prioritaires à l'affichage (désactivables via config)
+
+  // Indices donnés au joueur si le créateur de la room les active.
+  // 3 indices, révélés au cours du timer (début, mi-temps, -10 s).
+  hintGenre     String?   // ex: "FPS", "RPG", "Platformer"
+  hintTerm      String?   // ex: "Master Chief", "Rapture", "Lambda" — terme distinctif du jeu
+  hintPlatforms String?   // ex: "PC, PlayStation, Xbox"
+
   createdAt DateTime @default(now())
 
   @@index([name])
@@ -304,6 +314,10 @@ model BeatEikichiGame {
   phase             String    @default("playing") // "playing" | "review_intro" | "review" | "leaderboard"
   currentIndex      Int       @default(0)        // 0..19 — réutilisé en review
   questionStartedAt DateTime?                    // début de la question courante (source du timer)
+
+  // Paramètres snapshotés au démarrage depuis la Room (immutables durant la partie).
+  timerSeconds      Int       @default(30)       // durée par question
+  mode              String    @default("standard") // "standard" ou "blur"
 
   // ID du joueur désigné comme "Je suis Eikichi" (optionnel). S'il trouve la bonne réponse,
   // la question avance immédiatement pour tous les joueurs (les autres ont perdu leur chance).

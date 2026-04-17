@@ -14,6 +14,7 @@
     "prisma:seed-bets": "tsx prisma/seeds/seed_bets.ts",
     "seed:beat-eikichi": "tsx prisma/seeds/seed_beat_eikichi_catalog.ts",
     "seed:beat-eikichi-gifs": "tsx prisma/seeds/seed_beat_eikichi_gifs.ts",
+    "seed:beat-eikichi-hints": "tsx prisma/seeds/seed_beat_eikichi_hints.ts",
     "prisma:studio": "prisma studio",
     "prisma:reset": "prisma migrate reset --force"
   },

@@ -76,6 +76,9 @@ export async function POST(
         currentIndex: 0,
         questionStartedAt: now,
         eikichiPlayerId: validatedEikichiId,
+        // Snapshot des réglages depuis la Room au moment du démarrage.
+        timerSeconds: room.beatEikichiTimerSeconds,
+        mode: room.beatEikichiMode,
         playerStates: {
           create: room.players.map((p) => ({
             playerId: p.id,
