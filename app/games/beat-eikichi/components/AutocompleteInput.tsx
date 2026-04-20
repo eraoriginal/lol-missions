@@ -43,6 +43,10 @@ export function AutocompleteInput({
   const [highlighted, setHighlighted] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const itemRefs = useRef<Array<HTMLLIElement | null>>([]);
+  // Garde le setTimeout du blur pour l'annuler si le focus revient entre-temps
+  // (cas typique : mauvaise réponse → input disable pendant la fetch → browser blur,
+  // puis le shake effect refocus. Sans annulation, le blur retardé gagnait la course).
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const suggestions = useMemo(() => {
     const n = normalize(value);
@@ -114,8 +118,20 @@ export function AutocompleteInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setTimeout(() => setFocused(false), 120)}
+        onFocus={() => {
+          if (blurTimeoutRef.current) {
+            clearTimeout(blurTimeoutRef.current);
+            blurTimeoutRef.current = null;
+          }
+          setFocused(true);
+        }}
+        onBlur={() => {
+          if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+          blurTimeoutRef.current = setTimeout(() => {
+            setFocused(false);
+            blurTimeoutRef.current = null;
+          }, 120);
+        }}
         disabled={disabled}
         placeholder={placeholder}
         className="w-full px-4 py-3 rounded-lg bg-purple-950/40 border border-purple-500/40 text-purple-100 placeholder-purple-400/50 focus:outline-none focus:border-pink-400 transition disabled:opacity-60 disabled:cursor-not-allowed text-lg"

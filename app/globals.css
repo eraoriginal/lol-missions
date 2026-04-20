@@ -1222,7 +1222,7 @@ body {
     url('/images/beat-eikichi/noise2.jpg');
   background-blend-mode: difference, normal;
   animation: beat-eikichi-fx-smoke-sliding 15s linear infinite;
-  opacity: 0.95;
+  opacity: 0.78;
   filter: grayscale(1);
 }
 
@@ -1361,17 +1361,17 @@ body {
 /* ---------- Gel : voile dense + craquelures SVG accentuées + nombreux flocons ---------- */
 .beat-eikichi-fx-freeze {
   background:
-    /* Voile bleuté dense : l'image reste à peine perceptible */
-    radial-gradient(ellipse at center, rgba(165, 215, 245, 0.80) 0%, rgba(145, 195, 230, 0.88) 60%, rgba(120, 175, 220, 0.93) 100%),
+    /* Voile bleuté : plus doux qu'avant pour laisser entrevoir l'image */
+    radial-gradient(ellipse at center, rgba(165, 215, 245, 0.55) 0%, rgba(145, 195, 230, 0.65) 60%, rgba(120, 175, 220, 0.75) 100%),
     /* Cristaux de glace fins (hachures diagonales) */
-    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.30) 0px, rgba(255, 255, 255, 0.30) 2px, transparent 2px, transparent 10px),
-    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.18) 0px, rgba(255, 255, 255, 0.18) 1px, transparent 1px, transparent 14px);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  border: 5px solid rgba(220, 240, 255, 0.9);
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.22) 0px, rgba(255, 255, 255, 0.22) 2px, transparent 2px, transparent 10px),
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.12) 0px, rgba(255, 255, 255, 0.12) 1px, transparent 1px, transparent 14px);
+  backdrop-filter: blur(2.5px);
+  -webkit-backdrop-filter: blur(2.5px);
+  border: 5px solid rgba(220, 240, 255, 0.85);
   box-shadow:
-    inset 0 0 80px rgba(200, 230, 255, 0.85),
-    inset 0 0 180px rgba(160, 205, 240, 0.65);
+    inset 0 0 80px rgba(200, 230, 255, 0.65),
+    inset 0 0 180px rgba(160, 205, 240, 0.45);
 }
 /* Conteneur SVG des craquelures : effet glow doux. */
 .beat-eikichi-fx-freeze-cracks {

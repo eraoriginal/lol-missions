@@ -309,13 +309,16 @@ export function PlayingView({
 
   return (
     <div className="min-h-screen arcane-bg p-4 md:p-6">
-      <div className="max-w-7xl mx-auto flex justify-end items-center gap-2 mb-3">
-        <BackToLobbyButton roomCode={roomCode} />
-        <LeaveRoomButton roomCode={roomCode} />
-      </div>
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-[240px_1fr_280px] gap-4 md:gap-6">
-        {/* Colonne gauche : arme du joueur */}
-        <div className="order-2 lg:order-1 lg:sticky lg:top-6 self-start space-y-3">
+      <div className="max-w-6xl mx-auto space-y-4">
+        {/* Barre top : boutons de sortie. */}
+        <div className="flex justify-end items-center gap-2">
+          <BackToLobbyButton roomCode={roomCode} />
+          <LeaveRoomButton roomCode={roomCode} />
+        </div>
+
+        {/* Bandeau armes / bouclier / joueurs — horizontal au-dessus de l'image
+            pour libérer toute la largeur à celle-ci (même taille que la phase review). */}
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_2fr] gap-3">
           <WeaponBlock
             weaponId={myWeaponId}
             usesLeft={myUsesLeft}
@@ -328,77 +331,6 @@ export function PlayingView({
             armed={shieldArmed}
             onFire={handleFireShield}
           />
-        </div>
-
-        {/* Colonne centrale : image + timer + input */}
-        <div className="order-1 lg:order-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-purple-300/70">
-              Question{' '}
-              <span className="text-purple-100 font-semibold">
-                {currentIndex + 1}
-              </span>
-              {' / '}
-              {total}
-            </div>
-            <BeatEikichiTimer
-              questionStartedAt={game.questionStartedAt}
-              timerSeconds={timerSeconds}
-              onTimeout={handleTimeout}
-            />
-          </div>
-
-          <div className="arcane-card p-0 aspect-[16/10] overflow-hidden bg-black/40 relative">
-            {question.imageUrl ? (
-              <ZoomPanImage
-                src={question.imageUrl}
-                alt="Devine le jeu"
-                onLoad={() => setImageLoaded(true)}
-                className={`object-contain transition-opacity duration-300 ${
-                  imageLoaded ? 'opacity-100' : 'opacity-0'
-                }`}
-                blurPx={blurPx}
-                rotating={tornadoActive}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-purple-300/50">
-                Image indisponible
-              </div>
-            )}
-            {/* Effets d'armes ciblant le joueur courant, rendus en overlay. */}
-            {question.imageUrl && player && (game.weaponEvents?.length ?? 0) > 0 && (
-              <WeaponEffectOverlay
-                events={game.weaponEvents ?? []}
-                myPlayerId={player.id}
-                currentQuestionIndex={currentIndex}
-                imageUrl={question.imageUrl}
-              />
-            )}
-          </div>
-
-          <div>
-            <PlayerAnswerInput
-              roomCode={roomCode}
-              playerToken={playerToken}
-              catalog={catalog}
-              alreadyFound={alreadyFound}
-              questionKey={currentIndex}
-            />
-          </div>
-
-          {room.beatEikichiHintsEnabled && (
-            <HintsPanel
-              questionStartedAt={game.questionStartedAt}
-              timerSeconds={timerSeconds}
-              hintGenre={question.hintGenre ?? null}
-              hintTerm={question.hintTerm ?? null}
-              hintPlatforms={question.hintPlatforms ?? null}
-            />
-          )}
-        </div>
-
-        {/* Colonne droite : liste des joueurs */}
-        <div className="order-3 lg:sticky lg:top-6 self-start">
           <PlayerScoreList
             players={room.players}
             playerStates={game.playerStates}
@@ -410,6 +342,70 @@ export function PlayingView({
             onTargetPlayer={handleFireWeapon}
           />
         </div>
+
+        {/* Compteur de question + timer. */}
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-purple-300/70">
+            Question{' '}
+            <span className="text-purple-100 font-semibold">
+              {currentIndex + 1}
+            </span>
+            {' / '}
+            {total}
+          </div>
+          <BeatEikichiTimer
+            questionStartedAt={game.questionStartedAt}
+            timerSeconds={timerSeconds}
+            onTimeout={handleTimeout}
+          />
+        </div>
+
+        {/* Image en pleine largeur (max-w-6xl, identique à la phase review). */}
+        <div className="arcane-card p-0 aspect-[16/10] overflow-hidden bg-black/40 relative">
+          {question.imageUrl ? (
+            <ZoomPanImage
+              src={question.imageUrl}
+              alt="Devine le jeu"
+              onLoad={() => setImageLoaded(true)}
+              className={`object-contain transition-opacity duration-300 ${
+                imageLoaded ? 'opacity-100' : 'opacity-0'
+              }`}
+              blurPx={blurPx}
+              rotating={tornadoActive}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-purple-300/50">
+              Image indisponible
+            </div>
+          )}
+          {/* Effets d'armes ciblant le joueur courant, rendus en overlay. */}
+          {question.imageUrl && player && (game.weaponEvents?.length ?? 0) > 0 && (
+            <WeaponEffectOverlay
+              events={game.weaponEvents ?? []}
+              myPlayerId={player.id}
+              currentQuestionIndex={currentIndex}
+              imageUrl={question.imageUrl}
+            />
+          )}
+        </div>
+
+        <PlayerAnswerInput
+          roomCode={roomCode}
+          playerToken={playerToken}
+          catalog={catalog}
+          alreadyFound={alreadyFound}
+          questionKey={currentIndex}
+        />
+
+        {room.beatEikichiHintsEnabled && (
+          <HintsPanel
+            questionStartedAt={game.questionStartedAt}
+            timerSeconds={timerSeconds}
+            hintGenre={question.hintGenre ?? null}
+            hintTerm={question.hintTerm ?? null}
+            hintPlatforms={question.hintPlatforms ?? null}
+          />
+        )}
       </div>
 
       {/* Stack de toasts : warnings d'attaque, résultats d'attaque, blocages de bouclier. */}
