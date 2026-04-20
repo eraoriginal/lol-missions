@@ -31,6 +31,7 @@ export interface Player {
     avatar: string;
     team: string;
     role: string | null;
+    beatEikichiWeaponId?: string | null;
     missions: PlayerMission[];
     pendingChoices?: PendingChoice[];
 }
@@ -126,6 +127,24 @@ export interface BeatEikichiPlayerState {
     currentTyping: string;
     answers: BeatEikichiPlayerAnswer[];
     score: number;
+    weaponId: string | null;
+    weaponUsesLeft: number;
+    lastUsedQuestionIndex: number;
+    shieldUsesLeft: number;
+}
+
+export interface BeatEikichiWeaponEvent {
+    id: string;
+    firedByPlayerId: string;
+    targetPlayerId: string;
+    weaponId: string;
+    /**
+     * Index de la question à laquelle l'effet s'applique (différé d'une question
+     * après le tir : questionIndex = currentIndex_when_fired + 1).
+     */
+    questionIndex: number;
+    firedAt: string;
+    data?: Record<string, unknown> | null;
 }
 
 export type BeatEikichiPhase = 'playing' | 'review_intro' | 'review' | 'leaderboard';
@@ -140,6 +159,7 @@ export interface BeatEikichiGame {
     timerSeconds: number;
     mode: 'standard' | 'blur';
     playerStates: BeatEikichiPlayerState[];
+    weaponEvents?: BeatEikichiWeaponEvent[];
 }
 
 export interface Room {

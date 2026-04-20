@@ -82,6 +82,10 @@ export async function POST(
         playerStates: {
           create: room.players.map((p) => ({
             playerId: p.id,
+            // Snapshot de l'arme choisie dans le lobby.
+            weaponId: p.beatEikichiWeaponId,
+            weaponUsesLeft: p.beatEikichiWeaponId ? 3 : 0,
+            lastUsedQuestionIndex: -1,
           })),
         },
       },

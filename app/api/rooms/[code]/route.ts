@@ -21,6 +21,9 @@ export async function GET(
             where: { code },
             include: {
                 players: {
+                    // Ordre stable par date d'arrivée : évite que l'ordre change quand
+                    // un Player est mis à jour (ex. changement d'arme lobby).
+                    orderBy: { createdAt: 'asc' },
                     include: {
                         missions: {
                             include: {
@@ -50,6 +53,9 @@ export async function GET(
                 beatEikichiGame: {
                     include: {
                         playerStates: true,
+                        weaponEvents: {
+                            orderBy: { firedAt: 'asc' },
+                        },
                     },
                 },
                 gameHistories: {

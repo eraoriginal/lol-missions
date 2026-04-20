@@ -134,6 +134,8 @@ model Player {
   avatar    String   @default("")
   team      String   @default("")   // "" = spectateur, "red" ou "blue"
   role      String?  // "spymaster" or "operative" for Codenames
+  // Arme choisie dans le lobby pour Beat Eikichi (snapshotée sur PlayerState au /start).
+  beatEikichiWeaponId String?
   roomId    String
   room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
@@ -327,6 +329,7 @@ model BeatEikichiGame {
   updatedAt         DateTime  @updatedAt
 
   playerStates      BeatEikichiPlayerState[]
+  weaponEvents      BeatEikichiWeaponEvent[]
 }
 
 // Beat Eikichi - état par-joueur
@@ -341,6 +344,31 @@ model BeatEikichiPlayerState {
   answers       Json     @default("[]")     // Array<{ position, submittedText, correct, answeredAtMs }>
   score         Int      @default(0)
 
+  // Arme snapshotée depuis Player.beatEikichiWeaponId au /start.
+  weaponId              String?
+  weaponUsesLeft        Int    @default(3)  // 3 utilisations par partie
+  lastUsedQuestionIndex Int    @default(-1) // (obsolète depuis le passage en "effet différé")
+  // Bouclier (défensif) : disponible pour tous les joueurs en plus de leur arme.
+  shieldUsesLeft        Int    @default(3)  // 3 boucliers par partie
+
   @@unique([gameId, playerId])
   @@index([gameId])
+}
+
+// Beat Eikichi - historique des tirs d'armes pendant une partie.
+// Les clients lisent ces events pour faire jouer les effets sur la cible.
+model BeatEikichiWeaponEvent {
+  id              String   @id @default(cuid())
+  gameId          String
+  game            BeatEikichiGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  firedByPlayerId String
+  targetPlayerId  String
+  weaponId        String
+  questionIndex   Int
+  firedAt         DateTime @default(now())
+  // Données spécifiques à l'arme (ex: mirage → fausse image URL).
+  data            Json?
+
+  @@index([gameId, questionIndex])
 }

@@ -10,6 +10,12 @@ interface PlayerScoreListProps {
   currentIndex: number;
   creatorPlayerId: string | null;
   eikichiPlayerId: string | null;
+  /** Mode ciblage actif : joueur courant vise une cible pour son arme. */
+  targetingMode?: boolean;
+  /** ID du joueur courant (ne peut pas se cibler soi-même). */
+  selfPlayerId?: string | null;
+  /** Callback appelé quand un joueur est cliqué en mode ciblage. */
+  onTargetPlayer?: (playerId: string) => void;
 }
 
 /**
@@ -22,6 +28,9 @@ export function PlayerScoreList({
   currentIndex,
   creatorPlayerId,
   eikichiPlayerId,
+  targetingMode,
+  selfPlayerId,
+  onTargetPlayer,
 }: PlayerScoreListProps) {
   const stateByPlayer = new Map(playerStates.map((s) => [s.playerId, s]));
   const prevFoundRef = useRef<Set<string>>(new Set());
@@ -68,16 +77,23 @@ export function PlayerScoreList({
             ) ?? false;
           const isPulsing = justFound.has(p.id);
           const isEikichi = p.id === eikichiPlayerId;
+          const isSelf = p.id === selfPlayerId;
+          const isTargetable = !!targetingMode && !isSelf;
           return (
             <li
               key={p.id}
+              onClick={() => {
+                if (isTargetable && onTargetPlayer) onTargetPlayer(p.id);
+              }}
               className={`flex items-center gap-3 p-2 rounded-lg border transition ${
-                isEikichi
-                  ? 'beat-eikichi-highlight'
-                  : found
-                    ? 'border-emerald-500/50 bg-emerald-900/20'
-                    : 'border-purple-500/20 bg-purple-900/20'
-              }`}
+                isTargetable
+                  ? 'border-rose-500/80 bg-rose-900/30 cursor-pointer hover:bg-rose-800/50 hover:border-rose-400 beat-eikichi-target-pulse'
+                  : isEikichi
+                    ? 'beat-eikichi-highlight'
+                    : found
+                      ? 'border-emerald-500/50 bg-emerald-900/20'
+                      : 'border-purple-500/20 bg-purple-900/20'
+              } ${targetingMode && isSelf ? 'opacity-40' : ''}`}
             >
               <div className={isPulsing ? 'beat-eikichi-pulse' : ''}>
                 {p.avatar ? (

@@ -65,7 +65,12 @@ export async function POST(
         timerSeconds: room.beatEikichiTimerSeconds,
         mode: room.beatEikichiMode,
         playerStates: {
-          create: room.players.map((p) => ({ playerId: p.id })),
+          create: room.players.map((p) => ({
+            playerId: p.id,
+            weaponId: p.beatEikichiWeaponId,
+            weaponUsesLeft: p.beatEikichiWeaponId ? 3 : 0,
+            lastUsedQuestionIndex: -1,
+          })),
         },
       },
     });

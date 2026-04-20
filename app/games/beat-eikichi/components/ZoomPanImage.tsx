@@ -9,6 +9,8 @@ interface ZoomPanImageProps {
   className?: string;
   /** Intensité du flou en pixels appliqué à l'image (mode "blur"). 0 = pas de flou. */
   blurPx?: number;
+  /** Si true, applique une animation de rotation continue sur l'image (arme Tornade). */
+  rotating?: boolean;
 }
 
 const MIN_SCALE = 1;
@@ -27,6 +29,7 @@ export function ZoomPanImage({
   onLoad,
   className,
   blurPx,
+  rotating,
 }: ZoomPanImageProps) {
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -153,23 +156,29 @@ export function ZoomPanImage({
         cursor: dragging ? 'grabbing' : canPan ? 'grab' : 'default',
       }}
     >
-      <img
-        src={src}
-        alt={alt}
-        onLoad={onLoad}
-        onDragStart={(e) => e.preventDefault()}
-        className={`w-full h-full pointer-events-none ${className ?? ''}`}
-        style={{
-          transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-          transformOrigin: 'center center',
-          // Transition courte sur le filter pour que la révélation progressive du
-          // mode "blur" reste fluide entre deux recalculs.
-          transition: dragging
-            ? 'none'
-            : 'transform 0.12s ease-out, filter 0.4s linear',
-          filter: blurPx && blurPx > 0.05 ? `blur(${blurPx}px)` : undefined,
-        }}
-      />
+      {/* Wrapper pour la rotation Tornade (laisse le transform scale/translate
+          sur l'img et applique la rotation à un niveau séparé). */}
+      <div
+        className={`absolute inset-0 ${rotating ? 'beat-eikichi-fx-tornado-rotate' : ''}`}
+      >
+        <img
+          src={src}
+          alt={alt}
+          onLoad={onLoad}
+          onDragStart={(e) => e.preventDefault()}
+          className={`w-full h-full pointer-events-none ${className ?? ''}`}
+          style={{
+            transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+            transformOrigin: 'center center',
+            // Transition courte sur le filter pour que la révélation progressive du
+            // mode "blur" reste fluide entre deux recalculs.
+            transition: dragging
+              ? 'none'
+              : 'transform 0.12s ease-out, filter 0.4s linear',
+            filter: blurPx && blurPx > 0.05 ? `blur(${blurPx}px)` : undefined,
+          }}
+        />
+      </div>
 
       {/* Contrôles zoom en bas à droite */}
       <div
