@@ -23,6 +23,55 @@ const ROMAN_TO_ARABIC: Record<string, string> = {
 };
 
 /**
+ * Lookalikes Cyrillique → Latin. Certains noms issus de RAWG contiennent des
+ * caractères cyrilliques visuellement IDENTIQUES à des lettres latines (ex.
+ * "Observеr" où le « е » est U+0435 et non U+0065). Sans substitution, le
+ * tokenizer les traite comme des séparateurs et l'utilisateur qui tape le
+ * nom en latin ne peut jamais valider.
+ */
+const CYRILLIC_LOOKALIKE_TO_LATIN: Record<string, string> = {
+  '\u0430': 'a', // а
+  '\u0435': 'e', // е
+  '\u043E': 'o', // о
+  '\u0440': 'p', // р
+  '\u0441': 'c', // с
+  '\u0445': 'x', // х
+  '\u0443': 'y', // у
+  '\u0456': 'i', // і
+  '\u0458': 'j', // ј
+  '\u0455': 's', // ѕ
+  '\u0410': 'a', // А
+  '\u0412': 'b', // В
+  '\u0415': 'e', // Е
+  '\u041A': 'k', // К
+  '\u041C': 'm', // М
+  '\u041D': 'h', // Н
+  '\u041E': 'o', // О
+  '\u0420': 'p', // Р
+  '\u0421': 'c', // С
+  '\u0422': 't', // Т
+  '\u0423': 'y', // У
+  '\u0425': 'x', // Х
+};
+
+/**
+ * Applique les substitutions pré-normalisation :
+ *   - « & » → « and » (« Mount & Blade » et « Mount and Blade » doivent matcher)
+ *   - lookalikes cyrilliques → latins (cf. CYRILLIC_LOOKALIKE_TO_LATIN)
+ */
+function preNormalize(input: string): string {
+  const s = input.replace(/&/g, ' and ');
+  // Substitution caractère par caractère : pas de regex (pour performance et
+  // lisibilité). Le mapping ne couvre que les lookalikes — les autres caractères
+  // non-ASCII sont laissés au tokenizer qui les traite comme séparateurs.
+  let out = '';
+  for (const ch of s) {
+    out += CYRILLIC_LOOKALIKE_TO_LATIN[ch] ?? ch;
+  }
+  return out;
+}
+
+/**
  * Tokenise une chaîne en mots normalisés :
  * - lowercase
  * - suppression des diacritiques
@@ -32,7 +81,7 @@ const ROMAN_TO_ARABIC: Record<string, string> = {
  */
 export function tokenize(input: string): string[] {
   if (!input) return [];
-  let s = input.toLowerCase().trim();
+  let s = preNormalize(input).toLowerCase().trim();
   s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   s = s.replace(/^the\s+/, '');
   const tokens = s.split(/[^a-z0-9]+/).filter(Boolean);
@@ -99,10 +148,39 @@ export function levenshtein(a: string, b: string): number {
 }
 
 /**
+ * Retire les suffixes d'édition/remaster des titres (ex. « Crysis 2 - Maximum
+ * Edition » → « Crysis 2 »). Appliqué en plus du nom canonique pour accepter
+ * la forme « sans édition » comme alias implicite : une édition remasterisée
+ * ou definitive EST le même jeu, l'utilisateur ne devrait pas avoir à taper le
+ * suffixe. On ne touche PAS aux sous-titres de vrais sequels (« Tomb Raider:
+ * Anniversary » reste intact car « Anniversary » seul n'est pas un mot-clé
+ * d'édition).
+ */
+const EDITION_WORDS =
+  'maximum|definitive|complete|enhanced|collector\'?s?|goty|game of the year|anniversary|deluxe|gold|hd|legendary|ultimate|special|standard';
+const EDITION_SUFFIX_PATTERNS = [
+  // " - Maximum Edition", ": Definitive Edition", " (GOTY Edition)" et tout ce qui suit
+  new RegExp(`\\s*[-:–—(,]\\s*(?:${EDITION_WORDS})\\s+edition\\b.*$`, 'i'),
+  // " Maximum Edition" sans séparateur (ex. "Gothic II: Gold Edition" → après le :)
+  new RegExp(`\\s+(?:${EDITION_WORDS})\\s+edition\\b.*$`, 'i'),
+  // " Remastered", ": Remastered", " - Remastered", "HD Remaster"
+  /\s*[-:–—(,]?\s*(?:hd\s+)?remaster(?:ed)?\b.*$/i,
+];
+
+function stripEditionSuffix(name: string): string {
+  for (const re of EDITION_SUFFIX_PATTERNS) {
+    const replaced = name.replace(re, '').trim();
+    if (replaced && replaced !== name) return replaced;
+  }
+  return name;
+}
+
+/**
  * Vérifie si `input` est une réponse acceptable pour `name` ou une de ses `aliases`.
  * Match STRICT après normalisation (casse, accents, ponctuation, « the » initial,
- * chiffres romains ↔ arabes). Pas de tolérance aux fautes de frappe pour éviter
- * les faux positifs entre des jeux similaires (ex. "Halo 2" vs "Halo 3",
+ * chiffres romains ↔ arabes, « & » ↔ « and », lookalikes cyrilliques → latin,
+ * et suffixes d'édition optionnels). Pas de tolérance aux fautes de frappe pour
+ * éviter les faux positifs entre des jeux similaires (ex. "Halo 2" vs "Halo 3",
  * distance Levenshtein = 1).
  */
 export function isAcceptedAnswer(
@@ -121,6 +199,15 @@ export function isAcceptedAnswer(
 
     if (normalizedInput === normalizedTarget) {
       return true;
+    }
+
+    // Fallback : accepte aussi la version sans suffixe d'édition.
+    const stripped = stripEditionSuffix(target);
+    if (stripped !== target) {
+      const normalizedStripped = normalize(stripped);
+      if (normalizedStripped && normalizedInput === normalizedStripped) {
+        return true;
+      }
     }
   }
 

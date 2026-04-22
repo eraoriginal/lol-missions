@@ -74,6 +74,37 @@ const acceptCases: AcceptCase[] = [
   { label: 'input avec trailing space', input: 'Halo ', name: 'Halo', expected: true },
   { label: 'input avec leading space', input: ' Halo', name: 'Halo', expected: true },
   { label: 'name avec trailing space', input: 'Halo', name: 'Halo ', expected: true },
+
+  // & ↔ and
+  { label: '& ↔ and (input and, target &)', input: 'Mount and Blade', name: 'Mount & Blade', expected: true },
+  { label: '& ↔ and (input &, target and)', input: 'Mount & Blade', name: 'Mount and Blade', expected: true },
+  { label: 'Ratchet and Clank', input: 'Ratchet and Clank', name: 'Ratchet & Clank', expected: true },
+  { label: 'Kane and Lynch 2', input: 'Kane and Lynch 2', name: 'Kane & Lynch 2: Dog Days', aliases: ['Kane & Lynch 2'], expected: true },
+
+  // Lookalikes cyrilliques (RAWG stocke "Observеr" avec е cyrillique U+0435)
+  { label: 'Observer latin vs cyrillique е', input: 'Observer', name: 'Observ\u0435r', expected: true },
+
+  // Suffixes d'édition : accepte la version sans suffixe
+  { label: 'Crysis 2 vs "- Maximum Edition"', input: 'Crysis 2', name: 'Crysis 2 - Maximum Edition', expected: true },
+  { label: 'Crysis 2 full title', input: 'Crysis 2 Maximum Edition', name: 'Crysis 2 - Maximum Edition', expected: true },
+  { label: 'Grim Fandango vs Remastered', input: 'Grim Fandango', name: 'Grim Fandango Remastered', expected: true },
+  { label: 'God of War III vs Remastered', input: 'God of War III', name: 'God of War III Remastered', expected: true },
+  { label: 'God of War 3 (roman → arabe) vs Remastered', input: 'God of War 3', name: 'God of War III Remastered', expected: true },
+  { label: 'DuckTales (colon Remastered)', input: 'DuckTales', name: 'DuckTales: Remastered', aliases: ['DuckTales', 'Remastered'], expected: true },
+  { label: 'Mafia Definitive Edition → Mafia', input: 'Mafia', name: 'Mafia: Definitive Edition', aliases: ['Mafia Remake', 'Mafia', 'Definitive Edition'], expected: true },
+  { label: 'Tomb Raider Definitive Edition → Tomb Raider', input: 'Tomb Raider', name: 'Tomb Raider: Definitive Edition', aliases: ['Tomb Raider', 'Definitive Edition'], expected: true },
+
+  // NE PAS stripper : "Anniversary" seul est un vrai sous-titre (distinct de "Anniversary Edition")
+  { label: 'TR: Anniversary kept', input: 'Tomb Raider Anniversary', name: 'Tomb Raider: Anniversary', aliases: ['Tomb Raider', 'Anniversary'], expected: true },
+
+  // Suffixe d'édition ne doit PAS accepter une franchise distincte
+  { label: 'Crysis ≠ Crysis 2 - Maximum Edition', input: 'Crysis', name: 'Crysis 2 - Maximum Edition', expected: false },
+
+  // Tomb Raider 2 / II — vérifie que les 2 écritures matchent et que "Tomb Raider" seul est rejeté
+  { label: 'Tomb Raider 2 ↔ II', input: 'Tomb Raider 2', name: 'Tomb Raider II', expected: true },
+  { label: 'Tomb Raider II ↔ 2', input: 'Tomb Raider II', name: 'Tomb Raider II', expected: true },
+  { label: 'Tomb Raider seul ≠ Tomb Raider II', input: 'Tomb Raider', name: 'Tomb Raider II', expected: false },
+  { label: 'Tomb Raider II ≠ Tomb Raider', input: 'Tomb Raider II', name: 'Tomb Raider', expected: false },
 ];
 
 const closenessCases: ClosenessCase[] = [

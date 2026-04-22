@@ -150,6 +150,7 @@ export function PlayerAnswerInput({
         onSubmit={handleSubmit}
         disabled={submitting}
         shakeKey={shakeKey}
+        resetKey={questionKey}
         placeholder="Tape le nom du jeu puis Entrée…"
       />
       {feedback && (
