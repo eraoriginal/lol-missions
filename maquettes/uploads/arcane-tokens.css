@@ -1,0 +1,387 @@
+/* ==========================================================================
+   ARCANE.KIT — design system tokens
+   punk · peinture · alchimie
+   ========================================================================== */
+
+:root {
+  /* ---- Couleurs — rôles sémantiques ---------------------------------- */
+  --ac-ink:      #0D0B08;  /* fond principal, suie */
+  --ac-ink-2:    #1A160F;  /* fond secondaire (cartes) */
+  --ac-bone:     #F0E4C1;  /* texte principal, parchemin */
+  --ac-bone-2:   #C9BB94;  /* texte secondaire, muted */
+
+  --ac-chem:     #12D6A8;  /* succès, état actif, progression */
+  --ac-hex:      #5EB8FF;  /* info, tech, lien */
+  --ac-shimmer:  #FF3D8B;  /* CTA primaire, highlight */
+  --ac-gold:     #F5B912;  /* récompense, premium, XP */
+  --ac-rust:     #C8441E;  /* danger, destructif, alerte */
+  --ac-violet:   #8A3DD4;  /* arcane, magie, rare */
+
+  /* ---- Typographie ---------------------------------------------------- */
+  --ac-font-display: 'Arial Black', 'Helvetica Neue', Impact, sans-serif;
+  --ac-font-body:    'Helvetica Neue', Arial, sans-serif;
+  --ac-font-mono:    'Courier New', 'Menlo', monospace;
+
+  --ac-skew: -3deg;      /* incliner les titres display pour le côté punk */
+  --ac-tracking: 0.08em; /* letter-spacing pour labels uppercase */
+
+  /* ---- Espacements ---------------------------------------------------- */
+  --ac-gap-xs: 6px;
+  --ac-gap-sm: 10px;
+  --ac-gap-md: 14px;
+  --ac-gap-lg: 22px;
+  --ac-gap-xl: 32px;
+
+  /* ---- Textures de fond ---------------------------------------------- */
+  --ac-bg: radial-gradient(circle at 15% 10%, #1F1A13 0%, #0D0B08 65%);
+  --ac-grain: radial-gradient(circle at 1px 1px, rgba(240,228,193,0.035) 1px, transparent 1px);
+  --ac-grain-size: 3px 3px;
+  --ac-hatching: repeating-linear-gradient(45deg, transparent 0 3px, rgba(240,228,193,0.015) 3px 4px);
+
+  /* ---- Bordures ------------------------------------------------------- */
+  --ac-border: 1.5px solid var(--ac-bone);
+  --ac-border-dashed: 1.5px dashed var(--ac-bone-2);
+  --ac-border-dotted-line: repeating-linear-gradient(to right, var(--ac-bone-2) 0 4px, transparent 4px 8px);
+}
+
+/* ==========================================================================
+   Filtres SVG — à inclure une fois en haut du document
+   ========================================================================== */
+/*
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <filter id="ac-rough" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="7" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="5"/>
+      </filter>
+      <filter id="ac-rougher" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="3" seed="3" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="10"/>
+      </filter>
+      <filter id="ac-paint-spread" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="1"/>
+        <feDisplacementMap in="SourceGraphic" scale="3"/>
+      </filter>
+      <filter id="ac-goo" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="b"/>
+        <feColorMatrix in="b" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7"/>
+      </filter>
+    </defs>
+  </svg>
+
+  USAGE DES FILTRES :
+  - #ac-rough       → bords légèrement peints (borders, cards)
+  - #ac-rougher     → bords bombés lourds (glyphes, émoticônes, tags)
+  - #ac-paint-spread→ éclaboussures de peinture (splats en fond)
+  - #ac-goo         → gouttes fusionnées (drips sous boutons, barres qui remplissent)
+*/
+
+/* ==========================================================================
+   Typographie — recettes
+   ========================================================================== */
+
+.ac-title-display {
+  font-family: var(--ac-font-display);
+  font-size: 58px;
+  line-height: 0.88;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  transform: skewX(calc(var(--ac-skew) - 1deg));
+  color: var(--ac-bone);
+  margin: 0;
+}
+
+.ac-title-display em {
+  font-style: normal;
+  color: var(--ac-shimmer);
+  text-shadow: 3px 3px 0 var(--ac-ink), -1px 1px 0 var(--ac-chem);
+}
+
+.ac-heading {
+  font-family: var(--ac-font-display);
+  font-size: 17px;
+  letter-spacing: var(--ac-tracking);
+  text-transform: uppercase;
+  color: var(--ac-bone);
+  margin: 0;
+}
+
+.ac-label {
+  font-family: var(--ac-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ac-chem);
+}
+
+.ac-body-mono {
+  font-family: var(--ac-font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ac-bone-2);
+}
+
+/* ==========================================================================
+   Conteneurs
+   ========================================================================== */
+
+.ac-root {
+  background: var(--ac-bg);
+  color: var(--ac-bone);
+  font-family: var(--ac-font-body);
+  position: relative;
+  overflow: hidden;
+  padding: 28px 22px 36px;
+  border-radius: 14px;
+}
+
+.ac-root::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: var(--ac-hatching);
+  pointer-events: none;
+}
+
+.ac-root::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: var(--ac-grain);
+  background-size: var(--ac-grain-size);
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+/* ==========================================================================
+   Boutons — bords déchirés via clip-path, drip optionnel
+   ========================================================================== */
+
+.ac-btn {
+  font-family: var(--ac-font-display);
+  font-size: 13px;
+  letter-spacing: var(--ac-tracking);
+  text-transform: uppercase;
+  padding: 13px 22px;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  clip-path: polygon(
+    3% 10%, 12% 0, 30% 8%, 55% 2%, 78% 10%, 98% 4%,
+    100% 40%, 97% 75%, 99% 100%, 80% 96%, 55% 100%,
+    30% 94%, 10% 100%, 1% 88%, 2% 50%
+  );
+}
+
+.ac-btn--primary { background: var(--ac-shimmer); color: var(--ac-ink); }
+.ac-btn--chem    { background: var(--ac-chem);    color: var(--ac-ink); }
+.ac-btn--gold    { background: var(--ac-gold);    color: var(--ac-ink); }
+.ac-btn--danger  { background: var(--ac-rust);    color: var(--ac-bone); }
+.ac-btn--ghost   { background: transparent; color: var(--ac-bone); box-shadow: inset 0 0 0 2px var(--ac-bone); }
+
+/* wrap pour ajouter un drip sous le bouton */
+.ac-btn-wrap { position: relative; display: inline-block; }
+.ac-btn-wrap .ac-drip {
+  position: absolute;
+  bottom: -22px; left: 0; right: 0;
+  height: 28px;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   Tags & chips
+   ========================================================================== */
+
+.ac-tag {
+  display: inline-block;
+  font-family: var(--ac-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+}
+
+.ac-tag--chem    { background: var(--ac-chem);    color: var(--ac-ink); }
+.ac-tag--shimmer { background: var(--ac-shimmer); color: var(--ac-ink); }
+.ac-tag--gold    { background: var(--ac-gold);    color: var(--ac-ink); }
+
+.ac-chip {
+  font-family: var(--ac-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  border: 1px solid var(--ac-bone-2);
+  color: var(--ac-bone-2);
+  background: transparent;
+}
+
+.ac-chip.is-on {
+  background: var(--ac-chem);
+  color: var(--ac-ink);
+  border-color: var(--ac-chem);
+}
+
+/* ==========================================================================
+   Cartes
+   ========================================================================== */
+
+.ac-card {
+  position: relative;
+  background: linear-gradient(135deg, var(--ac-ink-2) 0%, var(--ac-ink) 100%);
+  padding: 16px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1.5px var(--ac-bone);
+}
+
+.ac-card__fold {
+  position: absolute;
+  top: 0; right: 0;
+  width: 0; height: 0;
+  border-style: solid;
+  border-width: 0 22px 22px 0;
+  border-color: transparent var(--ac-bone) transparent transparent;
+  z-index: 2;
+}
+
+/* ==========================================================================
+   Alertes — avec bande de couleur à gauche
+   ========================================================================== */
+
+.ac-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  position: relative;
+}
+
+.ac-alert__icon {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ac-font-display);
+  font-size: 18px;
+  color: var(--ac-ink);
+}
+
+.ac-alert--success { border-left: 6px solid var(--ac-chem); background: rgba(18,214,168,0.08); }
+.ac-alert--success .ac-alert__icon { background: var(--ac-chem); }
+
+.ac-alert--warning { border-left: 6px solid var(--ac-gold); background: rgba(245,185,18,0.08); }
+.ac-alert--warning .ac-alert__icon { background: var(--ac-gold); }
+
+.ac-alert--danger  { border-left: 6px solid var(--ac-rust); background: rgba(200,68,30,0.12); }
+.ac-alert--danger  .ac-alert__icon { background: var(--ac-rust); color: var(--ac-bone); }
+
+/* scotch collé en haut à droite */
+.ac-tape {
+  position: absolute;
+  top: -8px; right: 14px;
+  background: var(--ac-gold);
+  color: var(--ac-ink);
+  font-family: var(--ac-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  transform: rotate(-2deg);
+  opacity: 0.9;
+}
+
+/* ==========================================================================
+   Barres de progression — remplies à la peinture (via SVG goo inside)
+   ========================================================================== */
+
+.ac-bar-track {
+  position: relative;
+  height: 18px;
+  background: rgba(240,228,193,0.06);
+  border: 1px solid var(--ac-bone-2);
+  overflow: hidden;
+}
+
+/* Dans le HTML, placer un <svg> avec filter="url(#ac-goo)" dans .ac-bar-track :
+     <svg class="ac-bar-track" ...>
+       <g filter="url(#ac-goo)" fill="var(--ac-chem)">
+         <rect x="0" y="3" width="72" height="12"/>
+         <circle cx="74" cy="9" r="5"/>
+       </g>
+     </svg>
+*/
+
+/* ==========================================================================
+   Champs de formulaire
+   ========================================================================== */
+
+.ac-input {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--ac-bone);
+  color: var(--ac-bone);
+  font-family: var(--ac-font-mono);
+  font-size: 14px;
+  padding: 8px 4px;
+  width: 100%;
+}
+
+.ac-input.is-filled { color: var(--ac-shimmer); }
+
+/* ==========================================================================
+   Stamp / timbre
+   ========================================================================== */
+
+.ac-stamp {
+  font-family: var(--ac-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ac-bone);
+  background: var(--ac-ink);
+  border: 1.5px dashed var(--ac-bone-2);
+  padding: 6px 10px;
+  transform: rotate(4deg);
+  display: inline-block;
+}
+
+/* ==========================================================================
+   RECETTES SVG (à copier dans le markup)
+   ==========================================================================
+
+   GOUTTE SOUS UN BLOC :
+   <svg viewBox="0 0 100 30" preserveAspectRatio="none" style="width:100%;height:30px;">
+     <g filter="url(#ac-goo)" fill="#12D6A8">
+       <rect x="-5" y="-5" width="110" height="10"/>
+       <circle cx="15" cy="15" r="6"/>
+       <circle cx="40" cy="20" r="5"/>
+       <circle cx="65" cy="14" r="7"/>
+       <circle cx="88" cy="18" r="4"/>
+     </g>
+   </svg>
+
+   ÉCLABOUSSURE :
+   <svg viewBox="0 0 200 200" style="opacity:0.8;">
+     <g filter="url(#ac-paint-spread)">
+       <circle cx="100" cy="90" r="55" fill="#FF3D8B"/>
+       <circle cx="145" cy="60" r="12" fill="#FF3D8B"/>
+       <circle cx="60" cy="50" r="8" fill="#FF3D8B"/>
+     </g>
+   </svg>
+
+   ÉMOTICÔNE GRAFFITI :
+   <svg viewBox="0 0 120 80">
+     <text x="60" y="58" text-anchor="middle"
+           font-family="Arial Black" font-size="44"
+           fill="#FF3D8B" filter="url(#ac-rougher)">;-)</text>
+   </svg>
+
+   GLYPHE PEINT (croix, X, cercle, etc.) :
+   <svg viewBox="0 0 40 40">
+     <g stroke="#F0E4C1" stroke-width="3.5" fill="none"
+        stroke-linecap="round" filter="url(#ac-rougher)">
+       <line x1="20" y1="4" x2="20" y2="36"/>
+       <line x1="4" y1="20" x2="36" y2="20"/>
+     </g>
+   </svg>
+*/

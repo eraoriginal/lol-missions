@@ -12,6 +12,7 @@
  */
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
+import { isLatinOnly } from '../../lib/beatEikichi/isLatinOnly';
 
 const prisma = new PrismaClient();
 
@@ -159,8 +160,19 @@ async function main() {
       );
       await sleep(REQUEST_DELAY_MS);
 
+      // Skip les jeux dont le nom canonique n'est pas en alphabet latin : le
+      // joueur ne pourrait pas valider (tokenizer stripe tout caractère non
+      // a-zA-Z0-9 → chaîne vide).
+      if (!isLatinOnly(game.name)) {
+        console.log(`  ⏭️  Skip ${game.name} (nom non-latin)`);
+        skipped++;
+        continue;
+      }
+
       const aliases = new Set<string>();
-      (details.alternative_names ?? []).forEach((a) => aliases.add(a));
+      (details.alternative_names ?? [])
+        .filter((a) => isLatinOnly(a))
+        .forEach((a) => aliases.add(a));
       deriveAliasVariants(game.name).forEach((a) => aliases.add(a));
 
       await prisma.videoGame.upsert({

@@ -159,7 +159,7 @@ export function ZoomPanImage({
       {/* Wrapper pour la rotation Tornade (laisse le transform scale/translate
           sur l'img et applique la rotation à un niveau séparé). */}
       <div
-        className={`absolute inset-0 ${rotating ? 'beat-eikichi-fx-tornado-rotate' : ''}`}
+        className={`absolute inset-0 ${rotating ? 'bek-fx-tornado-pull' : ''}`}
       >
         <img
           src={src}

@@ -19,12 +19,29 @@ import {
   isTornadoActive,
 } from './WeaponEffectOverlay';
 import { getWeapon } from '@/lib/beatEikichi/weapons';
+import {
+  AC,
+  AC_IMAGE_FRAME_CLIP,
+  AcDashed,
+  AcGlyph,
+  AcPaintedBar,
+  AcScreen,
+  AcSectionNum,
+  AcToast,
+  AcToastStack,
+  type AcGlyphKind,
+  type AcToastTone,
+} from '@/app/components/arcane';
 
-type ToastType = 'success' | 'error' | 'warning' | 'info';
 interface ToastItem {
   id: string;
-  message: string;
-  type: ToastType;
+  tone: AcToastTone;
+  tape: string;
+  title: string;
+  subtitle?: string;
+  iconKind: AcGlyphKind;
+  iconColor: string;
+  drip?: boolean;
 }
 
 interface PlayingViewProps {
@@ -52,24 +69,24 @@ export function PlayingView({
   const state = player
     ? game.playerStates.find((s) => s.playerId === player.id)
     : null;
-  const alreadyFound =
-    state?.answers.some((a) => a.position === currentIndex && a.correct) ??
-    false;
+  const myAnswer = state?.answers.find((a) => a.position === currentIndex);
+  const alreadyFound = myAnswer?.correct ?? false;
+  const foundAtSeconds =
+    myAnswer?.correct && myAnswer.answeredAtMs != null
+      ? myAnswer.answeredAtMs / 1000
+      : null;
 
   const creatorPlayerId =
     room.players.find((p) => p.token === room.creatorToken)?.id ?? null;
 
-  // État de l'arme + bouclier du joueur courant.
   const myWeaponId = state?.weaponId ?? null;
   const myUsesLeft = state?.weaponUsesLeft ?? 0;
   const myShieldUsesLeft = state?.shieldUsesLeft ?? 0;
 
-  // Mode ciblage : on arme, les avatars deviennent cliquables.
   const [targeting, setTargeting] = useState(false);
 
-  // Reset le mode ciblage quand la question change.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset state on prop change is intentional
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on prop change is intentional
     setTargeting(false);
   }, [currentIndex]);
 
@@ -86,23 +103,31 @@ export function PlayingView({
     }
   };
 
-  // Activation du bouclier (route séparée, indépendant de l'arme).
   const handleFireShield = async () => {
     try {
-      const res = await fetch(`/api/games/beat-eikichi/${roomCode}/fire-shield`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerToken }),
-      });
+      const res = await fetch(
+        `/api/games/beat-eikichi/${roomCode}/fire-shield`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ playerToken }),
+        },
+      );
       if (res.ok) {
-        addToast('Bouclier armé pour la prochaine question', 'info');
+        addToast({
+          tone: 'info',
+          tape: '// BOUCLIER',
+          title: 'Bouclier armé pour la prochaine question',
+          subtitle: '// toute attaque reçue sera annulée',
+          iconKind: 'shield',
+          iconColor: AC.hex,
+        });
       }
     } catch {
       /* pushRoomUpdate finira par rattraper, ou pas */
     }
   };
 
-  // Bouclier déjà armé pour la prochaine question ?
   const shieldArmed = (game.weaponEvents ?? []).some(
     (e) =>
       e.weaponId === 'shield' &&
@@ -110,27 +135,44 @@ export function PlayingView({
       e.questionIndex === currentIndex + 1,
   );
 
-  // ---------- Toasts (notifications affichées à la question où l'effet atterrit) ----------
-  // Le défenseur n'est PAS prévenu au moment du tir ; il découvre l'attaque (ou son
-  // blocage par bouclier) seulement quand elle atterrit à la question courante.
+  // Toasts : notifs d'attaque/blocage, affichées à la question où l'effet atterrit.
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const seenLandingRef = useRef<Set<string>>(new Set());
   const initializedRef = useRef(false);
   const toastIdRef = useRef(0);
 
-  const addToast = useCallback((message: string, type: ToastType) => {
-    const id = `bek-toast-${++toastIdRef.current}`;
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 5000);
-  }, [setToasts]);
+  const addToast = useCallback(
+    (t: Omit<ToastItem, 'id'>) => {
+      const id = `bek-toast-${++toastIdRef.current}`;
+      setToasts((prev) => [...prev, { id, ...t }]);
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((x) => x.id !== id));
+      }, 5000);
+    },
+    [setToasts],
+  );
+
+  /** Helper : mapper un weapon.id vers un glyph adéquat pour les toasts. */
+  const weaponGlyph = (weaponId: string): AcGlyphKind => {
+    const map: Record<string, AcGlyphKind> = {
+      smoke: 'smoke',
+      c4: 'bomb',
+      blade: 'saber',
+      freeze: 'ice',
+      zoomghost: 'zoom',
+      tornado: 'tornado',
+      puzzle: 'puzzle',
+      speed: 'speed',
+      tag: 'flame',
+      glitch: 'lightning',
+      acid: 'thermometer',
+      strobe: 'target',
+    };
+    return map[weaponId] ?? 'flame';
+  };
 
   useEffect(() => {
     const events = game.weaponEvents ?? [];
-
-    // Au premier mount, on considère tous les events existants comme "déjà vus"
-    // pour éviter de spammer les toasts au chargement de la page en cours de partie.
     if (!initializedRef.current) {
       events.forEach((e) => {
         seenLandingRef.current.add(e.id);
@@ -138,11 +180,9 @@ export function PlayingView({
       initializedRef.current = true;
       return;
     }
-
     const myId = player?.id ?? null;
     if (!myId) return;
 
-    // Events qui "atterrissent" à la question courante.
     for (const ev of events) {
       if (seenLandingRef.current.has(ev.id)) continue;
       if (ev.questionIndex !== currentIndex) continue;
@@ -151,27 +191,40 @@ export function PlayingView({
       seenLandingRef.current.add(ev.id);
       const attacker = room.players.find((p) => p.id === ev.firedByPlayerId);
       const weapon = getWeapon(ev.weaponId);
-      const targetShielded = isShielded(
-        events,
-        ev.targetPlayerId,
-        currentIndex,
-      );
+      const targetShielded = isShielded(events, ev.targetPlayerId, currentIndex);
 
       if (ev.targetPlayerId === myId) {
         if (targetShielded) {
-          addToast(
-            `Tu as empêché l'attaque de ${attacker?.name ?? 'un joueur'}`,
-            'success',
-          );
+          addToast({
+            tone: 'success',
+            tape: '// BOUCLIER',
+            title: `Tu as bloqué l'attaque de ${attacker?.name ?? 'un joueur'}`,
+            subtitle: `// ${weapon?.name.toLowerCase() ?? ev.weaponId} · bouclier consommé`,
+            iconKind: 'shield',
+            iconColor: AC.chem,
+            drip: true,
+          });
         } else {
-          addToast(
-            `${attacker?.name ?? 'Un joueur'} a utilisé ${weapon?.name ?? ev.weaponId}`,
-            'warning',
-          );
+          addToast({
+            tone: 'shimmer',
+            tape: '// ATTAQUE REÇUE',
+            title: `${weapon?.name ?? ev.weaponId} lancé par ${attacker?.name ?? 'un joueur'}`,
+            subtitle: '// effet actif sur cette question',
+            iconKind: weaponGlyph(ev.weaponId),
+            iconColor: AC.shimmer,
+            drip: true,
+          });
         }
       }
       if (ev.firedByPlayerId === myId && targetShielded) {
-        addToast(`L'attaque a échouée`, 'error');
+        addToast({
+          tone: 'warning',
+          tape: '// ATTAQUE',
+          title: "L'attaque a échoué",
+          subtitle: `// ${weapon?.name.toLowerCase() ?? ev.weaponId} bloqué par un bouclier`,
+          iconKind: 'x',
+          iconColor: AC.gold,
+        });
       }
     }
   }, [game.weaponEvents, currentIndex, player?.id, room.players, addToast]);
@@ -180,7 +233,6 @@ export function PlayingView({
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Escape annule le ciblage.
   useEffect(() => {
     if (!targeting) return;
     const onKey = (e: KeyboardEvent) => {
@@ -190,8 +242,6 @@ export function PlayingView({
     return () => document.removeEventListener('keydown', onKey);
   }, [targeting]);
 
-  // Tick pour réévaluer quels effets d'arme sont actifs sur le joueur courant
-  // (tornade nécessite une re-évaluation périodique car son état dépend du temps).
   const [fxNow, setFxNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setFxNow(Date.now()), 500);
@@ -208,21 +258,19 @@ export function PlayingView({
   const nextTriggeredRef = useRef<number | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
 
-  // Garde une réf stable sur refetch pour l'utiliser depuis un setInterval.
   const refetchRef = useRef(refetch);
   useEffect(() => {
     refetchRef.current = refetch;
   }, [refetch]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset state on prop change is intentional
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on prop change is intentional
     setImageLoaded(false);
     nextTriggeredRef.current = null;
   }, [currentIndex]);
 
   // Safeguard anti-desync : si le timer est dépassé depuis plus de 3 s sans que
-  // currentIndex change (Pusher event raté, skipped "already advanced", etc.),
-  // on force un refetch toutes les 2 s jusqu'à ce que l'état serveur arrive.
+  // currentIndex change, on force un refetch toutes les 2 s.
   useEffect(() => {
     if (!game.questionStartedAt) return;
     const startMs = new Date(game.questionStartedAt).getTime();
@@ -236,15 +284,14 @@ export function PlayingView({
     return () => clearInterval(id);
   }, [game.questionStartedAt, currentIndex, timerSeconds]);
 
-  // Mode "blur" : calcule l'intensité du flou qui diminue linéairement de MAX_BLUR
-  // au début à 0 à (timerSeconds - 10). On recalcule toutes les ~300ms pour fluidité.
+  // Mode blur : intensité du flou qui diminue linéairement jusqu'à (timerSeconds - 10).
   const MAX_BLUR_PX = 20;
   const [blurPx, setBlurPx] = useState(() =>
     game.mode === 'blur' ? MAX_BLUR_PX : 0,
   );
   useEffect(() => {
     if (game.mode !== 'blur' || !game.questionStartedAt) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset state on mode/prop change is intentional
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on mode/prop change
       setBlurPx(0);
       return;
     }
@@ -276,17 +323,11 @@ export function PlayingView({
         .json()
         .catch(() => ({}));
 
-      // Si le serveur dit "déjà avancé", c'est qu'un autre client a fait avancer
-      // la question et notre état est désynchronisé. On force un refetch immédiat
-      // pour se resynchroniser (on ne peut pas compter sur Pusher seul).
       if (data.skipped === 'already advanced') {
         refetchRef.current?.();
         return;
       }
 
-      // Si le serveur a rejeté parce que son horloge trouve le timer pas écoulé
-      // (décalage d'horloge client/serveur), on relâche le verrou pour retenter
-      // 1 s plus tard.
       if (!res.ok || data.skipped === 'timer not elapsed') {
         setTimeout(() => {
           if (nextTriggeredRef.current === currentIndex) {
@@ -299,26 +340,105 @@ export function PlayingView({
     }
   };
 
+  // Tick pour calculer le pct du timer bar. 500ms = ~2 updates/sec, assez
+  // fluide pour une barre de progression sans déclencher un re-render toutes
+  // les 250ms (qui cascade tous les filtres SVG du playing view).
+  const [timerPct, setTimerPct] = useState(1);
+  useEffect(() => {
+    if (!game.questionStartedAt) return;
+    const startMs = new Date(game.questionStartedAt).getTime();
+    const tick = () => {
+      const elapsed = (Date.now() - startMs) / 1000;
+      const left = Math.max(0, timerSeconds - elapsed);
+      setTimerPct(left / timerSeconds);
+    };
+    tick();
+    const id = setInterval(tick, 500);
+    return () => clearInterval(id);
+  }, [game.questionStartedAt, timerSeconds]);
+  const urgent = timerPct * timerSeconds <= 10;
+
   if (!question) {
     return (
-      <div className="min-h-screen arcane-bg p-8 text-purple-100">
-        Chargement de la question…
-      </div>
+      <AcScreen>
+        <div
+          style={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontSize: 14,
+            color: AC.bone2,
+          }}
+        >
+          {'// chargement de la question…'}
+        </div>
+      </AcScreen>
     );
   }
 
   return (
-    <div className="min-h-screen arcane-bg p-4 md:p-6">
-      <div className="max-w-6xl mx-auto space-y-4">
-        {/* Barre top : boutons de sortie. */}
-        <div className="flex justify-end items-center gap-2">
-          <BackToLobbyButton roomCode={roomCode} />
-          <LeaveRoomButton roomCode={roomCode} />
+    <AcScreen>
+      {/* Perf : pas de splat ni de graffiti layer ici — l'écran de jeu tick
+          toutes les 250ms (timer bar) et re-render fréquemment (Pusher).
+          Garder les filtres SVG au strict nécessaire pour que les clicks
+          restent réactifs. La déco se concentre sur homepage / lobby / review. */}
+      <div
+        className="relative mx-auto px-4 sm:px-8 py-5 sm:py-7"
+        style={{ maxWidth: 1240 }}
+      >
+        {/* TOP STRIP : Question X/Y · Timer + bar · Lobby/Quitter */}
+        <div className="grid gap-3.5 sm:grid-cols-[1fr_1.2fr_1fr] items-center mb-4">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <AcSectionNum n={currentIndex + 1} />
+            <span
+              style={{
+                fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                fontSize: 12,
+                letterSpacing: '0.2em',
+                color: AC.bone2,
+              }}
+            >
+              QUESTION {String(currentIndex + 1).padStart(2, '0')} /{' '}
+              {String(total).padStart(2, '0')}
+            </span>
+          </div>
+          <div className="flex items-center gap-3.5 sm:justify-center">
+            <BeatEikichiTimer
+              questionStartedAt={game.questionStartedAt}
+              timerSeconds={timerSeconds}
+              onTimeout={handleTimeout}
+            />
+            <div className="flex-1 min-w-[140px]">
+              <AcPaintedBar
+                value={timerPct}
+                color={urgent ? AC.rust : AC.chem}
+              />
+              <div
+                style={{
+                  fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                  fontSize: 9,
+                  letterSpacing: '0.2em',
+                  color: AC.bone2,
+                  marginTop: 4,
+                }}
+              >
+                {'// '}
+                {Math.round(timerPct * timerSeconds)}s / {timerSeconds}s
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2 sm:justify-end flex-wrap">
+            <BackToLobbyButton roomCode={roomCode} />
+            <LeaveRoomButton roomCode={roomCode} />
+          </div>
         </div>
 
-        {/* Bandeau armes / bouclier / joueurs — horizontal au-dessus de l'image
-            pour libérer toute la largeur à celle-ci (même taille que la phase review). */}
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_2fr] gap-3">
+        <AcDashed style={{ marginBottom: 16 }} />
+
+        {/* Arme + Bouclier */}
+        <div className="grid gap-3.5 md:grid-cols-2 mb-3.5">
           <WeaponBlock
             weaponId={myWeaponId}
             usesLeft={myUsesLeft}
@@ -331,6 +451,10 @@ export function PlayingView({
             armed={shieldArmed}
             onFire={handleFireShield}
           />
+        </div>
+
+        {/* Joueurs — pleine largeur pour accueillir jusqu'à 12 joueurs */}
+        <div className="mb-5">
           <PlayerScoreList
             players={room.players}
             playerStates={game.playerStates}
@@ -343,118 +467,112 @@ export function PlayingView({
           />
         </div>
 
-        {/* Compteur de question + timer. */}
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-purple-300/70">
-            Question{' '}
-            <span className="text-purple-100 font-semibold">
-              {currentIndex + 1}
-            </span>
-            {' / '}
-            {total}
-          </div>
-          <BeatEikichiTimer
-            questionStartedAt={game.questionStartedAt}
-            timerSeconds={timerSeconds}
-            onTimeout={handleTimeout}
-          />
-        </div>
+        {/* Image + optionnel panneau indices */}
+        <div
+          className="grid gap-4 items-start"
+          style={{
+            gridTemplateColumns:
+              room.beatEikichiHintsEnabled ? 'minmax(0,1fr) 240px' : 'minmax(0,1fr)',
+          }}
+        >
+          <div>
+            <div
+              className="relative overflow-hidden"
+              style={{
+                aspectRatio: '16 / 10',
+                background: 'rgba(0,0,0,0.55)',
+                clipPath: AC_IMAGE_FRAME_CLIP,
+                boxShadow: `inset 0 0 0 2px ${AC.bone}`,
+              }}
+            >
+              {question.imageUrl ? (
+                <ZoomPanImage
+                  src={question.imageUrl}
+                  alt="Devine le jeu"
+                  onLoad={() => setImageLoaded(true)}
+                  className={`object-contain transition-opacity duration-300 ${
+                    imageLoaded ? 'opacity-100' : 'opacity-0'
+                  }`}
+                  blurPx={blurPx}
+                  rotating={tornadoActive}
+                />
+              ) : (
+                <div
+                  className="w-full h-full flex items-center justify-center"
+                  style={{
+                    color: AC.bone2,
+                    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                  }}
+                >
+                  {'// image indisponible'}
+                </div>
+              )}
+              {question.imageUrl &&
+                player &&
+                (game.weaponEvents?.length ?? 0) > 0 && (
+                  <WeaponEffectOverlay
+                    events={game.weaponEvents ?? []}
+                    myPlayerId={player.id}
+                    currentQuestionIndex={currentIndex}
+                    imageUrl={question.imageUrl}
+                    questionStartedAt={game.questionStartedAt ?? null}
+                    timerSeconds={timerSeconds}
+                  />
+                )}
+            </div>
 
-        {/* Image en pleine largeur (max-w-6xl, identique à la phase review). */}
-        <div className="arcane-card p-0 aspect-[16/10] overflow-hidden bg-black/40 relative">
-          {question.imageUrl ? (
-            <ZoomPanImage
-              src={question.imageUrl}
-              alt="Devine le jeu"
-              onLoad={() => setImageLoaded(true)}
-              className={`object-contain transition-opacity duration-300 ${
-                imageLoaded ? 'opacity-100' : 'opacity-0'
-              }`}
-              blurPx={blurPx}
-              rotating={tornadoActive}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-purple-300/50">
-              Image indisponible
+            {/* Input + feedback ribbon / found banner */}
+            <div className="mt-5">
+              <PlayerAnswerInput
+                roomCode={roomCode}
+                playerToken={playerToken}
+                catalog={catalog}
+                alreadyFound={alreadyFound}
+                questionKey={currentIndex}
+                foundAtSeconds={foundAtSeconds}
+              />
+            </div>
+          </div>
+
+          {/* Hints panel (desktop only) */}
+          {room.beatEikichiHintsEnabled && (
+            <div className="hidden md:block">
+              <HintsPanel
+                questionStartedAt={game.questionStartedAt}
+                timerSeconds={timerSeconds}
+                hintGenre={question.hintGenre ?? null}
+                hintTerm={question.hintTerm ?? null}
+                hintPlatforms={question.hintPlatforms ?? null}
+              />
             </div>
           )}
-          {/* Effets d'armes ciblant le joueur courant, rendus en overlay. */}
-          {question.imageUrl && player && (game.weaponEvents?.length ?? 0) > 0 && (
-            <WeaponEffectOverlay
-              events={game.weaponEvents ?? []}
-              myPlayerId={player.id}
-              currentQuestionIndex={currentIndex}
-              imageUrl={question.imageUrl}
-            />
-          )}
         </div>
-
-        <PlayerAnswerInput
-          roomCode={roomCode}
-          playerToken={playerToken}
-          catalog={catalog}
-          alreadyFound={alreadyFound}
-          questionKey={currentIndex}
-        />
-
-        {room.beatEikichiHintsEnabled && (
-          <HintsPanel
-            questionStartedAt={game.questionStartedAt}
-            timerSeconds={timerSeconds}
-            hintGenre={question.hintGenre ?? null}
-            hintTerm={question.hintTerm ?? null}
-            hintPlatforms={question.hintPlatforms ?? null}
-          />
-        )}
       </div>
 
-      {/* Stack de toasts : warnings d'attaque, résultats d'attaque, blocages de bouclier. */}
+      {/* Toasts en haut à droite — primitive AcToast (riche : tape + icon + subtitle + drip) */}
       {toasts.length > 0 && (
-        <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+        <AcToastStack>
           {toasts.map((t) => (
-            <BeatEikichiToast
+            <AcToast
               key={t.id}
-              message={t.message}
-              type={t.type}
+              tone={t.tone}
+              tape={t.tape}
+              title={t.title}
+              subtitle={t.subtitle}
+              icon={
+                <AcGlyph
+                  kind={t.iconKind}
+                  color={t.iconColor}
+                  size={22}
+                  stroke={3}
+                />
+              }
+              drip={t.drip}
               onClose={() => removeToast(t.id)}
             />
           ))}
-        </div>
+        </AcToastStack>
       )}
-    </div>
-  );
-}
-
-function BeatEikichiToast({
-  message,
-  type,
-  onClose,
-}: {
-  message: string;
-  type: ToastType;
-  onClose: () => void;
-}) {
-  const colorClass = {
-    success: 'from-emerald-600 to-emerald-700 border-emerald-500/60',
-    error: 'from-red-600 to-red-700 border-red-500/60',
-    warning: 'from-orange-600 to-amber-700 border-orange-500/60',
-    info: 'from-cyan-600 to-cyan-700 border-cyan-500/60',
-  }[type];
-  const icon = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' }[type];
-
-  return (
-    <div
-      className={`bg-gradient-to-r ${colorClass} text-white px-5 py-3 rounded-lg shadow-xl border flex items-center gap-3 min-w-[280px] max-w-md animate-slide-in pointer-events-auto`}
-    >
-      <span className="text-xl">{icon}</span>
-      <span className="flex-1 text-sm font-medium">{message}</span>
-      <button
-        onClick={onClose}
-        className="text-white/70 hover:text-white transition text-sm"
-        aria-label="Fermer"
-      >
-        ✕
-      </button>
-    </div>
+    </AcScreen>
   );
 }

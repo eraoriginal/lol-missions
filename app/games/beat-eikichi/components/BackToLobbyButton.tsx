@@ -2,28 +2,23 @@
 
 import { useState } from 'react';
 import { ConfirmDialog } from '@/app/components/ConfirmDialog';
+import { AC, AcButton, AcGlyph } from '@/app/components/arcane';
 
 interface BackToLobbyButtonProps {
   roomCode: string;
-  /** Si true, ouvre une confirmation avant d'agir (recommandé en cours de partie). */
   confirm?: boolean;
-  /** Texte du bouton (par défaut « ↻ Retour au lobby »). */
   label?: string;
 }
 
 /**
- * Bouton "Retour au lobby" réservé au créateur de la room.
- * Appelle POST /api/games/beat-eikichi/[code]/back-to-lobby qui :
- *  - supprime la BeatEikichiGame courante
- *  - remet Room.gameStarted = false
- *  - pushRoomUpdate → tous les clients retournent au lobby
- *
- * Ne s'affiche que si l'utilisateur a le creator token en localStorage.
+ * Bouton « Retour au lobby » réservé au créateur. Appelle POST back-to-lobby :
+ * supprime la BeatEikichiGame, remet Room.gameStarted=false, pushRoomUpdate pour
+ * faire revenir tous les clients au lobby. Skin Arcane.kit.
  */
 export function BackToLobbyButton({
   roomCode,
   confirm = true,
-  label = '↻ Retour au lobby',
+  label = 'RETOUR AU LOBBY',
 }: BackToLobbyButtonProps) {
   const [busy, setBusy] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -51,21 +46,24 @@ export function BackToLobbyButton({
 
   return (
     <>
-      <button
+      <AcButton
+        variant="ghost"
+        size="sm"
         onClick={() => (confirm ? setShowConfirm(true) : doBackToLobby())}
         disabled={busy}
-        className="px-4 py-2 rounded-lg bg-purple-900/40 border border-purple-500/40 text-purple-100 hover:bg-purple-900/60 transition text-sm font-medium disabled:opacity-50"
+        icon={<AcGlyph kind="arrowLeft" color={AC.bone} size={12} />}
       >
-        {busy ? 'Retour…' : label}
-      </button>
+        {busy ? 'RETOUR…' : label}
+      </AcButton>
 
       {showConfirm && (
         <ConfirmDialog
-          title="Retour au lobby ?"
+          title="Retour au lobby"
           message="La partie en cours sera annulée. Les scores et réponses seront perdus. Tu pourras relancer une nouvelle partie ensuite."
           confirmText="Revenir au lobby"
           cancelText="Continuer la partie"
           confirmColor="orange"
+          tapeLabel="// EN PLEINE PARTIE"
           onConfirm={doBackToLobby}
           onCancel={() => setShowConfirm(false)}
         />

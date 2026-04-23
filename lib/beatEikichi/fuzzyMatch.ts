@@ -78,6 +78,11 @@ function preNormalize(input: string): string {
  * - suppression du « the » en préfixe
  * - split sur tout ce qui n'est pas alphanumérique
  * - chiffres romains convertis en arabes
+ *
+ * Le catalogue est volontairement filtré aux entrées en alphabet latin : les
+ * aliases japonais/chinois/etc. sont supprimés (voir `scripts/cleanupNonLatinAliases.ts`
+ * et le seed `seed-beat-eikichi.ts`) pour que tokenize n'ait rien à produire
+ * sur ces chaînes.
  */
 export function tokenize(input: string): string[] {
   if (!input) return [];

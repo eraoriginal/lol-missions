@@ -1,6 +1,13 @@
 'use client';
 
 import { getWeapon } from '@/lib/beatEikichi/weapons';
+import {
+  AC,
+  AC_CLIP,
+  AcButton,
+  AcGlyph,
+} from '@/app/components/arcane';
+import { getWeaponVisual } from '../weaponVisuals';
 
 interface WeaponBlockProps {
   weaponId: string | null;
@@ -11,9 +18,9 @@ interface WeaponBlockProps {
 }
 
 /**
- * Bloc à gauche de l'image qui affiche l'arme du joueur, ses utilisations restantes
- * et un bouton pour tirer. Les attaques programment un effet pour la PROCHAINE question
- * (plus de cooldown intra-question). Le bouclier est géré séparément dans ShieldBlock.
+ * Bloc à gauche de l'image qui affiche l'arme du joueur, ses utilisations
+ * restantes et un bouton pour tirer. Les attaques programment un effet pour la
+ * PROCHAINE question. Skin Arcane.kit : carré shimmer + icône glyph + CTA.
  */
 export function WeaponBlock({
   weaponId,
@@ -24,64 +31,104 @@ export function WeaponBlock({
 }: WeaponBlockProps) {
   if (!weaponId) {
     return (
-      <div className="arcane-card p-4 text-center text-sm text-purple-300/50 italic">
-        Pas d&apos;arme choisie pour cette partie.
+      <div
+        style={{
+          padding: 12,
+          border: `1.5px dashed ${AC.bone2}`,
+          textAlign: 'center',
+          color: AC.bone2,
+          fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+          fontSize: 11,
+          fontStyle: 'italic',
+        }}
+      >
+        {"// pas d'arme choisie"}
       </div>
     );
   }
-
   const weapon = getWeapon(weaponId);
-  if (!weapon) {
-    return null;
-  }
+  if (!weapon) return null;
 
+  const visual = getWeaponVisual(weaponId);
   const canFire = usesLeft > 0;
-  const disabledReason = usesLeft <= 0 ? "Plus d'utilisations." : null;
+  const tint = targeting ? AC.rust : AC.shimmer;
+  const bgTint = targeting ? 'rgba(200,68,30,0.12)' : 'rgba(255,61,139,0.08)';
 
   return (
     <div
-      className={`arcane-card p-4 space-y-3 ${
-        targeting ? 'border-rose-500/70 bg-rose-900/10' : ''
-      }`}
+      style={{
+        padding: 12,
+        border: `2px solid ${tint}`,
+        background: bgTint,
+        position: 'relative',
+      }}
     >
-      <div className="flex items-center gap-2">
-        <span className="text-3xl">{weapon.icon}</span>
-        <div>
-          <div className="text-sm font-semibold text-purple-100">
-            {weapon.name}
-          </div>
-          <div className="text-xs text-purple-300/70">
-            {usesLeft}/3 utilisation{usesLeft > 1 ? 's' : ''}
-          </div>
-        </div>
+      <div
+        style={{
+          fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+          fontSize: 10,
+          letterSpacing: '0.25em',
+          color: tint,
+          marginBottom: 8,
+          textTransform: 'uppercase',
+        }}
+      >
+        {targeting ? '// CIBLE UN JOUEUR' : '// MON ARME'}
       </div>
-
-      <div className="text-xs text-purple-300/60 leading-snug">
-        {weapon.description}
-      </div>
-
-      {targeting ? (
-        <div className="space-y-2">
-          <div className="px-3 py-2 rounded bg-rose-900/40 border border-rose-500/60 text-center text-xs font-semibold text-rose-100">
-            Choisis une cible →
-          </div>
-          <button
-            onClick={onCancelTargeting}
-            className="w-full py-2 rounded-lg bg-purple-900/40 border border-purple-500/40 text-purple-100 hover:bg-purple-900/60 transition text-sm"
-          >
-            Annuler
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={onStartTargeting}
-          disabled={!canFire}
-          className="w-full py-2 rounded-lg bg-gradient-to-r from-rose-600 to-orange-500 hover:from-rose-500 hover:to-orange-400 text-white font-semibold text-sm transition disabled:from-purple-900/50 disabled:to-purple-900/50 disabled:text-purple-400/50 disabled:cursor-not-allowed"
-          title={disabledReason ?? "Utiliser l'arme (effet à la prochaine question)"}
+      <div className="flex items-center gap-2.5">
+        <div
+          style={{
+            width: 44,
+            height: 44,
+            background: tint,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            clipPath: AC_CLIP,
+            flexShrink: 0,
+          }}
         >
-          {disabledReason ?? 'Utiliser'}
-        </button>
-      )}
+          <AcGlyph kind={visual.glyph} color={AC.ink} size={22} stroke={2.5} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div
+            style={{
+              fontFamily:
+                "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+              fontWeight: 800,
+              fontSize: 15,
+              color: AC.bone,
+              textTransform: 'uppercase',
+              letterSpacing: '0.02em',
+            }}
+          >
+            {weapon.name.toUpperCase()}
+          </div>
+          <div
+            style={{
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 10,
+              color: AC.bone2,
+            }}
+          >
+            x{usesLeft} utilisation{usesLeft > 1 ? 's' : ''}
+          </div>
+        </div>
+        {targeting ? (
+          <AcButton variant="ghost" size="sm" onClick={onCancelTargeting}>
+            ANNULER
+          </AcButton>
+        ) : (
+          <AcButton
+            variant="primary"
+            size="sm"
+            onClick={onStartTargeting}
+            disabled={!canFire}
+          >
+            ARMER
+          </AcButton>
+        )}
+      </div>
     </div>
   );
 }

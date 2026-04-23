@@ -2,25 +2,31 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Player, BeatEikichiPlayerState } from '@/app/types/room';
+import { AC, AcAvatar, AcGlyph } from '@/app/components/arcane';
 
 interface PlayerScoreListProps {
   players: Player[];
   playerStates: BeatEikichiPlayerState[];
-  /** Index de la question courante — pour savoir qui a trouvé cette question. */
   currentIndex: number;
   creatorPlayerId: string | null;
   eikichiPlayerId: string | null;
-  /** Mode ciblage actif : joueur courant vise une cible pour son arme. */
   targetingMode?: boolean;
-  /** ID du joueur courant (ne peut pas se cibler soi-même). */
   selfPlayerId?: string | null;
-  /** Callback appelé quand un joueur est cliqué en mode ciblage. */
   onTargetPlayer?: (playerId: string) => void;
 }
 
+const AVATAR_PALETTE = [AC.shimmer, AC.chem, AC.hex, AC.gold, AC.violet, AC.rust];
+function colorForPlayer(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+}
+
 /**
- * Liste des joueurs avec leur score et un indicateur "a trouvé cette question".
- * Déclenche une animation "pulse + checkmark" quand un joueur passe de `!found` → `found`.
+ * Liste horizontale (desktop) / wrap (mobile) des autres joueurs pendant la partie.
+ * Affiche avatar + score + statut (« ✓ trouvé » / « ... en train d'écrire »).
+ * En mode ciblage, les avatars deviennent cliquables (curseur crosshair, bordure
+ * rust pulse) pour choisir la cible de l'arme.
  */
 export function PlayerScoreList({
   players,
@@ -49,98 +55,134 @@ export function PlayerScoreList({
     }
     prevFoundRef.current = currentFound;
     if (newlyFound.size > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- triggering pulse animation on detected state transition
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- pulse animation on transition
       setJustFound(newlyFound);
       const t = setTimeout(() => setJustFound(new Set()), 1200);
       return () => clearTimeout(t);
     }
   }, [playerStates, currentIndex]);
 
-  // Reset la réf quand la question change.
   useEffect(() => {
     prevFoundRef.current = new Set();
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset state on prop change is intentional
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on question change
     setJustFound(new Set());
   }, [currentIndex]);
 
   return (
-    <div className="arcane-card p-4 space-y-2">
-      <h3 className="text-xs uppercase tracking-widest text-purple-400/70 mb-2">
-        Joueurs
-      </h3>
-      <ul className="space-y-2">
+    <div
+      style={{
+        padding: 10,
+        border: `1.5px dashed ${AC.bone2}`,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+          fontSize: 10,
+          letterSpacing: '0.25em',
+          color: AC.chem,
+          marginBottom: 8,
+          textTransform: 'uppercase',
+        }}
+      >
+        {'// JOUEURS · '}
+        {players.length}
+      </div>
+      <div className="flex flex-wrap gap-2.5">
         {players.map((p) => {
           const state = stateByPlayer.get(p.id);
           const found =
-            state?.answers.some(
-              (a) => a.position === currentIndex && a.correct,
-            ) ?? false;
+            state?.answers.some((a) => a.position === currentIndex && a.correct) ??
+            false;
           const isPulsing = justFound.has(p.id);
           const isEikichi = p.id === eikichiPlayerId;
           const isSelf = p.id === selfPlayerId;
+          const isCreator = p.id === creatorPlayerId;
           const isTargetable = !!targetingMode && !isSelf;
+          const isFadedSelf = !!targetingMode && isSelf;
           return (
-            <li
+            <button
               key={p.id}
+              type="button"
               onClick={() => {
                 if (isTargetable && onTargetPlayer) onTargetPlayer(p.id);
               }}
-              className={`flex items-center gap-3 p-2 rounded-lg border transition ${
-                isTargetable
-                  ? 'border-rose-500/80 bg-rose-900/30 cursor-pointer hover:bg-rose-800/50 hover:border-rose-400 beat-eikichi-target-pulse'
-                  : isEikichi
-                    ? 'beat-eikichi-highlight'
-                    : found
-                      ? 'border-emerald-500/50 bg-emerald-900/20'
-                      : 'border-purple-500/20 bg-purple-900/20'
-              } ${targetingMode && isSelf ? 'opacity-40' : ''}`}
+              disabled={!isTargetable}
+              className={isPulsing ? 'ac-pulse' : undefined}
+              style={{
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 4,
+                padding: 8,
+                minWidth: 70,
+                cursor: isTargetable ? 'crosshair' : 'default',
+                border: isTargetable
+                  ? `2px solid ${AC.rust}`
+                  : `1.5px dashed ${AC.bone2}`,
+                background: isTargetable
+                  ? 'rgba(200,68,30,0.10)'
+                  : 'transparent',
+                color: AC.bone,
+                opacity: isFadedSelf ? 0.4 : 1,
+              }}
+              aria-label={isTargetable ? `Cibler ${p.name}` : p.name}
             >
-              <div className={isPulsing ? 'beat-eikichi-pulse' : ''}>
-                {p.avatar ? (
-                  <img
-                    src={p.avatar}
-                    alt=""
-                    className={`w-10 h-10 rounded-full object-cover ${
-                      isEikichi ? 'beat-eikichi-avatar' : ''
-                    }`}
-                  />
-                ) : (
-                  <div
-                    className={`w-10 h-10 rounded-full bg-purple-800/50 flex items-center justify-center text-purple-200 font-bold ${
-                      isEikichi ? 'beat-eikichi-avatar' : ''
-                    }`}
-                  >
-                    {p.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
+              <AcAvatar
+                name={p.name}
+                color={colorForPlayer(p.id)}
+                size={34}
+                halo={isEikichi ? AC.shimmer : undefined}
+              />
+              <div
+                className="flex items-center gap-1"
+                style={{
+                  fontFamily:
+                    "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 10,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {p.name}
+                {isCreator && <span style={{ color: AC.gold }}>★</span>}
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-purple-100 truncate flex items-center gap-1">
-                  {p.name}
-                  {p.id === creatorPlayerId && (
-                    <span className="text-amber-400" title="Maître">
-                      ★
-                    </span>
-                  )}
-                </div>
-                {isEikichi && (
-                  <span className="beat-eikichi-badge mt-1">EIKICHI</span>
-                )}
-              </div>
-              {found && (
+              {found ? (
+                <AcGlyph kind="check" color={AC.chem} size={14} stroke={2.5} />
+              ) : (
                 <span
-                  className={`text-emerald-400 text-xl ${
-                    isPulsing ? 'beat-eikichi-checkmark' : ''
-                  }`}
-                  aria-label="A trouvé"
+                  style={{
+                    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                    fontSize: 10,
+                    color: AC.bone2,
+                  }}
                 >
-                  ✓
+                  …
                 </span>
               )}
-            </li>
+              {isEikichi && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -8,
+                    left: -4,
+                    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                    fontSize: 8,
+                    color: AC.shimmer,
+                    letterSpacing: '0.2em',
+                    background: AC.ink,
+                    padding: '1px 4px',
+                  }}
+                >
+                  {'// E'}
+                </span>
+              )}
+            </button>
           );
         })}
-      </ul>
+      </div>
     </div>
   );
 }

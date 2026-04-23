@@ -1,4 +1,4 @@
-# Le Bureau du Mari de Poki
+# La Salle de Pause
 
 Application web interactive pour les joueurs de League of Legends permettant d'ajouter des missions secrètes et défis pendant les parties ARAM.
 

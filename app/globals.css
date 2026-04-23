@@ -38,6 +38,22 @@
   --arcane-green-dim: #2e7d32;
   --arcane-text: #c9b8d4;
   --arcane-text-light: #f3e5f5;
+
+  /* ============================================================= */
+  /* Arcane.kit — design system appliqué aux pages refaites.        */
+  /* Source : maquettes/assets/arcane-tokens.css. Les primitives    */
+  /* `Ac*` (app/components/arcane/) réutilisent ces mêmes valeurs.  */
+  /* ============================================================= */
+  --ac-ink:      #0D0B08;
+  --ac-ink-2:    #1A160F;
+  --ac-bone:     #F0E4C1;
+  --ac-bone-2:   #C9BB94;
+  --ac-chem:     #12D6A8;
+  --ac-hex:      #5EB8FF;
+  --ac-shimmer:  #FF3D8B;
+  --ac-gold:     #F5B912;
+  --ac-rust:     #C8441E;
+  --ac-violet:   #8A3DD4;
 }
 
 @theme inline {
@@ -1204,411 +1220,460 @@ body {
 }
 
 /* ============ WEAPON EFFECTS ============ */
+/* Les animations d'armes Beat Eikichi ont été refaites en pur CSS (voir le
+   bloc `bek-fx-*` plus bas). Les anciennes classes `beat-eikichi-fx-*` ont
+   été supprimées (vidéos .webm, filtres SVG feDisplacementMap, pièces de
+   puzzle en path SVG, etc.) — elles ne sont plus référencées nulle part. */
 
-/* ---------- Fumigène : fumée animée via bruit blendé ---------- */
-/* Technique inspirée de https://github.com/helderman/blend-smoke :
-   deux textures de bruit blendées en "difference" qui glissent dans des
-   directions opposées. `filter: grayscale(1)` force un rendu 100% gris (les
-   JPG de bruit peuvent avoir des teintes chaudes résiduelles). L'animation
-   est lente (15 s) pour un mouvement de fumée réaliste. */
-@keyframes beat-eikichi-fx-smoke-sliding {
-  from { background-position: 1024px 4096px, 0 3072px; }
-  to   { background-position: 0 0, 1024px 0; }
-}
-.beat-eikichi-fx-smoke {
-  background-color: #5a5a5a;
-  background-image:
-    url('/images/beat-eikichi/noise1.jpg'),
-    url('/images/beat-eikichi/noise2.jpg');
-  background-blend-mode: difference, normal;
-  animation: beat-eikichi-fx-smoke-sliding 15s linear infinite;
-  opacity: 0.78;
-  filter: grayscale(1);
-}
+/* =============================================================================
+   Arcane.kit — animations + utilitaires pour les écrans refaits.
+   ============================================================================= */
 
-/* ---------- C4 : explosions vidéo transparente (WebM avec canal alpha) ---------- */
-/* On utilise une vraie vidéo d'explosion CGI (fond vert retiré via ffmpeg chromakey
-   puis encodée en VP9 avec yuva420p). Centrée sur sa position, aspect carré. */
-.beat-eikichi-fx-explosion-video {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  aspect-ratio: 1 / 1;
-  pointer-events: none;
-  object-fit: contain;
+@keyframes ac-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
 }
-
-/* Voile orangé/noir permanent pendant C4 — assure que l'image reste masquée
-   même entre deux explosions. Flicker subtil pour donner l'effet de flammes. */
-@keyframes beat-eikichi-fx-c4-haze-flicker {
-  0%, 100% { opacity: 0.68; filter: hue-rotate(0deg); }
-  25%      { opacity: 0.75; filter: hue-rotate(-5deg); }
-  50%      { opacity: 0.71; filter: hue-rotate(5deg); }
-  75%      { opacity: 0.78; filter: hue-rotate(-3deg); }
+@keyframes ac-pulse-soft {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.75; }
 }
-.beat-eikichi-fx-c4-haze {
-  background:
-    radial-gradient(ellipse at 30% 40%, rgba(255, 140, 40, 0.9) 0%, rgba(180, 60, 20, 0.7) 50%, transparent 80%),
-    radial-gradient(ellipse at 70% 60%, rgba(255, 180, 60, 0.85) 0%, rgba(200, 70, 20, 0.65) 45%, transparent 75%),
-    radial-gradient(ellipse at 50% 80%, rgba(140, 40, 15, 0.9) 0%, rgba(60, 20, 10, 0.8) 40%, transparent 80%),
-    linear-gradient(180deg, rgba(40, 20, 10, 0.7) 0%, rgba(80, 30, 10, 0.6) 100%);
-  animation: beat-eikichi-fx-c4-haze-flicker 1.2s ease-in-out infinite;
+@keyframes ac-shake {
+  0%, 100% { transform: translateX(0); }
+  20%  { transform: translateX(-6px); }
+  40%  { transform: translateX(6px); }
+  60%  { transform: translateX(-4px); }
+  80%  { transform: translateX(4px); }
+}
+@keyframes ac-blink {
+  0%, 50%   { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+@keyframes ac-slide-in-right {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
-/* Tremblement persistant du screen pendant la durée de C4. */
-@keyframes beat-eikichi-fx-shake-frames {
+.ac-pulse { animation: ac-pulse 1s infinite; }
+.ac-pulse-soft { animation: ac-pulse-soft 2.4s ease-in-out infinite; }
+.ac-shake { animation: ac-shake 0.4s ease-in-out; }
+.ac-blink { animation: ac-blink 1s infinite; }
+.ac-slide-in { animation: ac-slide-in-right 0.25s ease-out; }
+
+/* Scrollbar discret pour dropdowns Arcane (cohérent avec les couleurs bone/ink). */
+.ac-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ac-bone-2) transparent;
+}
+.ac-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.ac-scroll::-webkit-scrollbar-thumb { background: var(--ac-bone-2); border-radius: 0; }
+.ac-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Placeholder discret pour les inputs Arcane — ne prend pas le dessus sur la
+   vraie saisie, juste une indication légère. Tous les inputs avec la classe
+   `ac-input` bénéficient de cette règle. */
+.ac-input::placeholder {
+  color: var(--ac-bone);
+  opacity: 0.28;
+}
+.ac-input::-webkit-input-placeholder { color: var(--ac-bone); opacity: 0.28; }
+.ac-input::-moz-placeholder         { color: var(--ac-bone); opacity: 0.28; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Beat Eikichi · Armes FX — keyframes pur CSS portées des maquettes
+   Arcane.kit (voir `maquettes/Armes FX.html`). Namespace `bek-fx-` pour
+   toutes les armes (12 au total : 8 existantes refaites avec les variations
+   retenues + 4 nouvelles).
+
+   Perf : transform / opacity only ; `will-change` sur les éléments animés
+   haute fréquence ; `@media (prefers-reduced-motion)` en bas neutralise tout.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── TAG AÉROSOL · Spray Cloud (V2 retenue) ────────────────────────────── */
+/* Les nuages apparaissent en cascade puis restent affichés jusqu'à la fin de
+   la question. Pas de boucle infinie → `both` + 1 itération. */
+@keyframes bek-fx-tag-cloud {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.25); }
+  40%  { opacity: 0.6; transform: translate(-50%, -50%) scale(0.7); }
+  70%  { opacity: 0.92; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0.98; transform: translate(-50%, -50%) scale(1); }
+}
+.bek-fx-tag-cloud {
+  animation: bek-fx-tag-cloud 1.1s ease-out both;
+  will-change: transform, opacity;
+  opacity: 0;
+}
+@keyframes bek-fx-tag-stamp {
+  0%, 60% { opacity: 0; transform: translate(-50%, -50%) rotate(-4deg) scale(0.4); }
+  75%     { opacity: 1; transform: translate(-50%, -50%) rotate(-4deg) scale(1.15); }
+  88%     { opacity: 1; transform: translate(-50%, -50%) rotate(-4deg) scale(1); }
+  100%    { opacity: 1; transform: translate(-50%, -50%) rotate(-4deg) scale(1); }
+}
+.bek-fx-tag-stamp {
+  animation: bek-fx-tag-stamp 2.4s ease-out both;
+  will-change: transform, opacity;
+  opacity: 0;
+}
+
+/* ─── GLITCH · Datamosh (V3 retenue) ────────────────────────────────────── */
+/* Boucle continue — l'effet est agressif sur toute la durée de la question. */
+@keyframes bek-fx-gli-rgb-r {
   0%, 100% { transform: translate(0, 0); }
-  10% { transform: translate(-3px, 2px); }
-  30% { transform: translate(2px, -2px); }
-  50% { transform: translate(-2px, -1px); }
-  70% { transform: translate(3px, 1px); }
-  90% { transform: translate(-1px, -2px); }
+  15%      { transform: translate(3px, 0); }
+  30%      { transform: translate(-2px, 1px); }
+  50%      { transform: translate(4px, -1px); }
+  75%      { transform: translate(-3px, 0); }
 }
-.beat-eikichi-fx-shake {
-  animation: beat-eikichi-fx-shake-frames 0.4s linear infinite;
-}
-
-/* ---------- Sabre : katana qui coupe 75% de l'image en diagonale + partie qui tombe ---------- */
-
-/* Deux variantes symétriques : le 25% restant se situe soit en haut-droite ("top"),
-   soit en bas-gauche ("bottom"). La coupe reste parallèle à la diagonale principale.
-   Pour un triangle de 25% dont les cathètes suivent l'angle de la diagonale (ratio 16:10),
-   on a cathète = 1/√2 ≈ 70.71 % des côtés → sommets à 29.29 % / 70.71 %. */
-.beat-eikichi-fx-blade-variant-top {
-  /* Polygone du 75% qui tombe : tout sauf le petit triangle haut-droite. */
-  --bek-fall-clip: polygon(0 0, 29.29% 0, 100% 70.71%, 100% 100%, 0 100%);
-  /* Milieu de la ligne de coupe. */
-  --bek-cut-mid-x: 64.64%;
-  --bek-cut-mid-y: 35.36%;
-}
-.beat-eikichi-fx-blade-variant-bottom {
-  --bek-fall-clip: polygon(0 0, 100% 0, 100% 100%, 70.71% 100%, 0 29.29%);
-  --bek-cut-mid-x: 35.36%;
-  --bek-cut-mid-y: 64.64%;
-}
-
-/* Flash blanc diagonal qui joue une fois au passage de la lame. */
-@keyframes beat-eikichi-fx-blade-slash {
-  0%   { opacity: 0; background-position: -100% -100%; }
-  15%  { opacity: 1; }
-  55%  { opacity: 1; background-position: 100% 100%; }
-  100% { opacity: 0; background-position: 100% 100%; }
-}
-.beat-eikichi-fx-blade-slash {
-  position: absolute;
-  inset: -20%;
-  background: linear-gradient(135deg, transparent 45%, rgba(255, 255, 255, 1) 48%, rgba(255, 230, 230, 1) 50%, rgba(255, 255, 255, 1) 52%, transparent 55%);
-  background-size: 200% 200%;
-  filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.9));
-  animation: beat-eikichi-fx-blade-slash 0.55s ease-out 1 forwards;
-  pointer-events: none;
-  z-index: 3;
-}
-/* Fond noir sous la partie qui tombe (révélé quand elle part). */
-@keyframes beat-eikichi-fx-blade-black-in {
-  0%   { opacity: 0; }
-  40%  { opacity: 0; }
-  55%  { opacity: 1; }
-  100% { opacity: 1; }
-}
-.beat-eikichi-fx-blade-black {
-  position: absolute;
-  inset: 0;
-  background: black;
-  clip-path: var(--bek-fall-clip);
-  animation: beat-eikichi-fx-blade-black-in 0.55s ease-out 1 forwards;
-  pointer-events: none;
-  z-index: 1;
-}
-/* Duplicata des 75% de l'image qui tombent puis disparaissent. */
-@keyframes beat-eikichi-fx-blade-fall-frames {
-  0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
-  5%   { transform: translate(-1%, 2%) rotate(-1deg); opacity: 1; }
-  70%  { opacity: 1; }
-  100% { transform: translate(-10%, 125%) rotate(-18deg); opacity: 0; }
-}
-.beat-eikichi-fx-blade-fall {
-  position: absolute;
-  inset: 0;
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
-  clip-path: var(--bek-fall-clip);
-  transform-origin: 45% 65%;
-  animation: beat-eikichi-fx-blade-fall-frames 1.4s cubic-bezier(0.55, 0.05, 0.85, 0.3) 0.27s 1 forwards;
-  pointer-events: none;
-  z-index: 2;
-}
-/* Katana SVG : traversée diagonale centrée sur la ligne de coupe du variant. */
-@keyframes beat-eikichi-fx-katana-swing {
-  0%   { transform: translate(-50%, -50%) rotate(-135deg) translate(150%, 0); opacity: 0; }
-  12%  { opacity: 1; }
-  72%  { opacity: 1; }
-  100% { transform: translate(-50%, -50%) rotate(-135deg) translate(-150%, 0); opacity: 0; }
-}
-.beat-eikichi-fx-katana {
-  position: absolute;
-  top: var(--bek-cut-mid-y, 50%);
-  left: var(--bek-cut-mid-x, 50%);
-  width: 150%;
-  height: auto;
-  transform-origin: center;
-  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.45)) drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
-  animation: beat-eikichi-fx-katana-swing 0.5s cubic-bezier(0.45, 0, 0.55, 1) 1 forwards;
-  pointer-events: none;
-  z-index: 5;
-}
-
-/* ---------- Gel : voile dense + craquelures SVG accentuées + nombreux flocons ---------- */
-.beat-eikichi-fx-freeze {
-  background:
-    /* Voile bleuté : plus doux qu'avant pour laisser entrevoir l'image */
-    radial-gradient(ellipse at center, rgba(165, 215, 245, 0.55) 0%, rgba(145, 195, 230, 0.65) 60%, rgba(120, 175, 220, 0.75) 100%),
-    /* Cristaux de glace fins (hachures diagonales) */
-    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.22) 0px, rgba(255, 255, 255, 0.22) 2px, transparent 2px, transparent 10px),
-    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.12) 0px, rgba(255, 255, 255, 0.12) 1px, transparent 1px, transparent 14px);
-  backdrop-filter: blur(2.5px);
-  -webkit-backdrop-filter: blur(2.5px);
-  border: 5px solid rgba(220, 240, 255, 0.85);
-  box-shadow:
-    inset 0 0 80px rgba(200, 230, 255, 0.65),
-    inset 0 0 180px rgba(160, 205, 240, 0.45);
-}
-/* Conteneur SVG des craquelures : effet glow doux. */
-.beat-eikichi-fx-freeze-cracks {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 21;
-  filter:
-    drop-shadow(0 0 2px rgba(80, 140, 190, 0.8))
-    drop-shadow(0 0 1px rgba(255, 255, 255, 0.7));
-}
-/* Flocons : tombent avec léger balancement latéral et rotation. */
-@keyframes beat-eikichi-fx-snowflake-fall {
-  0%   { transform: translate(0, -10%) rotate(0deg); opacity: 0; }
-  10%  { opacity: 0.9; }
-  50%  { transform: translate(12px, 50%) rotate(180deg); }
-  90%  { opacity: 0.9; }
-  100% { transform: translate(-12px, 110%) rotate(360deg); opacity: 0; }
-}
-.beat-eikichi-fx-snowflake {
-  position: absolute;
-  top: 0;
-  color: white;
-  text-shadow:
-    0 0 4px rgba(200, 230, 255, 0.95),
-    0 0 8px rgba(180, 220, 250, 0.5);
-  animation: beat-eikichi-fx-snowflake-fall linear infinite;
-  pointer-events: none;
-  user-select: none;
-}
-
-/* ---------- Zoom parasite : lentille circulaire qui scanne une image floutée ---------- */
-
-/* Approche : 3 éléments (blur / lens / scope), chacun animé avec ses propres keyframes
-   sur des propriétés natives (clip-path, transform-origin, top/left) — animations
-   démarrées simultanément, même durée et même easing → elles restent synchronisées.
-   Conteneur d'image = aspect 16:10 → ellipse asymétrique (rx 19% W / ry 30.4% H)
-   pour former un cercle visuel de 38% W. */
-
-@keyframes beat-eikichi-fx-zoomghost-lens-move {
-  0%, 5%    { clip-path: ellipse(19% 30.4% at 25% 30%); }
-  20%, 25%  { clip-path: ellipse(19% 30.4% at 75% 25%); }
-  40%, 45%  { clip-path: ellipse(19% 30.4% at 78% 68%); }
-  60%, 65%  { clip-path: ellipse(19% 30.4% at 30% 72%); }
-  80%, 85%  { clip-path: ellipse(19% 30.4% at 55% 50%); }
-  100%      { clip-path: ellipse(19% 30.4% at 25% 30%); }
-}
-@keyframes beat-eikichi-fx-zoomghost-inner-move {
-  0%, 5%    { transform: scale(7); transform-origin: 25% 30%; }
-  20%, 25%  { transform: scale(7); transform-origin: 75% 25%; }
-  40%, 45%  { transform: scale(7); transform-origin: 78% 68%; }
-  60%, 65%  { transform: scale(7); transform-origin: 30% 72%; }
-  80%, 85%  { transform: scale(7); transform-origin: 55% 50%; }
-  100%      { transform: scale(7); transform-origin: 25% 30%; }
-}
-@keyframes beat-eikichi-fx-zoomghost-scope-move {
-  0%, 5%    { top: 30%; left: 25%; }
-  20%, 25%  { top: 25%; left: 75%; }
-  40%, 45%  { top: 68%; left: 78%; }
-  60%, 65%  { top: 72%; left: 30%; }
-  80%, 85%  { top: 50%; left: 55%; }
-  100%      { top: 30%; left: 25%; }
-}
-
-/* Image floutée en arrière-plan : couvre tout le cadre, seul le cercle reste net. */
-.beat-eikichi-fx-zoomghost-blur {
-  position: absolute;
-  inset: 0;
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
-  filter: blur(14px) brightness(0.78);
-}
-
-/* Lentille : version zoomée de l'image, clippée à un cercle qui se déplace. */
-.beat-eikichi-fx-zoomghost-lens {
-  position: absolute;
-  inset: 0;
-  clip-path: ellipse(19% 30.4% at 50% 50%);
-  animation: beat-eikichi-fx-zoomghost-lens-move 11s ease-in-out infinite;
-  pointer-events: none;
-}
-
-/* Image zoomée 7× ; le transform-origin suit la position du cercle → le point
-   survolé reste fixe et le reste est amplifié autour. */
-.beat-eikichi-fx-zoomghost-lens-inner {
-  position: absolute;
-  inset: 0;
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
-  transform: scale(7);
-  transform-origin: 50% 50%;
-  animation: beat-eikichi-fx-zoomghost-inner-move 11s ease-in-out infinite;
-}
-
-/* Décor visuel : barillet d'objectif photo + liseré chrome + reflet verre + ombre. */
-.beat-eikichi-fx-zoomghost-scope {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 38%;
-  aspect-ratio: 1 / 1;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.22) 0%, transparent 35%);
-  box-shadow:
-    0 0 45px rgba(0, 0, 0, 0.75),
-    inset 0 0 0 10px rgba(12, 12, 16, 0.96),
-    inset 0 0 0 12px rgba(180, 185, 200, 0.45),
-    inset 0 0 50px rgba(0, 0, 0, 0.35);
-  animation: beat-eikichi-fx-zoomghost-scope-move 11s ease-in-out infinite;
-  pointer-events: none;
-}
-
-/* ---------- Tornade : distorsion pixel-par-pixel + rotation lente + vignette ---------- */
-@keyframes beat-eikichi-fx-tornado-rotate-frames {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-.beat-eikichi-fx-tornado-rotate {
-  /* Rotation lente (15s) : secondaire, laisse la distorsion dominer visuellement. */
-  animation: beat-eikichi-fx-tornado-rotate-frames 15s linear infinite;
-  transform-origin: center center;
-  /* Filtre SVG de déplacement : déforme les pixels en temps réel.
-     Le <filter> est défini dans le SVG rendu par TornadoOverlay. */
-  filter: url(#beat-eikichi-fx-tornado-warp);
-}
-/* Vignette orageuse qui pulse légèrement pour cadrer le chaos. */
-@keyframes beat-eikichi-fx-tornado-vignette-pulse {
-  0%, 100% { opacity: 0.92; }
-  50%      { opacity: 1; }
-}
-.beat-eikichi-fx-tornado-overlay {
-  background:
-    radial-gradient(ellipse at center,
-      transparent 25%,
-      rgba(35, 30, 60, 0.32) 65%,
-      rgba(10, 12, 30, 0.7) 100%);
-  animation: beat-eikichi-fx-tornado-vignette-pulse 3.5s ease-in-out infinite;
-}
-
-/* ---------- Puzzle Break : image découpée en pièces de puzzle mélangées ---------- */
-/* Fond sombre type "surface de table" : fait ressortir les pièces et remplit les
-   gaps qui peuvent apparaître entre pièces shufflées (tenons/mortaises mal alignés). */
-.beat-eikichi-fx-puzzle-bg {
-  background: radial-gradient(ellipse at center, #2a1f17 0%, #0d0908 100%);
-}
-/* Drop-shadow sur les SVG → chaque pièce flotte au-dessus du fond avec du relief. */
-.beat-eikichi-fx-puzzle-piece {
-  filter:
-    drop-shadow(0 4px 10px rgba(0, 0, 0, 0.65))
-    drop-shadow(0 1px 3px rgba(0, 0, 0, 0.4));
-}
-
-/* ---------- Speed : image qui défile à grande vitesse + flou directionnel ---------- */
-.beat-eikichi-fx-speed-container {
-  background: #000;
-}
-/* Strip = 2 copies de l'image côte à côte (largeur totale 200%). */
-.beat-eikichi-fx-speed-strip {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: flex;
-  width: 200%;
-  height: 100%;
-  animation: beat-eikichi-fx-speed-slide 0.45s linear infinite;
-  filter: url(#beat-eikichi-fx-speed-blur);
+.bek-fx-gli-r {
+  animation: bek-fx-gli-rgb-r 1.5s steps(8, end) infinite;
   will-change: transform;
 }
-.beat-eikichi-fx-speed-img {
-  width: 50%;  /* = 100 % du container */
-  height: 100%;
-  object-fit: contain;
-  flex-shrink: 0;
-  user-select: none;
-  pointer-events: none;
+@keyframes bek-fx-gli-rgb-g {
+  0%, 100% { transform: translate(0, 0); }
+  15%      { transform: translate(-3px, 0); }
+  30%      { transform: translate(2px, -1px); }
+  50%      { transform: translate(-4px, 1px); }
+  75%      { transform: translate(3px, 0); }
 }
-/* Translate de -50 % du strip (= -100 % du container = 1 image) : l'image 2 à la fin
-   se retrouve à l'emplacement de l'image 1 au début → boucle seamless. */
-@keyframes beat-eikichi-fx-speed-slide {
-  from { transform: translateX(-50%); }
-  to   { transform: translateX(0); }
+.bek-fx-gli-g {
+  animation: bek-fx-gli-rgb-g 1.5s steps(8, end) infinite;
+  will-change: transform;
 }
-/* Lignes de vitesse horizontales qui zooment par-dessus. */
-.beat-eikichi-fx-speed-lines {
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    to right,
-    transparent 0,
-    transparent 90px,
-    rgba(255, 255, 255, 0.12) 90px,
-    rgba(255, 255, 255, 0.14) 92px,
-    transparent 92px,
-    transparent 180px
-  );
-  animation: beat-eikichi-fx-speed-lines-move 0.18s linear infinite;
-  pointer-events: none;
+@keyframes bek-fx-gli-smear {
+  0%, 20%  { transform: translateX(0); filter: blur(1.5px); }
+  25%      { transform: translateX(12%); filter: blur(3px); }
+  30%      { transform: translateX(-8%); filter: blur(2px); }
+  45%      { transform: translateX(0); filter: blur(1.5px); }
+  100%     { transform: translateX(0); filter: blur(1.5px); }
 }
-@keyframes beat-eikichi-fx-speed-lines-move {
-  from { transform: translateX(0); }
-  to   { transform: translateX(180px); }
+.bek-fx-gli-smear {
+  animation: bek-fx-gli-smear 3s steps(12, end) infinite;
+  will-change: transform, filter;
 }
-/* Vignette sombre aux bords gauche/droite (effet tunnel). */
-.beat-eikichi-fx-speed-vignette {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to right,
-    rgba(0, 0, 0, 0.55) 0%,
-    rgba(0, 0, 0, 0.15) 12%,
-    transparent 25%,
-    transparent 75%,
-    rgba(0, 0, 0, 0.15) 88%,
-    rgba(0, 0, 0, 0.55) 100%
-  );
-  pointer-events: none;
+@keyframes bek-fx-gli-blocks {
+  0%, 100%  { opacity: 0; }
+  25%, 45%  { opacity: 1; }
+}
+.bek-fx-gli-blocks rect {
+  animation: bek-fx-gli-blocks 3s steps(12, end) infinite;
+}
+.bek-fx-gli-blocks rect:nth-child(2) { animation-delay: 0.3s; }
+.bek-fx-gli-blocks rect:nth-child(3) { animation-delay: 0.6s; }
+.bek-fx-gli-blocks rect:nth-child(4) { animation-delay: 0.9s; }
+.bek-fx-gli-blocks rect:nth-child(5) { animation-delay: 1.2s; }
+
+/* ─── ACIDE · Corrosion (V1 retenue) ────────────────────────────────────── */
+/* Les trous apparaissent en cascade (delays sur les <g>) puis restent. */
+@keyframes bek-fx-acid-hole {
+  0%   { transform: scale(0); opacity: 0; }
+  40%  { transform: scale(0.6); opacity: 1; }
+  80%  { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.bek-fx-acid-hole {
+  animation: bek-fx-acid-hole 1s ease-out both;
+  transform-origin: center;
+  transform-box: fill-box;
+  will-change: transform, opacity;
+  opacity: 0;
+}
+/* Bulles qui remontent le long du halo — loop infini, très léger. */
+@keyframes bek-fx-acid-bubble {
+  0%   { transform: translateY(0) scale(1); opacity: 0; }
+  30%  { opacity: 0.85; }
+  100% { transform: translateY(-6px) scale(0.6); opacity: 0; }
+}
+.bek-fx-acid-bubble {
+  animation: bek-fx-acid-bubble 1.8s ease-in-out infinite;
+  transform-box: view-box;
+  will-change: transform, opacity;
 }
 
-/* Cible sélectionnable en mode ciblage (pulse rouge). */
-@keyframes beat-eikichi-target-pulse-frames {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
-  50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+/* ─── STROBE · Neon (V1 retenue) ────────────────────────────────────────── */
+/* Flashs à 12 Hz environ (steps → changement net de couleur). Fatigue
+   l'œil sans rendre l'image totalement illisible. Respecte
+   `prefers-reduced-motion` → dégradé en voile rose pulsant lent (cf. bas). */
+@keyframes bek-fx-str-flash {
+  0%   { background: transparent; }
+  5%   { background: #FF3D8B; }
+  10%  { background: transparent; }
+  15%  { background: #12D6A8; }
+  20%  { background: transparent; }
+  25%  { background: #F5B912; }
+  30%  { background: transparent; }
+  35%  { background: #8A3DD4; }
+  40%  { background: transparent; }
+  45%  { background: #FF3D8B; }
+  50%  { background: transparent; }
+  55%  { background: #12D6A8; }
+  60%  { background: transparent; }
+  65%  { background: #F5B912; }
+  70%  { background: transparent; }
+  75%  { background: #5EB8FF; }
+  80%  { background: transparent; }
+  85%  { background: #FF3D8B; }
+  90%  { background: transparent; }
+  100% { background: transparent; }
 }
-.beat-eikichi-target-pulse {
-  animation: beat-eikichi-target-pulse-frames 1.2s ease-out infinite;
+.bek-fx-str-flash {
+  animation: bek-fx-str-flash 3s steps(1, end) infinite;
+  mix-blend-mode: screen;
+}
+@keyframes bek-fx-str-pulse {
+  0%   { transform: scale(0); opacity: 1; }
+  100% { transform: scale(30); opacity: 0; }
+}
+.bek-fx-str-pulse {
+  animation: bek-fx-str-pulse 0.5s ease-out infinite;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+@keyframes bek-fx-str-tag {
+  0%, 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  50%      { opacity: 0.35; transform: translate(-50%, -50%) scale(1.05); }
+}
+.bek-fx-str-tag { animation: bek-fx-str-tag 0.25s steps(2, end) infinite; }
+
+/* ─── C4 · Graffiti Raid (V3 retenue) ───────────────────────────────────── */
+/* 7 tags (X, étoile, zigzag) s'écrasent en cascade sur l'image, puis un
+   "BOOM" géant clique au centre. Secousse globale du cadre pendant 1.5s. */
+@keyframes bek-fx-c4-shake {
+  0%, 100% { transform: translate(0, 0); }
+  10%      { transform: translate(-3px, 2px); }
+  20%      { transform: translate(3px, -2px); }
+  30%      { transform: translate(-2px, -1px); }
+  40%      { transform: translate(2px, 2px); }
+  50%      { transform: translate(0, 0); }
+}
+.bek-fx-c4-shake { animation: bek-fx-c4-shake 1.8s linear both; }
+@keyframes bek-fx-c4-slam {
+  0%   { opacity: 0; transform: translate(-50%, -50%) rotate(var(--r, 0deg)) scale(1.6); }
+  60%  { opacity: 1; transform: translate(-50%, -50%) rotate(var(--r, 0deg)) scale(1); }
+  100% { opacity: 1; transform: translate(-50%, -50%) rotate(var(--r, 0deg)) scale(1); }
+}
+.bek-fx-c4-slam {
+  animation: bek-fx-c4-slam 0.5s ease-out both;
+  will-change: transform, opacity;
+  opacity: 0;
+}
+@keyframes bek-fx-c4-boom {
+  0%, 70% { opacity: 0; transform: translate(-50%, -50%) rotate(-4deg) scale(0); }
+  80%     { opacity: 1; transform: translate(-50%, -50%) rotate(-4deg) scale(1.25); }
+  90%     { opacity: 1; transform: translate(-50%, -50%) rotate(-4deg) scale(1); }
+  100%    { opacity: 1; transform: translate(-50%, -50%) rotate(-4deg) scale(1); }
+}
+.bek-fx-c4-boom {
+  animation: bek-fx-c4-boom 2.4s ease-out both;
+  will-change: transform, opacity;
+  opacity: 0;
 }
 
-/* Bouton bouclier armé : pulse vert discret pour indiquer l'état actif. */
-@keyframes beat-eikichi-shield-armed-frames {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55); }
-  50%      { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+/* ─── FUMIGÈNE · Paint Curtain (V1 retenue) ─────────────────────────────── */
+/* Coulures depuis le haut (goo filter) → wash bone qui couvre → tag. */
+@keyframes bek-fx-smoke-drip {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(110%); }
 }
-.beat-eikichi-shield-armed {
-  animation: beat-eikichi-shield-armed-frames 1.6s ease-out infinite;
+.bek-fx-smoke-drip {
+  animation: bek-fx-smoke-drip 2.2s cubic-bezier(.55, .05, .68, .53) both;
+  transform-box: fill-box;
+  will-change: transform;
+}
+@keyframes bek-fx-smoke-wash {
+  0%   { opacity: 0; }
+  55%  { opacity: 0.92; }
+  70%  { opacity: 0.92; }
+  100% { opacity: 0.82; }
+}
+.bek-fx-smoke-wash { animation: bek-fx-smoke-wash 2.4s ease-in both; }
+@keyframes bek-fx-smoke-tag {
+  0%, 65% { opacity: 0; transform: translate(-50%, -50%) rotate(-4deg) scale(0.6); }
+  80%     { opacity: 1; transform: translate(-50%, -50%) rotate(-4deg) scale(1); }
+  100%    { opacity: 1; transform: translate(-50%, -50%) rotate(-4deg) scale(1); }
+}
+.bek-fx-smoke-tag {
+  animation: bek-fx-smoke-tag 2.6s ease-out both;
+  opacity: 0;
+}
+
+/* ─── SABRE · Multi-Slash (V3 retenue) ──────────────────────────────────── */
+/* 3 slashs diagonaux successifs → 3 triangles d'encre révèlent 3 zones
+   noires. Stays visible. */
+@keyframes bek-fx-blade-ink {
+  0%, 10% { opacity: 0; }
+  30%     { opacity: 1; }
+  100%    { opacity: 1; }
+}
+.bek-fx-blade-ink { animation: bek-fx-blade-ink 1.6s ease-out both; opacity: 0; }
+@keyframes bek-fx-blade-stroke {
+  0%   { stroke-dashoffset: 200; opacity: 0; }
+  10%  { stroke-dashoffset: 200; opacity: 1; }
+  45%  { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 1; }
+}
+.bek-fx-blade-stroke {
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  animation: bek-fx-blade-stroke 1.4s ease-out both;
+}
+@keyframes bek-fx-blade-badge {
+  0%, 75% { opacity: 0; transform: rotate(-6deg) scale(0); }
+  85%     { opacity: 1; transform: rotate(-6deg) scale(1.2); }
+  95%     { opacity: 1; transform: rotate(-6deg) scale(1); }
+  100%    { opacity: 1; transform: rotate(-6deg) scale(1); }
+}
+.bek-fx-blade-badge { animation: bek-fx-blade-badge 2.4s ease-out both; opacity: 0; }
+
+/* ─── GEL · Shatter (V3 retenue) ────────────────────────────────────────── */
+/* L'image se casse en 5 "shards" qui dérivent chacun dans une direction
+   différente (--tx, --ty, --r). Tint bleu hex + craquelures + CRACKED tag. */
+@keyframes bek-fx-freeze-tint {
+  0%   { opacity: 0; }
+  40%  { opacity: 1; }
+  100% { opacity: 1; }
+}
+.bek-fx-freeze-tint { animation: bek-fx-freeze-tint 1.4s ease-out both; }
+@keyframes bek-fx-freeze-shard {
+  0%, 15% { transform: translate(0, 0) rotate(0deg); }
+  65%     { transform: translate(var(--tx, 0), var(--ty, 0)) rotate(var(--r, 0deg)); }
+  100%    { transform: translate(var(--tx, 0), var(--ty, 0)) rotate(var(--r, 0deg)); }
+}
+.bek-fx-freeze-shard {
+  animation: bek-fx-freeze-shard 1.8s cubic-bezier(.4, .1, .2, 1) both;
+  will-change: transform;
+}
+@keyframes bek-fx-freeze-cracks {
+  0%, 20% { stroke-dashoffset: 120; opacity: 0; }
+  40%     { opacity: 1; }
+  70%     { stroke-dashoffset: 0; opacity: 1; }
+  100%    { stroke-dashoffset: 0; opacity: 1; }
+}
+.bek-fx-freeze-cracks path {
+  stroke-dasharray: 120;
+  stroke-dashoffset: 120;
+  animation: bek-fx-freeze-cracks 1.8s ease-out both;
+}
+@keyframes bek-fx-freeze-tag {
+  0%, 70% { opacity: 0; transform: translate(-50%, -50%) rotate(-3deg) scale(0); }
+  82%     { opacity: 1; transform: translate(-50%, -50%) rotate(-3deg) scale(1.15); }
+  92%     { opacity: 1; transform: translate(-50%, -50%) rotate(-3deg) scale(1); }
+  100%    { opacity: 1; transform: translate(-50%, -50%) rotate(-3deg) scale(1); }
+}
+.bek-fx-freeze-tag { animation: bek-fx-freeze-tag 2.4s ease-out both; opacity: 0; }
+
+/* ─── ZOOM PARASITE · Spotlight (V1 retenue) ────────────────────────────── */
+/* Voile bone2 qui couvre l'image, avec un trou circulaire (la "lentille")
+   qui se déplace. Boucle infinie. */
+@keyframes bek-fx-zoom-roam {
+  0%   { transform: translate(-12%, 0); }
+  25%  { transform: translate(10%, -10%); }
+  50%  { transform: translate(12%, 12%); }
+  75%  { transform: translate(-8%, 14%); }
+  100% { transform: translate(-12%, 0); }
+}
+.bek-fx-zoom-roam {
+  animation: bek-fx-zoom-roam 7s ease-in-out infinite;
+  transform-box: view-box;
+  will-change: transform;
+}
+
+/* ─── TORNADE · Cyclone Pull (V3 retenue) ───────────────────────────────── */
+/* L'image rotationne + scale down vers le centre (puis restaure). Loop.
+   Anneaux concentriques + flèches spiralées + trou noir central. */
+@keyframes bek-fx-tornado-pull {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  50%      { transform: rotate(270deg) scale(0.35); }
+}
+.bek-fx-tornado-pull {
+  animation: bek-fx-tornado-pull 5.6s ease-in-out infinite;
+  transform-origin: center;
+  will-change: transform;
+}
+@keyframes bek-fx-tornado-sweep {
+  to { transform: rotate(360deg); }
+}
+.bek-fx-tornado-sweep {
+  transform-origin: center;
+  animation: bek-fx-tornado-sweep 2.4s linear infinite;
+}
+.bek-fx-tornado-rings circle {
+  transform-origin: center;
+  animation: bek-fx-tornado-sweep 5s linear infinite;
+}
+@keyframes bek-fx-tornado-hole {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.6); }
+  50%      { transform: translate(-50%, -50%) scale(1.4); }
+}
+.bek-fx-tornado-hole { animation: bek-fx-tornado-hole 3.4s ease-in-out infinite; }
+
+/* ─── PUZZLE BREAK · Pop-Out (V3 retenue) ──────────────────────────────── */
+/* 9 tuiles de l'image pop out en séquence → révèle des gaps noirs avec "?". */
+@keyframes bek-fx-puzzle-tile {
+  0%   { transform: scale(1) rotate(0deg); opacity: 1; }
+  50%  { transform: scale(1.1) rotate(4deg); opacity: 1; }
+  100% { transform: scale(0) rotate(-15deg); opacity: 0; }
+}
+.bek-fx-puzzle-tile {
+  animation: bek-fx-puzzle-tile 1.4s ease-in-out both;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+/* ─── SPEED · Conveyor Blur (V1 retenue) ────────────────────────────────── */
+/* Image défile en boucle gauche→droite avec motion blur horizontal +
+   chevrons droits qui pulsent. */
+@keyframes bek-fx-speed-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.bek-fx-speed-scroll {
+  animation: bek-fx-speed-scroll 0.8s linear infinite;
+  will-change: transform;
+}
+@keyframes bek-fx-speed-chev {
+  0%, 100% { opacity: 0.6; transform: translateY(-50%) scale(1); }
+  50%      { opacity: 1;   transform: translateY(-50%) scale(1.12); }
+}
+.bek-fx-speed-chev { animation: bek-fx-speed-chev 0.45s ease-in-out infinite; }
+
+/* ─── Accessibilité : prefers-reduced-motion ───────────────────────────── */
+/* Tout ce qui clignote/tourne rapidement est coupé, on garde l'état final. */
+@media (prefers-reduced-motion: reduce) {
+  .bek-fx-tag-cloud,
+  .bek-fx-tag-stamp,
+  .bek-fx-gli-r,
+  .bek-fx-gli-g,
+  .bek-fx-gli-smear,
+  .bek-fx-gli-blocks rect,
+  .bek-fx-acid-hole,
+  .bek-fx-acid-bubble,
+  .bek-fx-str-pulse,
+  .bek-fx-str-tag,
+  .bek-fx-c4-shake,
+  .bek-fx-c4-slam,
+  .bek-fx-c4-boom,
+  .bek-fx-smoke-drip,
+  .bek-fx-smoke-wash,
+  .bek-fx-smoke-tag,
+  .bek-fx-blade-ink,
+  .bek-fx-blade-stroke,
+  .bek-fx-blade-badge,
+  .bek-fx-freeze-tint,
+  .bek-fx-freeze-shard,
+  .bek-fx-freeze-cracks path,
+  .bek-fx-freeze-tag,
+  .bek-fx-zoom-roam,
+  .bek-fx-tornado-pull,
+  .bek-fx-tornado-sweep,
+  .bek-fx-tornado-rings circle,
+  .bek-fx-tornado-hole,
+  .bek-fx-puzzle-tile,
+  .bek-fx-speed-scroll,
+  .bek-fx-speed-chev {
+    animation-duration: 0.01s !important;
+    animation-iteration-count: 1 !important;
+  }
+  .bek-fx-str-flash {
+    animation: none !important;
+    background: rgba(255, 61, 139, 0.22) !important;
+  }
 }

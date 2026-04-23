@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "next-dev",
+      "runtimeExecutable": "cmd.exe",
+      "runtimeArgs": ["/c", "cd /d C:\\Users\\Bonjour\\Workspace\\lol-missions && npm run dev"],
+      "port": 3000
+    }
+  ]
+}

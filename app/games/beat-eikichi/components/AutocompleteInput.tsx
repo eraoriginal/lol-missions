@@ -8,6 +8,7 @@ import {
   useState,
 } from 'react';
 import { normalize } from '@/lib/beatEikichi/fuzzyMatch';
+import { AC, AC_CLIP } from '@/app/components/arcane';
 
 export interface CatalogEntry {
   id: string;
@@ -28,11 +29,13 @@ interface AutocompleteInputProps {
    * À brancher sur `questionKey` du parent pour repartir propre à chaque nouvelle question
    * (utile notamment quand l'Eikichi coupe la question). */
   resetKey?: string | number;
+  /** Si true, l'input est en état « erreur » (bordure rust). */
+  error?: boolean;
 }
 
 const MAX_SUGGESTIONS = 12;
 /** Hauteur max du dropdown — ~5 items visibles, le reste atteignable via scroll. */
-const DROPDOWN_MAX_HEIGHT_PX = 200;
+const DROPDOWN_MAX_HEIGHT_PX = 220;
 
 export function AutocompleteInput({
   catalog,
@@ -40,9 +43,10 @@ export function AutocompleteInput({
   onChange,
   onSubmit,
   disabled,
-  placeholder = 'Nom du jeu…',
+  placeholder = 'TAPE LE NOM DU JEU…',
   shakeKey = 0,
   resetKey,
+  error,
 }: AutocompleteInputProps) {
   const [focused, setFocused] = useState(false);
   const [highlighted, setHighlighted] = useState(0);
@@ -153,80 +157,203 @@ export function AutocompleteInput({
   };
 
   const showDropdown = focused && suggestions.length > 0 && !dismissed;
+  const borderColor = error ? AC.rust : AC.bone;
+  const normValue = normalize(value);
 
   return (
     <div className="relative">
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={handleKeyDown}
-        onFocus={() => {
-          if (blurTimeoutRef.current) {
-            clearTimeout(blurTimeoutRef.current);
-            blurTimeoutRef.current = null;
-          }
-          setFocused(true);
-          setDismissed(false);
+      <div
+        className="relative"
+        style={{
+          padding: '14px 16px',
+          background: 'rgba(240,228,193,0.04)',
+          boxShadow: `inset 0 0 0 2px ${borderColor}`,
+          clipPath: AC_CLIP,
+          opacity: disabled ? 0.65 : 1,
         }}
-        onBlur={() => {
-          // Ignore le blur quand l'input vient de passer en `disabled` (submit en cours) :
-          // c'est un blur forcé par le navigateur, pas un blur utilisateur. Sans ça,
-          // le timer ci-dessous finit par poser `focused=false` et la liste ne
-          // réapparaît plus une fois la réponse rejetée. La closure capte la valeur
-          // de `disabled` au render qui a posé ce onBlur ; comme React recrée le
-          // handler à chaque commit, on voit bien `disabled=true` quand le browser
-          // déclenche le blur à cause de la désactivation.
-          if (disabled) return;
-          if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
-          blurTimeoutRef.current = setTimeout(() => {
-            setFocused(false);
-            blurTimeoutRef.current = null;
-          }, 150);
-        }}
-        disabled={disabled}
-        placeholder={placeholder}
-        className="w-full px-4 py-3 rounded-lg bg-purple-950/40 border border-purple-500/40 text-purple-100 placeholder-purple-400/50 focus:outline-none focus:border-pink-400 transition disabled:opacity-60 disabled:cursor-not-allowed text-lg"
-        autoComplete="off"
-        autoCorrect="off"
-        spellCheck={false}
-      />
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontSize: 11,
+            color: AC.chem,
+            letterSpacing: '0.2em',
+            marginRight: 8,
+          }}
+        >
+          &gt;
+        </span>
+        <input
+          ref={inputRef}
+          type="text"
+          className="ac-input"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onFocus={() => {
+            if (blurTimeoutRef.current) {
+              clearTimeout(blurTimeoutRef.current);
+              blurTimeoutRef.current = null;
+            }
+            setFocused(true);
+            setDismissed(false);
+          }}
+          onBlur={() => {
+            // Ignore le blur quand l'input vient de passer en `disabled` (submit en cours) :
+            // c'est un blur forcé par le navigateur, pas un blur utilisateur. Sans ça,
+            // le timer ci-dessous finit par poser `focused=false` et la liste ne
+            // réapparaît plus une fois la réponse rejetée. La closure capte la valeur
+            // de `disabled` au render qui a posé ce onBlur ; comme React recrée le
+            // handler à chaque commit, on voit bien `disabled=true` quand le browser
+            // déclenche le blur à cause de la désactivation.
+            if (disabled) return;
+            if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+            blurTimeoutRef.current = setTimeout(() => {
+              setFocused(false);
+              blurTimeoutRef.current = null;
+            }, 150);
+          }}
+          disabled={disabled}
+          placeholder={placeholder}
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            outline: 'none',
+            color: value ? AC.shimmer : AC.bone,
+            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontSize: 16,
+            width: 'calc(100% - 40px)',
+            letterSpacing: '0.05em',
+          }}
+        />
+        {/* Curseur clignotant shimmer (décoration, n'empêche pas la saisie). */}
+        {focused && !disabled && (
+          <span
+            className="ac-blink"
+            aria-hidden="true"
+            style={{
+              display: 'inline-block',
+              width: 2,
+              height: 20,
+              background: AC.shimmer,
+              verticalAlign: 'middle',
+            }}
+          />
+        )}
+      </div>
 
       {showDropdown && (
-        <ul
-          className="absolute z-10 left-0 right-0 mt-1 overflow-y-auto rounded-lg bg-[#1a0f2e] border border-purple-500/40 shadow-lg beat-eikichi-scroll"
-          style={{ maxHeight: DROPDOWN_MAX_HEIGHT_PX }}
+        <div
+          className="ac-scroll"
+          style={{
+            position: 'absolute',
+            zIndex: 10,
+            left: 0,
+            right: 0,
+            marginTop: 6,
+            background: AC.ink2,
+            boxShadow: `inset 0 0 0 1.5px ${AC.bone}`,
+            maxHeight: DROPDOWN_MAX_HEIGHT_PX,
+            overflowY: 'auto',
+          }}
           // Empêche le blur de l'input si l'utilisateur clique dans la zone du dropdown
           // hors d'un <li> (ex : la scrollbar). Sinon la liste se ferme dès qu'on
           // essaie de scroller manuellement.
           onMouseDown={(e) => e.preventDefault()}
         >
-          {suggestions.map((g, i) => (
-            <li
-              key={g.id}
-              ref={(el) => {
-                itemRefs.current[i] = el;
-              }}
-              onMouseDown={(e) => {
-                // preventDefault évite de déplacer le focus vers le <li>.
-                e.preventDefault();
-                onSubmit(g.name);
-                // Sécurité : refocus explicite après le submit au cas où.
-                inputRef.current?.focus();
-              }}
-              onMouseEnter={() => setHighlighted(i)}
-              className={`px-4 py-2 cursor-pointer text-purple-100 ${
-                i === highlighted
-                  ? 'bg-purple-800/60'
-                  : 'hover:bg-purple-900/40'
-              }`}
-            >
-              {g.name}
-            </li>
-          ))}
-        </ul>
+          <div
+            style={{
+              padding: '6px 12px',
+              borderBottom: `1.5px dashed ${AC.bone2}`,
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 10,
+              letterSpacing: '0.2em',
+              color: AC.bone2,
+              display: 'flex',
+              justifyContent: 'space-between',
+              textTransform: 'uppercase',
+            }}
+          >
+            <span>
+              {'// '}
+              {suggestions.length}
+              {' SUGGESTIONS · ↑↓ POUR NAVIGUER · ↵ POUR VALIDER'}
+            </span>
+            <span style={{ color: AC.chem }}>
+              MATCH {highlighted + 1}/{suggestions.length}
+            </span>
+          </div>
+          <ul className="list-none m-0 p-0">
+            {suggestions.map((g, i) => (
+              <li
+                key={g.id}
+                ref={(el) => {
+                  itemRefs.current[i] = el;
+                }}
+                onMouseDown={(e) => {
+                  // preventDefault évite de déplacer le focus vers le <li>.
+                  e.preventDefault();
+                  onSubmit(g.name);
+                  // Sécurité : refocus explicite après le submit au cas où.
+                  inputRef.current?.focus();
+                }}
+                onMouseEnter={() => setHighlighted(i)}
+                style={{
+                  padding: '8px 14px',
+                  background: i === highlighted ? AC.shimmer : 'transparent',
+                  color: i === highlighted ? AC.ink : AC.bone,
+                  fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                  fontSize: 13,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderBottom: `1px dotted rgba(240,228,193,0.1)`,
+                  cursor: 'pointer',
+                }}
+              >
+                <SuggestionLabel name={g.name} match={normValue} />
+                {i === highlighted && (
+                  <span
+                    style={{
+                      fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                      fontSize: 9,
+                      letterSpacing: '0.2em',
+                      color: AC.ink,
+                    }}
+                  >
+                    ↵ ENTRÉE
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Surligne en gras la portion du nom qui correspond au normalisé saisi, pour
+ * aider l'utilisateur à voir pourquoi ce jeu matche. Cherche la 1re occurrence
+ * du premier caractère normalisé dans le nom affiché (fallback : pas de highlight).
+ */
+function SuggestionLabel({ name, match }: { name: string; match: string }) {
+  if (!match) return <span>{name}</span>;
+  const lower = name.toLowerCase();
+  const idx = lower.indexOf(match.toLowerCase());
+  if (idx < 0) return <span>{name}</span>;
+  return (
+    <span>
+      {name.slice(0, idx)}
+      <strong style={{ fontWeight: 700 }}>
+        {name.slice(idx, idx + match.length)}
+      </strong>
+      {name.slice(idx + match.length)}
+    </span>
   );
 }

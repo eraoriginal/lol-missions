@@ -17,6 +17,14 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Worktrees Claude Code — contiennent leurs propres .next/ et scripts
+    // générés qui ne doivent pas être linted.
+    ".claude/**",
+    // Maquettes Claude Design — chargées via <script type="text/babel"> en
+    // standalone, pas du code applicatif. Elles trippent no-require-imports
+    // (Babel standalone inlined) et no-assign-module-variable (UMD).
+    "maquettes/**",
+    "design-system/**",
   ]),
 ]);
 

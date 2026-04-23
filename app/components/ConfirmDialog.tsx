@@ -1,53 +1,139 @@
 'use client';
 
+import type { ReactNode } from 'react';
+import {
+  AC,
+  AcButton,
+  AcDisplay,
+  AcGlyph,
+  AcModalCard,
+  AcModalDim,
+  AcShim,
+  type AcButtonVariant,
+} from './arcane';
+
+export type ConfirmColor = 'red' | 'blue' | 'green' | 'orange';
+
 interface ConfirmDialogProps {
     title: string;
     message: string;
     confirmText?: string;
     cancelText?: string;
-    confirmColor?: 'red' | 'blue' | 'green' | 'orange';
+    /** Couleur du CTA principal. Mappé sur les tons Arcane : red=rust, blue=hex,
+     * green=chem, orange=gold. */
+    confirmColor?: ConfirmColor;
+    /** Variante « destructive forte » — rend le titre en shimmer + stamp
+     * « // ACTION IRRÉVERSIBLE » + alerte en ruban. Utilisé pour le créateur
+     * qui quitte (supprime la room) ou le retour-lobby en cours de partie. */
+    destructive?: boolean;
+    /** Zone optionnelle entre le message et les boutons — ex : mini-liste d'avatars
+     * impactés, stats de partie, etc. */
+    extra?: ReactNode;
+    /** Étiquette scotchée en haut de la modale (ex : `// CONFIRMATION`). */
+    tapeLabel?: string;
     onConfirm: () => void;
     onCancel: () => void;
 }
 
+/**
+ * Boîte de dialogue de confirmation dans le langage Arcane.kit.
+ *
+ * Gère 2 niveaux de gravité :
+ *   - standard : message simple + CTA de couleur (rust/gold/chem/hex)
+ *   - destructive : titre shimmer + stamp « action irréversible » + ruban danger
+ *
+ * Peut recevoir un contenu `extra` entre le message et les boutons pour afficher
+ * un aperçu de ce qui va être détruit (ex : liste des joueurs expulsés).
+ */
 export function ConfirmDialog({
                                   title,
                                   message,
                                   confirmText = 'Confirmer',
                                   cancelText = 'Annuler',
                                   confirmColor = 'red',
+                                  destructive = false,
+                                  extra,
+                                  tapeLabel = '// CONFIRMATION',
                                   onConfirm,
                                   onCancel,
                               }: ConfirmDialogProps) {
-    const colors = {
-        red: 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 border-red-500/50 shadow-red-500/20',
-        blue: 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 border-blue-500/50 shadow-blue-500/20',
-        green: 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 border-green-500/50 shadow-green-500/20',
-        orange: 'bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 border-orange-500/50 shadow-orange-500/20',
+    // Map couleur → token + variant AcButton.
+    const colorMap: Record<ConfirmColor, { tone: string; variant: AcButtonVariant }> = {
+        red: { tone: AC.rust, variant: 'danger' },
+        blue: { tone: AC.hex, variant: 'hex' },
+        green: { tone: AC.chem, variant: 'chem' },
+        orange: { tone: AC.gold, variant: 'gold' },
     };
+    const { tone, variant } = colorMap[confirmColor];
 
     return (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 animate-fade-in backdrop-blur-sm">
-            <div className="lol-card rounded-lg shadow-2xl max-w-md w-full animate-scale-in border-2 border-[#C8AA6E]/50">
-                <div className="p-6">
-                    <h2 className="text-2xl font-bold lol-title-gold mb-3">{title}</h2>
-                    <p className="lol-text-light leading-relaxed">{message}</p>
+        <AcModalDim intensity={0.78} onClick={onCancel}>
+            <AcModalCard
+                width={520}
+                tone={destructive ? AC.shimmer : tone}
+                tapeLabel={tapeLabel}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
+                    <div style={{ flexShrink: 0, marginTop: 2 }}>
+                        <AcGlyph
+                            kind={destructive ? 'x' : 'arrowLeft'}
+                            color={destructive ? AC.shimmer : tone}
+                            size={destructive ? 40 : 34}
+                            stroke={3.5}
+                            painted
+                        />
+                    </div>
+                    <div>
+                        <AcDisplay style={{ fontSize: 'clamp(24px, 3.5vw, 34px)' }}>
+                            <TitleWithShim title={title} tone={destructive ? AC.shimmer : tone} />
+                        </AcDisplay>
+                    </div>
                 </div>
-                <div className="flex gap-3 p-6 pt-0">
-                    <button
-                        onClick={onCancel}
-                        className="flex-1 px-4 py-3 bg-[#1E2328] text-[#A09B8C] rounded-lg font-medium hover:bg-[#1E2328]/80 hover:text-[#F0E6D2] transition-all border border-[#C8AA6E]/30"
-                    >
-                        {cancelText}
-                    </button>
-                    <button
+
+                <div
+                    style={{
+                        fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
+                        fontSize: 15,
+                        lineHeight: 1.55,
+                        color: AC.bone2,
+                        marginBottom: 26,
+                        marginLeft: 48,
+                    }}
+                >
+                    {message}
+                </div>
+
+                {extra && <div style={{ marginBottom: 22 }}>{extra}</div>}
+
+                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    <AcButton variant="ghost" onClick={onCancel}>
+                        {cancelText.toUpperCase()}
+                    </AcButton>
+                    <AcButton
+                        variant={destructive ? 'danger' : variant}
+                        drip
                         onClick={onConfirm}
-                        className={`flex-1 px-4 py-3 text-white rounded-lg font-medium transition-all border shadow-lg ${colors[confirmColor]}`}
+                        icon={<AcGlyph kind={destructive ? 'x' : 'arrowLeft'} color={destructive ? AC.bone : AC.ink} size={13} />}
                     >
-                        {confirmText}
-                    </button>
+                        {confirmText.toUpperCase()}
+                    </AcButton>
                 </div>
-            </div>
-        </div>
+            </AcModalCard>
+        </AcModalDim>
+    );
+}
+
+/** Met le dernier mot du titre en shimmer. Heuristique simple qui marche pour
+ *  les titres courts type « QUITTER LA ROOM ? » ou « TU ES LE CRÉATEUR ». */
+function TitleWithShim({ title, tone }: { title: string; tone: string }) {
+    const words = title.trim().split(' ');
+    if (words.length < 2) return <>{title.toUpperCase()}</>;
+    const head = words.slice(0, -1).join(' ');
+    const tail = words[words.length - 1];
+    return (
+        <>
+            {head.toUpperCase()} <AcShim color={tone}>{tail.toUpperCase()}</AcShim>
+        </>
     );
 }

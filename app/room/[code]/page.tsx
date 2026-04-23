@@ -7,14 +7,29 @@ import { useRoom } from '@/app/hooks/useRoom';
 import { RoomLobby } from '@/app/components/RoomLobby';
 import { GameView as AramMissionsGameView } from '@/app/games/aram-missions/components/GameView';
 import { GameView as CodenameGameView } from '@/app/games/codename/components/GameView';
-import { GameView as BeatEikichiGameView, BeatEikichiLobby } from '@/app/games/beat-eikichi/components';
+import {
+    GameView as BeatEikichiGameView,
+    BeatEikichiLobby,
+} from '@/app/games/beat-eikichi/components';
 import { Toast } from '@/app/components/Toast';
-import { ComingSoonGame } from "@/app/components/ComingSoonGame";
+import { ComingSoonGame } from '@/app/components/ComingSoonGame';
+import {
+    AC,
+    AcAlert,
+    AcButton,
+    AcDisplay,
+    AcGlyph,
+    AcGraffitiLayer,
+    AcModalCard,
+    AcScreen,
+    AcShim,
+    AcSplat,
+} from '@/app/components/arcane';
 
 export default function RoomPage({
-                                     params
+                                     params,
                                  }: {
-    params: Promise<{ code: string }>
+    params: Promise<{ code: string }>;
 }) {
     const { code } = use(params);
     const router = useRouter();
@@ -28,10 +43,7 @@ export default function RoomPage({
     // Vérifie si l'utilisateur a déjà un token pour cette room
     useEffect(() => {
         if (typeof window === 'undefined') return;
-
         const playerToken = localStorage.getItem(`room_${code}_player`);
-
-        // Si pas de token, affiche la modal de join
         if (!playerToken) {
             setShowJoinModal(true);
         }
@@ -41,8 +53,6 @@ export default function RoomPage({
     useEffect(() => {
         if (error && error.includes('not found')) {
             setRoomDeletedToast(true);
-
-            // Redirige après 3 secondes
             setTimeout(() => {
                 router.push('/');
             }, 3000);
@@ -67,11 +77,7 @@ export default function RoomPage({
             }
 
             const data = await response.json();
-
-            // Stocke le token du joueur
             localStorage.setItem(`room_${code}_player`, data.player.token);
-
-            // Ferme la modal
             setShowJoinModal(false);
         } catch (err) {
             setJoinError(err instanceof Error ? err.message : 'An error occurred');
@@ -79,64 +85,170 @@ export default function RoomPage({
         }
     };
 
-    // Modal de join - Style LoL
+    // Modale « Rejoindre la room »
     if (showJoinModal) {
         return (
-            <main className="lol-bg flex items-center justify-center p-4">
-                <div className="lol-card rounded-lg p-8 max-w-md w-full">
-                    <h1 className="text-2xl font-bold lol-title-gold mb-2 text-center">
-                        Rejoindre la room
-                    </h1>
-                    <p className="lol-text text-center mb-6">
-                        Code : <span className="font-mono font-bold lol-text-gold">{code}</span>
-                    </p>
+            <AcScreen>
+                <AcGraffitiLayer density="normal" />
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: -40,
+                        left: -60,
+                        pointerEvents: 'none',
+                    }}
+                >
+                    <AcSplat color={AC.violet} size={340} opacity={0.45} seed={2} />
+                </div>
+                <div
+                    style={{
+                        position: 'absolute',
+                        bottom: -40,
+                        right: -40,
+                        pointerEvents: 'none',
+                    }}
+                >
+                    <AcSplat color={AC.shimmer} size={300} opacity={0.4} seed={1} />
+                </div>
 
-                    <form onSubmit={handleJoinRoom} className="space-y-4">
-                        <div>
-                            <label htmlFor="player-name" className="block text-sm font-medium lol-text-gold mb-2">
-                                    Ton pseudo d&apos;invocateur
-                            </label>
-                            <input
-                                id="player-name"
-                                type="text"
-                                value={playerName}
-                                onChange={(e) => setPlayerName(e.target.value)}
-                                required
-                                maxLength={50}
-                                autoFocus
-                                className="lol-input w-full px-4 py-3 rounded-lg"
-                                placeholder="Entre ton pseudo"
-                            />
+                <div className="relative min-h-screen flex items-center justify-center p-6">
+                    <AcModalCard width={580} tone={AC.chem} tapeLabel="// REJOINDRE">
+                        <div className="text-center mb-1.5">
+                            <AcDisplay style={{ fontSize: 'clamp(34px, 6vw, 54px)' }}>
+                                REJOINDRE <AcShim color={AC.chem}>LA ROOM</AcShim>
+                            </AcDisplay>
+                        </div>
+                        <div className="text-center mt-4 mb-7">
+                            <span
+                                style={{
+                                    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                                    fontSize: 11,
+                                    letterSpacing: '0.22em',
+                                    color: AC.bone2,
+                                    textTransform: 'uppercase',
+                                }}
+                            >
+                                {'// CODE  '}
+                            </span>
+                            <span className="inline-flex gap-1 align-middle">
+                                {code.split('').map((c, i) => (
+                                    <span
+                                        key={i}
+                                        style={{
+                                            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                                            fontSize: 26,
+                                            color: AC.gold,
+                                            fontWeight: 700,
+                                            border: `1.5px dashed ${AC.bone2}`,
+                                            padding: '2px 7px',
+                                            background: 'rgba(245,185,18,0.05)',
+                                        }}
+                                    >
+                                        {c}
+                                    </span>
+                                ))}
+                            </span>
                         </div>
 
-                        {joinError && (
-                            <div className="p-3 bg-red-900/50 border border-red-500 text-red-300 rounded-lg text-sm">
-                                {joinError}
-                            </div>
-                        )}
+                        <form onSubmit={handleJoinRoom}>
+                            <label className="block mb-5">
+                                <div
+                                    style={{
+                                        fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                                        fontSize: 10,
+                                        letterSpacing: '0.22em',
+                                        color: AC.chem,
+                                        marginBottom: 8,
+                                        textTransform: 'uppercase',
+                                    }}
+                                >
+                                    {"// TON PSEUDO D'INVOCATEUR"}
+                                </div>
+                                <input
+                                    type="text"
+                                    name="pseudo"
+                                    className="ac-input"
+                                    value={playerName}
+                                    onChange={(e) => setPlayerName(e.target.value)}
+                                    required
+                                    maxLength={24}
+                                    autoFocus
+                                    autoComplete="nickname"
+                                    placeholder="Entre ton pseudo"
+                                    style={{
+                                        width: '100%',
+                                        padding: '14px 16px',
+                                        background: 'rgba(240,228,193,0.04)',
+                                        border: `1.5px solid ${AC.bone}`,
+                                        outline: 'none',
+                                        color: AC.bone,
+                                        fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                                        fontSize: 17,
+                                    }}
+                                />
+                            </label>
 
-                        <button
-                            type="submit"
-                            disabled={joining || !playerName.trim()}
-                            className="lol-button-hextech w-full py-3 rounded-lg transition-all"
-                        >
-                            {joining ? 'Connexion...' : 'Rejoindre la partie'}
-                        </button>
-                    </form>
+                            {joinError && (
+                                <div className="mb-4">
+                                    <AcAlert tone="danger" tape="// ERR">
+                                        <span style={{ color: AC.bone }}>
+                                            {'// '}
+                                            {joinError}
+                                        </span>
+                                    </AcAlert>
+                                </div>
+                            )}
 
-                    <Link href="/" className="block text-center mt-4 text-sm lol-text hover:text-[#C8AA6E] transition-colors">
-                        ← Retour &agrave; l&apos;accueil
-                    </Link>
+                            <AcButton
+                                type="submit"
+                                variant="chem"
+                                size="lg"
+                                fullWidth
+                                drip
+                                disabled={joining || !playerName.trim()}
+                                icon={<AcGlyph kind="arrowRight" color={AC.ink} size={16} />}
+                            >
+                                {joining ? 'CONNEXION…' : 'REJOINDRE LA PARTIE'}
+                            </AcButton>
+                        </form>
+
+                        <div className="mt-7 text-center">
+                            <Link
+                                href="/"
+                                style={{
+                                    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                                    fontSize: 11,
+                                    letterSpacing: '0.2em',
+                                    color: AC.bone2,
+                                    textTransform: 'uppercase',
+                                    borderBottom: `1px dashed ${AC.bone2}`,
+                                    paddingBottom: 2,
+                                    textDecoration: 'none',
+                                }}
+                            >
+                                ← Retour à l&apos;accueil
+                            </Link>
+                        </div>
+                    </AcModalCard>
                 </div>
-            </main>
+            </AcScreen>
         );
     }
 
     if (loading) {
         return (
-            <main className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 flex items-center justify-center">
-                <div className="text-white text-2xl">Chargement...</div>
-            </main>
+            <AcScreen>
+                <div
+                    className="min-h-screen flex items-center justify-center"
+                    style={{
+                        fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                        fontSize: 14,
+                        color: AC.bone2,
+                    }}
+                >
+                    {'// chargement de la room…'}
+                </div>
+            </AcScreen>
         );
     }
 
@@ -151,63 +263,93 @@ export default function RoomPage({
                         duration={3000}
                     />
                 )}
-                <main className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 flex items-center justify-center p-4">
-                    <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl p-10 max-w-md w-full border border-white/20">
-                        {/* Icône d'erreur animée */}
-                        <div className="flex justify-center mb-6">
-                            <div className="relative">
-                                <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-pink-600 rounded-full flex items-center justify-center shadow-lg animate-pulse">
-                                    <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                    </svg>
-                                </div>
-                                {/* Cercle animé autour */}
-                                <div className="absolute inset-0 rounded-full border-4 border-red-300 animate-ping opacity-20"></div>
-                            </div>
-                        </div>
-
-                        {/* Titre */}
-                        <h1 className="text-3xl font-bold text-gray-800 mb-3 text-center">
-                            Room introuvable
-                        </h1>
-
-                        {/* Message d'erreur */}
-                        <p className="text-gray-600 text-center mb-8 leading-relaxed">
-                            {error === 'Room not found'
-                                ? "Cette room n'existe pas ou a été supprimée par le créateur."
-                                : error
-                            }
-                        </p>
-
-                        {/* Bouton retour amélioré */}
-                        <Link
-                            href="/"
-                            className="group relative block text-center py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold overflow-hidden transition-all duration-300 hover:shadow-2xl hover:scale-105"
-                        >
-                            {/* Effet de brillance au survol */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-
-                            {/* Texte du bouton */}
-                            <span className="relative flex items-center justify-center gap-2">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Retour &agrave; l&apos;accueil
-            </span>
-                        </Link>
-
-                        {/* Message d'aide */}
-                        <p className="text-gray-400 text-sm text-center mt-6">
-                            💡 Crée une nouvelle room ou rejoins-en une existante
-                        </p>
+                <AcScreen>
+                    <div
+                        style={{
+                            position: 'absolute',
+                            top: -40,
+                            right: -40,
+                            pointerEvents: 'none',
+                        }}
+                    >
+                        <AcSplat color={AC.rust} size={320} opacity={0.35} seed={2} />
                     </div>
-                </main>
+                    <div className="relative min-h-screen flex items-center justify-center p-6">
+                        <AcModalCard width={520} tone={AC.rust} tapeLabel="// 404">
+                            <div className="flex items-start gap-3.5 mb-4">
+                                <div style={{ flexShrink: 0, marginTop: 2 }}>
+                                    <AcGlyph kind="x" color={AC.rust} size={36} stroke={3.5} painted />
+                                </div>
+                                <div>
+                                    <AcDisplay style={{ fontSize: 'clamp(26px, 3.5vw, 38px)' }}>
+                                        ROOM <AcShim color={AC.rust}>INTROUVABLE</AcShim>
+                                    </AcDisplay>
+                                </div>
+                            </div>
+                            <div
+                                style={{
+                                    fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
+                                    fontSize: 15,
+                                    lineHeight: 1.55,
+                                    color: AC.bone2,
+                                    marginBottom: 24,
+                                    marginLeft: 48,
+                                }}
+                            >
+                                {error === 'Room not found'
+                                    ? "Cette room n'existe pas ou a été supprimée par le créateur."
+                                    : error}
+                            </div>
+                            <div className="flex justify-end">
+                                <Link href="/" style={{ textDecoration: 'none' }}>
+                                    <AcButton
+                                        variant="primary"
+                                        drip
+                                        icon={<AcGlyph kind="arrowLeft" color={AC.ink} size={13} />}
+                                    >
+                                        RETOUR À L&apos;ACCUEIL
+                                    </AcButton>
+                                </Link>
+                            </div>
+                        </AcModalCard>
+                    </div>
+                </AcScreen>
             </>
         );
     }
 
-    // Determine background class based on game type
+    // Determine background class based on game type (anciens jeux non-refaits)
     const bgClass = room.gameType === 'codename-ceo' ? 'poki-bg' : 'lol-bg';
+    const isNewDesign = room.gameType === 'beat-eikichi';
+
+    // Beat Eikichi utilise le design system Arcane (AcScreen gère le fond).
+    // Les autres jeux gardent leur ancien fond `bgClass`.
+    const content = (
+        <>
+            {room.gameType === 'aram-missions' ? (
+                room.gameStarted ? (
+                    <AramMissionsGameView room={room} roomCode={code} />
+                ) : (
+                    <RoomLobby room={room} roomCode={code} />
+                )
+            ) : room.gameType === 'codename-ceo' ? (
+                <CodenameGameView room={room} roomCode={code} />
+            ) : room.gameType === 'beat-eikichi' ? (
+                room.gameStarted ? (
+                    <BeatEikichiGameView room={room} roomCode={code} refetch={refetch} />
+                ) : (
+                    <BeatEikichiLobby room={room} roomCode={code} />
+                )
+            ) : (
+                <ComingSoonGame
+                    roomCode={code}
+                    gameName={
+                        room.gameType === 'coming-game' ? 'Coming Game' : 'À venir'
+                    }
+                />
+            )}
+        </>
+    );
 
     return (
         <>
@@ -219,35 +361,13 @@ export default function RoomPage({
                     duration={3000}
                 />
             )}
-
-            <main className={`${bgClass} p-4`}>
-                <div className="max-w-6xl mx-auto py-8">
-                    {/* Route to the correct game based on gameType */}
-                    {room.gameType === 'aram-missions' ? (
-                        room.gameStarted ? (
-                            <AramMissionsGameView room={room} roomCode={code} />
-                        ) : (
-                            <RoomLobby room={room} roomCode={code} />
-                        )
-                    ) : room.gameType === 'codename-ceo' ? (
-                        <CodenameGameView room={room} roomCode={code} />
-                    ) : room.gameType === 'beat-eikichi' ? (
-                        room.gameStarted ? (
-                            <BeatEikichiGameView room={room} roomCode={code} refetch={refetch} />
-                        ) : (
-                            <BeatEikichiLobby room={room} roomCode={code} />
-                        )
-                    ) : (
-                        <ComingSoonGame
-                            roomCode={code}
-                            gameName={
-                                room.gameType === 'coming-game' ? 'Coming Game' :
-                                'À venir'
-                            }
-                        />
-                    )}
-                </div>
-            </main>
+            {isNewDesign ? (
+                content
+            ) : (
+                <main className={`${bgClass} p-4`}>
+                    <div className="max-w-6xl mx-auto py-8">{content}</div>
+                </main>
+            )}
         </>
     );
 }

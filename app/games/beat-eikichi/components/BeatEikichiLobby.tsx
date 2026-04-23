@@ -2,13 +2,43 @@
 
 import { useEffect, useState } from 'react';
 import type { Room } from '@/app/types/room';
-import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
 import { WeaponPickerModal } from './WeaponPickerModal';
 import { getWeapon } from '@/lib/beatEikichi/weapons';
+import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
+import {
+  AC,
+  AC_CLIP,
+  AcAlert,
+  AcAvatar,
+  AcButton,
+  AcCard,
+  AcDashed,
+  AcDisplay,
+  AcDottedLabel,
+  AcEmote,
+  AcGlyph,
+  AcGraffitiLayer,
+  AcPaintedBar,
+  AcScreen,
+  AcSectionNum,
+  AcShim,
+  AcSplat,
+  AcStamp,
+} from '@/app/components/arcane';
+import { getWeaponVisual } from '../weaponVisuals';
 
 interface BeatEikichiLobbyProps {
   room: Room;
   roomCode: string;
+}
+
+// Couleurs d'avatar déterministes à partir d'un hash de l'id du joueur
+// (idempotent entre renders, utile quand on n'a pas encore d'avatar custom).
+function colorForPlayer(id: string): string {
+  const palette = [AC.shimmer, AC.chem, AC.hex, AC.gold, AC.violet, AC.rust];
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  return palette[Math.abs(hash) % palette.length];
 }
 
 export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
@@ -30,8 +60,8 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
       : null;
   const myPlayer = room.players.find((p) => p.token === playerToken);
   const myWeaponId = myPlayer?.beatEikichiWeaponId ?? null;
+  const myWeapon = myWeaponId ? getWeapon(myWeaponId) : null;
 
-  // Réglages courants (source de vérité = serveur, sync via Pusher).
   const eikichiPlayerId = room.beatEikichiEikichiId ?? null;
   const eikichiPlayer = room.players.find((p) => p.id === eikichiPlayerId);
   const hintsEnabled = room.beatEikichiHintsEnabled ?? false;
@@ -43,7 +73,6 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
     setTimerInput(String(timerSeconds));
   }, [timerSeconds]);
 
-  // --- API calls (fire and forget, Pusher pousse l'update) -----------------
   const post = async (path: string, body: object) => {
     try {
       await fetch(`/api/games/beat-eikichi/${roomCode}/${path}`, {
@@ -107,273 +136,821 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
     }
   };
 
+  const enoughPlayers = room.players.length >= 2;
+  const myWeaponVisual = myWeaponId ? getWeaponVisual(myWeaponId) : null;
+
   return (
-    <div className="min-h-screen arcane-bg p-4 md:p-6">
-      <div className="max-w-2xl mx-auto space-y-3">
-        {/* Header compact */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl md:text-3xl font-light text-purple-100 tracking-wide">
-            Beat Eikichi
-          </h1>
-          <LeaveRoomButton roomCode={roomCode} />
-        </div>
+    <AcScreen>
+      <div style={{ position: 'absolute', top: -40, right: -80, pointerEvents: 'none' }}>
+        <AcSplat color={AC.shimmer} size={420} opacity={0.45} seed={2} />
+      </div>
+      <div style={{ position: 'absolute', bottom: 60, left: -60, pointerEvents: 'none' }}>
+        <AcSplat color={AC.violet} size={340} opacity={0.4} seed={4} />
+      </div>
+      <AcGraffitiLayer />
 
-        {/* Code room + boutons copie */}
-        <div className="arcane-card p-4 flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <div className="text-[10px] uppercase tracking-widest text-purple-400/70">
-              Code
+      <div
+        className="relative mx-auto px-4 sm:px-8 py-6 sm:py-9"
+        style={{ maxWidth: 1200 }}
+      >
+        {/* Top bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+          <div className="flex items-center gap-3 flex-wrap">
+            <LeaveRoomButton roomCode={roomCode} />
+            <div className="hidden sm:block min-w-[220px]">
+              <AcDottedLabel>{'// ROOM ACTIVE'}</AcDottedLabel>
             </div>
-            <div className="text-2xl font-bold tracking-widest text-amber-300">
-              {roomCode}
-            </div>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleCopy(roomCode, setCopiedCode)}
-              className="px-3 py-2 rounded-lg bg-purple-900/40 border border-purple-500/30 text-purple-100 hover:bg-purple-900/60 transition text-xs"
-              title="Copier le code"
+          <div className="flex flex-wrap items-center gap-3">
+            <span
+              style={{
+                fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                fontSize: 11,
+                color: AC.bone2,
+                letterSpacing: '0.2em',
+              }}
             >
-              {copiedCode ? '✓ Code' : '📋 Code'}
-            </button>
-            <button
-              onClick={() => handleCopy(shareUrl, setCopiedLink)}
-              className="px-3 py-2 rounded-lg bg-pink-900/40 border border-pink-500/40 text-pink-100 hover:bg-pink-900/60 transition text-xs"
-              title="Copier le lien d'invitation"
-            >
-              {copiedLink ? '✓ Lien' : '🔗 Lien'}
-            </button>
-          </div>
-        </div>
-
-        {/* Joueurs */}
-        <div className="arcane-card p-4">
-          <div className="text-xs uppercase tracking-widest text-purple-400/70 mb-2">
-            Joueurs ({room.players.length})
-          </div>
-          <ul className="space-y-1.5">
-            {room.players.map((p) => {
-              const isMe = p.id === myPlayer?.id;
-              const isThisCreator = p.token === room.creatorToken;
-              const isThisEikichi = p.id === eikichiPlayerId;
-              const weapon = p.beatEikichiWeaponId
-                ? getWeapon(p.beatEikichiWeaponId)
-                : null;
-              return (
-                <li
-                  key={p.id}
-                  className={`flex items-center gap-2 p-2 rounded-lg border transition ${
-                    isThisEikichi
-                      ? 'beat-eikichi-highlight'
-                      : 'bg-purple-900/20 border-purple-500/20'
-                  }`}
-                >
-                  {p.avatar ? (
-                    <img
-                      src={p.avatar}
-                      alt=""
-                      className={`w-8 h-8 rounded-full object-cover ${
-                        isThisEikichi ? 'beat-eikichi-avatar' : ''
-                      }`}
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-purple-800/50 flex items-center justify-center text-purple-200 font-bold text-xs">
-                      {p.name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <span className="text-sm text-purple-100 font-medium flex-1 min-w-0 truncate">
-                    {p.name}
-                    {isMe && (
-                      <span className="text-purple-300/60 text-xs ml-1">(toi)</span>
-                    )}
-                  </span>
-                  {isThisCreator && (
-                    <span
-                      className="text-amber-300 text-sm"
-                      title="Maître de la room"
-                    >
-                      ★
-                    </span>
-                  )}
-                  {isThisEikichi && (
-                    <span className="beat-eikichi-badge">EIKICHI</span>
-                  )}
-                  {/* Arme choisie : icône + tooltip */}
-                  {weapon ? (
-                    <span
-                      className="text-lg"
-                      title={`Arme : ${weapon.name} — ${weapon.description}`}
-                    >
-                      {weapon.icon}
-                    </span>
-                  ) : (
-                    <span
-                      className="text-xs text-purple-400/40 italic"
-                      title="Aucune arme choisie"
-                    >
-                      —
-                    </span>
-                  )}
-                  {/* Bouton "changer mon arme" (visible uniquement sur sa propre ligne) */}
-                  {isMe && (
-                    <button
-                      onClick={() => setWeaponModalOpen(true)}
-                      className="text-xs px-2 py-1 rounded bg-rose-900/40 border border-rose-500/40 text-rose-100 hover:bg-rose-900/60 transition"
-                      title="Changer d'arme"
-                    >
-                      {weapon ? 'Changer' : 'Choisir'}
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-
-        {/* Réglages : un seul bloc avec description par ligne, édition pour le maître,
-            affichage en lecture seule pour les autres. */}
-        <div className="arcane-card p-4 space-y-1">
-          <div className="text-xs uppercase tracking-widest text-purple-400/70 mb-2">
-            Réglages
-            {!isCreator && (
-              <span className="ml-2 normal-case tracking-normal text-purple-400/50">
-                (choix du maître)
-              </span>
-            )}
-          </div>
-
-          <SettingsRow
-            label="Durée"
-            description="Temps de réflexion sur chaque question. Affecte aussi la révélation des indices (mi-temps puis -10 s)."
-          >
-            {isCreator ? (
-              <>
-                <input
-                  type="number"
-                  min={10}
-                  max={300}
-                  step={5}
-                  value={timerInput}
-                  onChange={(e) => setTimerInput(e.target.value)}
-                  onBlur={() => {
-                    const n = parseInt(timerInput, 10);
-                    if (!Number.isFinite(n)) {
-                      setTimerInput(String(timerSeconds));
-                      return;
-                    }
-                    const clamped = Math.max(10, Math.min(300, n));
-                    setTimerInput(String(clamped));
-                    if (clamped !== timerSeconds) handleSetTimer(clamped);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                  }}
-                  className="w-20 px-2 py-1 rounded bg-purple-950/40 border border-purple-500/40 text-purple-100 focus:outline-none focus:border-amber-400 text-center text-sm font-semibold"
-                />
-                <span className="text-xs text-purple-300/60">s</span>
-              </>
-            ) : (
-              <ReadOnlyValue>{timerSeconds}s</ReadOnlyValue>
-            )}
-          </SettingsRow>
-
-          <SettingsRow
-            label="Mode"
-            description={
-              <>
-                <strong>Standard</strong> : image nette dès le début.{' '}
-                <strong>Flou</strong> : image fortement floutée au départ puis
-                progressivement révélée, nette à 10 s de la fin du timer.
-              </>
-            }
-          >
-            {isCreator ? (
-              <div className="flex gap-1">
-                <ModeToggleButton
-                  active={mode === 'standard'}
-                  onClick={() => handleSetMode('standard')}
-                >
-                  Standard
-                </ModeToggleButton>
-                <ModeToggleButton
-                  active={mode === 'blur'}
-                  onClick={() => handleSetMode('blur')}
-                >
-                  Flou
-                </ModeToggleButton>
-              </div>
-            ) : (
-              <ReadOnlyValue>{mode === 'blur' ? 'Flou' : 'Standard'}</ReadOnlyValue>
-            )}
-          </SettingsRow>
-
-          <SettingsRow
-            label="Eikichi"
-            description="Joueur désigné. Si l'Eikichi trouve la bonne réponse, la question passe immédiatement à la suivante — les autres ont perdu leur chance."
-          >
-            {isCreator ? (
-              <select
-                value={eikichiPlayerId ?? ''}
-                onChange={(e) => handleSetEikichi(e.target.value || null)}
-                className="flex-1 max-w-[200px] px-2 py-1 rounded bg-purple-950/40 border border-purple-500/40 text-purple-100 focus:outline-none focus:border-amber-400 text-sm"
+              CODE:
+            </span>
+            <RoomCodeDisplay code={roomCode} />
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleCopy(roomCode, setCopiedCode)}
+                style={{
+                  background: copiedCode ? AC.chem : 'transparent',
+                  border: `1.5px solid ${copiedCode ? AC.chem : AC.bone2}`,
+                  color: copiedCode ? AC.ink : AC.bone2,
+                  padding: 8,
+                  cursor: 'pointer',
+                }}
+                title="Copier le code"
+                aria-label="Copier le code"
               >
-                <option value="">— Aucun —</option>
-                {room.players.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <ReadOnlyValue>
-                {eikichiPlayer?.name ?? 'aucun désigné'}
-              </ReadOnlyValue>
-            )}
-          </SettingsRow>
-
-          <SettingsRow
-            label="Indices"
-            description="Révèle 3 indices pendant la question : genre (dès le début), terme distinctif (à mi-timer), plateformes (-10 s)."
-          >
-            {isCreator ? (
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={hintsEnabled}
-                  onChange={(e) => handleToggleHints(e.target.checked)}
-                  className="w-4 h-4 rounded accent-pink-500"
+                <AcGlyph
+                  kind={copiedCode ? 'check' : 'copy'}
+                  color={copiedCode ? AC.ink : AC.bone2}
+                  size={18}
                 />
-                <span className="text-xs text-purple-200">
-                  {hintsEnabled ? 'Activés' : 'Désactivés'}
-                </span>
-              </label>
-            ) : (
-              <ReadOnlyValue>
-                {hintsEnabled ? 'activés' : 'désactivés'}
-              </ReadOnlyValue>
-            )}
-          </SettingsRow>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCopy(shareUrl, setCopiedLink)}
+                style={{
+                  background: copiedLink ? AC.chem : 'transparent',
+                  border: `1.5px solid ${copiedLink ? AC.chem : AC.bone2}`,
+                  color: copiedLink ? AC.ink : AC.bone2,
+                  padding: 8,
+                  cursor: 'pointer',
+                }}
+                title="Copier le lien"
+                aria-label="Copier le lien"
+              >
+                <AcGlyph
+                  kind={copiedLink ? 'check' : 'link'}
+                  color={copiedLink ? AC.ink : AC.bone2}
+                  size={18}
+                />
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Lancement */}
-        {isCreator ? (
-          <div className="arcane-card p-4 space-y-2">
-            <button
-              onClick={handleStart}
-              disabled={starting}
-              className="w-full py-3 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-semibold transition disabled:opacity-50"
-            >
-              {starting
-                ? 'Démarrage…'
-                : `▶ Lancer la partie (${timerSeconds}s × 20)`}
-            </button>
-            {error && <p className="text-xs text-red-400">{error}</p>}
+        {/* Hero title */}
+        <div className="mb-7">
+          <div
+            style={{
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 10,
+              letterSpacing: '0.3em',
+              color: AC.chem,
+              marginBottom: 6,
+            }}
+          >
+            {'// GAME: BEAT EIKICHI · LOBBY'}
           </div>
-        ) : (
-          <div className="arcane-card p-3 text-center text-xs text-purple-300/70">
-            En attente du maître pour lancer…
+          <AcDisplay style={{ fontSize: 'clamp(40px, 6vw, 60px)' }}>
+            SALLE <AcShim>D&apos;ATTENTE</AcShim>
+          </AcDisplay>
+        </div>
+
+        {/* Grid : joueurs + mon arme | réglages */}
+        <div className="grid gap-7 lg:grid-cols-[1.15fr_1fr]">
+          {/* Colonne joueurs */}
+          <div className="flex flex-col gap-6">
+            <div>
+              <div className="flex items-center gap-2.5 mb-3">
+                <AcSectionNum n={1} />
+                <h3
+                  className="m-0"
+                  style={{
+                    fontFamily:
+                      "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                    fontWeight: 800,
+                    fontSize: 18,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  JOUEURS · {room.players.length}/12
+                </h3>
+              </div>
+              <AcCard fold={false} style={{ padding: 0 }}>
+                {room.players.map((p) => {
+                  const isMe = p.id === myPlayer?.id;
+                  const isThisCreator = p.token === room.creatorToken;
+                  const isThisEikichi = p.id === eikichiPlayerId;
+                  const weapon = p.beatEikichiWeaponId
+                    ? getWeapon(p.beatEikichiWeaponId)
+                    : null;
+                  const weaponVisual = p.beatEikichiWeaponId
+                    ? getWeaponVisual(p.beatEikichiWeaponId)
+                    : null;
+                  return (
+                    <div
+                      key={p.id}
+                      className="relative flex items-center gap-3.5 px-3 py-2.5"
+                      style={{
+                        borderBottom: `1.5px dashed ${AC.bone2}`,
+                      }}
+                    >
+                      <AcAvatar
+                        name={p.name}
+                        color={colorForPlayer(p.id)}
+                        size={40}
+                        halo={isThisEikichi ? AC.shimmer : undefined}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            style={{
+                              fontFamily:
+                                "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                              fontWeight: 700,
+                              fontSize: 15,
+                              letterSpacing: '0.02em',
+                              textTransform: 'uppercase',
+                              color: AC.bone,
+                            }}
+                          >
+                            {p.name}
+                            {isMe && (
+                              <span
+                                style={{
+                                  color: AC.bone2,
+                                  fontSize: 11,
+                                  marginLeft: 6,
+                                }}
+                              >
+                                (TOI)
+                              </span>
+                            )}
+                          </span>
+                          {isThisCreator && (
+                            <span
+                              style={{
+                                background: AC.gold,
+                                color: AC.ink,
+                                fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                                fontSize: 9,
+                                letterSpacing: '0.2em',
+                                padding: '2px 6px',
+                              }}
+                            >
+                              CRÉATEUR
+                            </span>
+                          )}
+                          {isThisEikichi && (
+                            <span
+                              className="relative inline-block"
+                              style={{ paddingBottom: 4 }}
+                            >
+                              <span
+                                style={{
+                                  background: AC.shimmer,
+                                  color: AC.ink,
+                                  fontFamily:
+                                    "'JetBrains Mono', 'Courier New', monospace",
+                                  fontSize: 9,
+                                  letterSpacing: '0.2em',
+                                  padding: '2px 6px',
+                                }}
+                              >
+                                EIKICHI
+                              </span>
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          {weapon && weaponVisual ? (
+                            <>
+                              <AcGlyph
+                                kind={weaponVisual.glyph}
+                                color={weaponVisual.color}
+                                size={14}
+                                stroke={2}
+                              />
+                              <span
+                                style={{
+                                  fontFamily:
+                                    "'JetBrains Mono', 'Courier New', monospace",
+                                  fontSize: 10,
+                                  letterSpacing: '0.15em',
+                                  color: AC.bone2,
+                                  textTransform: 'uppercase',
+                                }}
+                              >
+                                {'// '}
+                                {weapon.name}
+                              </span>
+                            </>
+                          ) : (
+                            <AcStamp color={AC.rust} rotate={-4}>
+                              {'// AUCUNE ARME'}
+                            </AcStamp>
+                          )}
+                        </div>
+                      </div>
+                      {isThisEikichi && (
+                        <div className="absolute" style={{ top: -10, right: 18 }}>
+                          <AcEmote face=">:(" color={AC.shimmer} size={28} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </AcCard>
+            </div>
+
+            {/* Mon arme — bloc dédié */}
+            <div>
+              <div className="flex items-center gap-2.5 mb-3">
+                <AcSectionNum n={2} />
+                <h3
+                  className="m-0"
+                  style={{
+                    fontFamily:
+                      "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                    fontWeight: 800,
+                    fontSize: 18,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  MON ARME
+                </h3>
+              </div>
+              <AcCard fold drip={!!myWeapon} dripColor={AC.shimmer} style={{ padding: 18 }}>
+                <div className="flex items-center gap-4">
+                  <div
+                    style={{
+                      width: 72,
+                      height: 72,
+                      background: myWeapon
+                        ? 'rgba(255,61,139,0.15)'
+                        : 'rgba(240,228,193,0.03)',
+                      border: myWeapon
+                        ? `2px solid ${AC.shimmer}`
+                        : `1.5px dashed ${AC.bone2}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      clipPath: AC_CLIP,
+                    }}
+                  >
+                    <AcGlyph
+                      kind={myWeaponVisual?.glyph ?? 'ring'}
+                      color={myWeapon ? AC.shimmer : AC.bone2}
+                      size={36}
+                      stroke={3}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <div
+                      style={{
+                        fontFamily:
+                          "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                        fontWeight: 800,
+                        fontSize: 22,
+                        letterSpacing: '0.02em',
+                        textTransform: 'uppercase',
+                        color: AC.bone,
+                      }}
+                    >
+                      {myWeapon?.name ?? 'AUCUNE ARME CHOISIE'}
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                        fontSize: 11,
+                        color: AC.bone2,
+                        marginTop: 4,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {myWeapon?.description ??
+                        "Choisis une arme pour saboter tes adversaires pendant la partie."}
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                        fontSize: 10,
+                        letterSpacing: '0.2em',
+                        color: AC.chem,
+                        marginTop: 8,
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {'// 3 UTILISATIONS · 1 BOUCLIER'}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 flex gap-2.5">
+                  <AcButton
+                    variant={myWeapon ? 'ghost' : 'primary'}
+                    size="sm"
+                    onClick={() => setWeaponModalOpen(true)}
+                    icon={
+                      <AcGlyph
+                        kind="ring"
+                        color={myWeapon ? AC.bone : AC.ink}
+                        size={12}
+                      />
+                    }
+                  >
+                    {myWeapon ? "CHANGER D'ARME" : 'CHOISIR MON ARME'}
+                  </AcButton>
+                </div>
+              </AcCard>
+            </div>
           </div>
-        )}
+
+          {/* Colonne réglages */}
+          <div className="flex flex-col gap-5">
+            <div className="flex items-center gap-2.5">
+              <AcSectionNum n={3} />
+              <h3
+                className="m-0"
+                style={{
+                  fontFamily:
+                    "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                  fontWeight: 800,
+                  fontSize: 18,
+                  textTransform: 'uppercase',
+                }}
+              >
+                RÉGLAGES
+                {!isCreator && (
+                  <span
+                    style={{
+                      fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                      fontSize: 10,
+                      color: AC.bone2,
+                      marginLeft: 8,
+                      textTransform: 'none',
+                      letterSpacing: '0.15em',
+                    }}
+                  >
+                    {'// lecture seule'}
+                  </span>
+                )}
+              </h3>
+            </div>
+            <AcCard fold={false} dashed style={{ padding: 20 }}>
+              {/* Timer */}
+              <div className="mb-5">
+                <div className="flex justify-between items-baseline mb-2">
+                  <span
+                    style={{
+                      fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                      fontSize: 10,
+                      letterSpacing: '0.25em',
+                      color: AC.chem,
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {'> DURÉE / QUESTION'}
+                  </span>
+                  {isCreator ? (
+                    <div className="flex items-baseline gap-1">
+                      <input
+                        type="number"
+                        min={10}
+                        max={300}
+                        step={5}
+                        value={timerInput}
+                        onChange={(e) => setTimerInput(e.target.value)}
+                        onBlur={() => {
+                          const n = parseInt(timerInput, 10);
+                          if (!Number.isFinite(n)) {
+                            setTimerInput(String(timerSeconds));
+                            return;
+                          }
+                          const clamped = Math.max(10, Math.min(300, n));
+                          setTimerInput(String(clamped));
+                          if (clamped !== timerSeconds) handleSetTimer(clamped);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter')
+                            (e.target as HTMLInputElement).blur();
+                        }}
+                        style={{
+                          width: 60,
+                          background: 'transparent',
+                          border: 'none',
+                          borderBottom: `2px solid ${AC.gold}`,
+                          color: AC.gold,
+                          fontFamily:
+                            "'JetBrains Mono', 'Courier New', monospace",
+                          fontWeight: 700,
+                          fontSize: 22,
+                          textAlign: 'right',
+                          outline: 'none',
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: AC.bone2,
+                          fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                        }}
+                      >
+                        sec
+                      </span>
+                    </div>
+                  ) : (
+                    <span
+                      style={{
+                        fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                        fontSize: 22,
+                        color: AC.gold,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {timerSeconds}
+                      <span
+                        style={{ fontSize: 12, color: AC.bone2, marginLeft: 4 }}
+                      >
+                        sec
+                      </span>
+                    </span>
+                  )}
+                </div>
+                <AcPaintedBar
+                  value={(timerSeconds - 10) / 290}
+                  color={AC.chem}
+                />
+                <div
+                  className="flex justify-between mt-1.5"
+                  style={{
+                    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                    fontSize: 9,
+                    letterSpacing: '0.2em',
+                    color: AC.bone2,
+                  }}
+                >
+                  <span>10s</span>
+                  <span>300s</span>
+                </div>
+              </div>
+
+              <AcDashed style={{ margin: '0 0 20px' }} />
+
+              {/* Mode */}
+              <div className="mb-5">
+                <div
+                  style={{
+                    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                    fontSize: 10,
+                    letterSpacing: '0.25em',
+                    color: AC.chem,
+                    marginBottom: 10,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {'> MODE VISUEL'}
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {(
+                    [
+                      {
+                        key: 'standard' as const,
+                        label: 'STANDARD',
+                        desc: 'image nette',
+                        icon: 'image' as const,
+                      },
+                      {
+                        key: 'blur' as const,
+                        label: 'BLUR',
+                        desc: 'floutée, se défloute',
+                        icon: 'blur' as const,
+                      },
+                    ]
+                  ).map((m) => {
+                    const active = mode === m.key;
+                    return (
+                      <button
+                        key={m.key}
+                        type="button"
+                        onClick={() => isCreator && handleSetMode(m.key)}
+                        disabled={!isCreator}
+                        className="text-center"
+                        style={{
+                          padding: 12,
+                          background: active
+                            ? 'rgba(255,61,139,0.15)'
+                            : 'rgba(240,228,193,0.03)',
+                          border: active
+                            ? `2px solid ${AC.shimmer}`
+                            : `1.5px dashed ${AC.bone2}`,
+                          clipPath: AC_CLIP,
+                          cursor: isCreator ? 'pointer' : 'default',
+                          color: AC.bone,
+                        }}
+                      >
+                        <div className="flex justify-center mb-1.5">
+                          <AcGlyph
+                            kind={m.icon}
+                            color={active ? AC.shimmer : AC.bone2}
+                            size={24}
+                          />
+                        </div>
+                        <div
+                          style={{
+                            fontFamily:
+                              "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                            fontWeight: 700,
+                            fontSize: 13,
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {m.label}
+                        </div>
+                        <div
+                          style={{
+                            fontFamily:
+                              "'JetBrains Mono', 'Courier New', monospace",
+                            fontSize: 9,
+                            color: AC.bone2,
+                            marginTop: 4,
+                          }}
+                        >
+                          {'// '}
+                          {m.desc}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <AcDashed style={{ margin: '0 0 20px' }} />
+
+              {/* Indices */}
+              <div className="mb-5 flex items-center justify-between gap-3">
+                <div>
+                  <div
+                    style={{
+                      fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                      fontSize: 10,
+                      letterSpacing: '0.25em',
+                      color: AC.chem,
+                      marginBottom: 4,
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {'> INDICES'}
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                      fontSize: 11,
+                      color: AC.bone2,
+                    }}
+                  >
+                    {'// 3 indices révélés pendant le timer'}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => isCreator && handleToggleHints(!hintsEnabled)}
+                  disabled={!isCreator}
+                  aria-pressed={hintsEnabled}
+                  className="relative"
+                  style={{
+                    width: 68,
+                    height: 32,
+                    background: hintsEnabled ? AC.chem : AC.ink2,
+                    boxShadow: `inset 0 0 0 2px ${AC.ink}`,
+                    cursor: isCreator ? 'pointer' : 'default',
+                    border: 'none',
+                  }}
+                >
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: 2,
+                      left: hintsEnabled ? 38 : 4,
+                      width: 26,
+                      height: 26,
+                      background: AC.ink,
+                      border: `2px solid ${AC.bone}`,
+                      transition: 'left 0.15s',
+                    }}
+                  />
+                  <span
+                    style={{
+                      position: 'absolute',
+                      left: hintsEnabled ? 8 : 30,
+                      top: 8,
+                      fontFamily:
+                        "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: hintsEnabled ? AC.ink : AC.bone2,
+                      letterSpacing: '0.1em',
+                    }}
+                  >
+                    {hintsEnabled ? 'ON' : 'OFF'}
+                  </span>
+                </button>
+              </div>
+
+              <AcDashed style={{ margin: '0 0 20px' }} />
+
+              {/* Eikichi */}
+              <div>
+                <div
+                  style={{
+                    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                    fontSize: 10,
+                    letterSpacing: '0.25em',
+                    color: AC.chem,
+                    marginBottom: 10,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {'> EIKICHI (rôle spécial)'}
+                </div>
+                {isCreator ? (
+                  <select
+                    value={eikichiPlayerId ?? ''}
+                    onChange={(e) =>
+                      handleSetEikichi(e.target.value || null)
+                    }
+                    style={{
+                      width: '100%',
+                      padding: '10px 36px 10px 12px',
+                      background: eikichiPlayerId
+                        ? 'rgba(255,61,139,0.08)'
+                        : 'rgba(240,228,193,0.03)',
+                      border: eikichiPlayerId
+                        ? `1.5px solid ${AC.shimmer}`
+                        : `1.5px dashed ${AC.bone2}`,
+                      color: AC.bone,
+                      fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                      fontSize: 14,
+                      outline: 'none',
+                      // Retire le chevron système pour dessiner le nôtre via SVG.
+                      appearance: 'none',
+                      WebkitAppearance: 'none',
+                      MozAppearance: 'none',
+                      cursor: 'pointer',
+                      backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='${encodeURIComponent(
+                        eikichiPlayerId ? AC.shimmer : AC.bone2,
+                      )}' stroke-width='2' fill='none' stroke-linecap='round'/></svg>")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 12px center',
+                      backgroundSize: '12px 8px',
+                      // Fond des options : important pour que la liste
+                      // déroulante ouverte par le navigateur respecte le
+                      // thème sombre (Chrome/Firefox le respectent, Safari
+                      // partiellement).
+                      colorScheme: 'dark',
+                    }}
+                  >
+                    <option
+                      value=""
+                      style={{ background: AC.ink2, color: AC.bone2 }}
+                    >
+                      — Aucun désigné —
+                    </option>
+                    {room.players.map((p) => (
+                      <option
+                        key={p.id}
+                        value={p.id}
+                        style={{ background: AC.ink2, color: AC.bone }}
+                      >
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div
+                    className="flex items-center gap-3"
+                    style={{
+                      padding: '10px 12px',
+                      border: `1.5px solid ${AC.shimmer}`,
+                      background: 'rgba(255,61,139,0.08)',
+                    }}
+                  >
+                    {eikichiPlayer ? (
+                      <>
+                        <AcAvatar
+                          name={eikichiPlayer.name}
+                          color={colorForPlayer(eikichiPlayer.id)}
+                          size={34}
+                          halo={AC.shimmer}
+                        />
+                        <div className="flex-1">
+                          <div
+                            style={{
+                              fontFamily:
+                                "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                              fontWeight: 700,
+                              fontSize: 14,
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {eikichiPlayer.name}
+                          </div>
+                          <div
+                            style={{
+                              fontFamily:
+                                "'JetBrains Mono', 'Courier New', monospace",
+                              fontSize: 10,
+                              color: AC.bone2,
+                            }}
+                          >
+                            {"// coupe la question s'il trouve avant les autres"}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <span
+                        style={{
+                          fontFamily:
+                            "'JetBrains Mono', 'Courier New', monospace",
+                          fontSize: 12,
+                          color: AC.bone2,
+                        }}
+                      >
+                        {'// aucun Eikichi désigné'}
+                      </span>
+                    )}
+                  </div>
+                )}
+                <div
+                  style={{
+                    marginTop: 8,
+                    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                    fontSize: 10,
+                    color: AC.bone2,
+                  }}
+                >
+                  {'// si l\'Eikichi trouve, la question avance pour tous'}
+                </div>
+              </div>
+            </AcCard>
+
+            {/* CTA de lancement */}
+            <div>
+              {isCreator ? (
+                <AcButton
+                  variant="primary"
+                  size="lg"
+                  drip
+                  fullWidth
+                  onClick={handleStart}
+                  disabled={starting || !enoughPlayers}
+                  icon={<AcGlyph kind="play" color={AC.ink} size={16} />}
+                >
+                  {starting
+                    ? 'DÉMARRAGE…'
+                    : `LANCER LA PARTIE · 20 QUESTIONS`}
+                </AcButton>
+              ) : (
+                <div className="text-center">
+                  <AcStamp color={AC.bone2} rotate={-2} style={{ fontSize: 12, padding: '10px 14px' }}>
+                    {'// EN ATTENTE DU CRÉATEUR...'}
+                  </AcStamp>
+                </div>
+              )}
+            </div>
+
+            {!enoughPlayers && (
+              <AcAlert tone="warning" tape="// WARN">
+                <span style={{ color: AC.bone }}>
+                  {'// il faut au moins 2 joueurs pour lancer'}
+                </span>
+              </AcAlert>
+            )}
+            {error && (
+              <AcAlert tone="danger" tape="// ERR">
+                <span style={{ color: AC.bone }}>{'// '}{error}</span>
+              </AcAlert>
+            )}
+          </div>
+        </div>
       </div>
 
       <WeaponPickerModal
@@ -382,63 +959,33 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
         onPick={handleSetWeapon}
         currentWeaponId={myWeaponId}
       />
+    </AcScreen>
+  );
+}
+
+/** Code room 6 caractères en gros bloc mono avec cases dashed (comme la maquette). */
+function RoomCodeDisplay({ code }: { code: string }) {
+  return (
+    <div className="flex items-center gap-1">
+      {code.split('').map((c, i) => (
+        <span
+          key={i}
+          style={{
+            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontSize: 26,
+            fontWeight: 700,
+            color: AC.gold,
+            letterSpacing: '0.05em',
+            border: `2px dashed ${AC.bone2}`,
+            padding: '2px 8px',
+            background: 'rgba(245,185,18,0.05)',
+            minWidth: 24,
+            textAlign: 'center',
+          }}
+        >
+          {c}
+        </span>
+      ))}
     </div>
-  );
-}
-
-/* --- Helpers locaux ------------------------------------------------------- */
-
-function SettingsRow({
-  label,
-  description,
-  children,
-}: {
-  label: string;
-  description: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-3 py-2 border-b border-purple-500/10 last:border-0">
-      <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium text-purple-100">{label}</div>
-        <div className="text-xs text-purple-300/60 mt-0.5 leading-snug">
-          {description}
-        </div>
-      </div>
-      <div className="flex items-center gap-2 flex-wrap shrink-0 pt-0.5">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function ReadOnlyValue({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="px-2 py-1 rounded bg-purple-950/40 border border-purple-500/30 text-sm text-amber-300 font-semibold">
-      {children}
-    </span>
-  );
-}
-
-function ModeToggleButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-3 py-1 rounded text-xs font-medium transition border ${
-        active
-          ? 'bg-pink-600 border-pink-400 text-white'
-          : 'bg-purple-950/40 border-purple-500/40 text-purple-200 hover:bg-purple-900/60'
-      }`}
-    >
-      {children}
-    </button>
   );
 }

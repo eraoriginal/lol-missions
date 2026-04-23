@@ -1,6 +1,6 @@
 'use client';
 
-import { SHIELD_ICON, SHIELD_NAME } from '@/lib/beatEikichi/weapons';
+import { AC, AC_CLIP, AcButton, AcGlyph, AcStamp } from '@/app/components/arcane';
 
 interface ShieldBlockProps {
   usesLeft: number;
@@ -10,66 +10,92 @@ interface ShieldBlockProps {
 }
 
 /**
- * Bloc bouclier disponible pour tous les joueurs en plus de leur arme.
- * Active le bouclier pour la PROCHAINE question → toute attaque reçue y est annulée.
- * Quand `armed === true`, le bouton passe en état "Armé ✓" (désactivé) pour confirmer
- * visuellement au joueur que son clic a bien pris effet et éviter de gaspiller des charges.
+ * Bloc bouclier disponible pour tous les joueurs. Activer = prochaine question
+ * annule toute attaque reçue. Une fois `armed`, le bouton se verrouille en
+ * tampon « ARMÉ » (vert chem) pour éviter de gaspiller une charge.
  */
 export function ShieldBlock({ usesLeft, armed, onFire }: ShieldBlockProps) {
   const noUses = usesLeft <= 0;
   const canFire = !noUses && !armed;
-
-  let label: string;
-  let buttonClass: string;
-  let title: string;
-
-  if (noUses) {
-    label = 'Plus de boucliers disponibles.';
-    buttonClass =
-      'from-purple-900/50 to-purple-900/50 text-purple-400/50 cursor-not-allowed';
-    title = label;
-  } else if (armed) {
-    label = 'Armé ✓';
-    buttonClass =
-      'from-emerald-600 to-teal-500 text-white cursor-default beat-eikichi-shield-armed';
-    title = 'Bouclier armé pour la prochaine question';
-  } else {
-    label = 'Activer';
-    buttonClass =
-      'from-sky-600 to-cyan-500 hover:from-sky-500 hover:to-cyan-400 text-white';
-    title = 'Activer le bouclier pour la prochaine question';
-  }
+  const tint = armed ? AC.chem : AC.hex;
+  const bgTint = armed
+    ? 'rgba(18,214,168,0.12)'
+    : 'rgba(94,184,255,0.08)';
 
   return (
     <div
-      className={`arcane-card p-4 space-y-3 transition ${
-        armed ? 'border-emerald-500/70 bg-emerald-900/10' : ''
-      }`}
+      style={{
+        padding: 12,
+        border: `2px solid ${tint}`,
+        background: bgTint,
+      }}
     >
-      <div className="flex items-center gap-2">
-        <span className="text-3xl">{SHIELD_ICON}</span>
-        <div>
-          <div className="text-sm font-semibold text-purple-100">
-            {SHIELD_NAME}
+      <div
+        style={{
+          fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+          fontSize: 10,
+          letterSpacing: '0.25em',
+          color: tint,
+          marginBottom: 8,
+          textTransform: 'uppercase',
+        }}
+      >
+        {'// MON BOUCLIER'}
+      </div>
+      <div className="flex items-center gap-2.5">
+        <div
+          style={{
+            width: 44,
+            height: 44,
+            background: tint,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            clipPath: AC_CLIP,
+            flexShrink: 0,
+          }}
+        >
+          <AcGlyph kind="shield" color={AC.ink} size={22} stroke={2.5} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div
+            style={{
+              fontFamily:
+                "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+              fontWeight: 800,
+              fontSize: 15,
+              color: AC.bone,
+              textTransform: 'uppercase',
+              letterSpacing: '0.02em',
+            }}
+          >
+            BOUCLIER
           </div>
-          <div className="text-xs text-purple-300/70">
-            {usesLeft}/3 bouclier{usesLeft > 1 ? 's' : ''}
+          <div
+            style={{
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 10,
+              color: AC.bone2,
+            }}
+          >
+            x{usesLeft} utilisation{usesLeft > 1 ? 's' : ''}
           </div>
         </div>
+        {armed ? (
+          <AcStamp color={AC.chem} rotate={-2} bg="rgba(18,214,168,0.12)">
+            ✓ ARMÉ
+          </AcStamp>
+        ) : (
+          <AcButton
+            variant="hex"
+            size="sm"
+            onClick={onFire}
+            disabled={!canFire}
+          >
+            ACTIVER
+          </AcButton>
+        )}
       </div>
-
-      <div className="text-xs text-purple-300/60 leading-snug">
-        Annule toute attaque reçue à la prochaine question.
-      </div>
-
-      <button
-        onClick={onFire}
-        disabled={!canFire}
-        className={`w-full py-2 rounded-lg bg-gradient-to-r font-semibold text-sm transition ${buttonClass}`}
-        title={title}
-      >
-        {label}
-      </button>
     </div>
   );
 }

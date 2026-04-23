@@ -4,12 +4,23 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Toast } from './Toast';
+import { AC, AcButton, AcGlyph } from './arcane';
 
 interface LeaveRoomButtonProps {
     roomCode: string;
+    /** Libellé affiché. Par défaut « QUITTER ». */
+    label?: string;
 }
 
-export function LeaveRoomButton({ roomCode }: LeaveRoomButtonProps) {
+/**
+ * Bouton « Quitter la room ». Appelle POST /api/rooms/[code]/leave qui :
+ *   - si l'appelant est le créateur → supprime la room + Pusher push
+ *     → les autres clients détectent le 404 via `useRoom` et sont redirigés
+ *   - sinon → supprime juste le joueur + Pusher push
+ *
+ * Skin Arcane.kit (utilisé sur tous les écrans redesignés).
+ */
+export function LeaveRoomButton({ roomCode, label = 'QUITTER' }: LeaveRoomButtonProps) {
     const [leaving, setLeaving] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -44,18 +55,15 @@ export function LeaveRoomButton({ roomCode }: LeaveRoomButtonProps) {
             if (response.ok) {
                 const data = await response.json();
 
-                // Nettoie le localStorage
                 localStorage.removeItem(`room_${roomCode}_player`);
                 localStorage.removeItem(`room_${roomCode}_creator`);
 
-                // Affiche un message selon le cas
                 if (data.reason === 'creator-left') {
                     setToast({ message: 'Room supprimée avec succès', type: 'success' });
                 } else {
                     setToast({ message: 'Tu as quitté la room', type: 'success' });
                 }
 
-                // Redirige après 1 seconde
                 setTimeout(() => {
                     router.push('/');
                 }, 1000);
@@ -73,25 +81,29 @@ export function LeaveRoomButton({ roomCode }: LeaveRoomButtonProps) {
 
     return (
         <>
-            <button
+            <AcButton
+                variant="danger"
+                size="sm"
                 onClick={() => setShowConfirm(true)}
                 disabled={leaving}
-                className="lol-button-danger px-4 py-2 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                icon={<AcGlyph kind="arrowLeft" color={AC.bone} size={12} />}
             >
-                {leaving ? 'Départ...' : 'Quitter'}
-            </button>
+                {leaving ? 'DÉPART…' : label}
+            </AcButton>
 
             {showConfirm && (
                 <ConfirmDialog
-                    title={isCreator ? "⚠️ Tu es le créateur !" : "Quitter la room ?"}
+                    title={isCreator ? 'Tu es le créateur' : 'Quitter la room'}
                     message={
                         isCreator
-                            ? "Si tu quittes, la room sera supprimée et tous les invocateurs seront déconnectés. Es-tu sûr ?"
-                            : "Es-tu sûr de vouloir quitter cette room ?"
+                            ? "Si tu quittes, la room sera supprimée et tous les joueurs seront déconnectés. Cette action est irréversible."
+                            : "Es-tu sûr de vouloir quitter cette room ? Tu pourras la rejoindre plus tard avec le même code."
                     }
-                    confirmText="Quitter"
+                    confirmText={isCreator ? 'Supprimer la room' : 'Quitter'}
                     cancelText="Rester"
                     confirmColor="red"
+                    destructive={isCreator}
+                    tapeLabel={isCreator ? '// CRÉATEUR' : '// CONFIRMATION'}
                     onConfirm={handleLeave}
                     onCancel={() => setShowConfirm(false)}
                 />

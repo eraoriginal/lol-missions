@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Beat Eikichi · Arcane.kit mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="assets/arcane-tokens.css"/>
+<style>
+  html, body { margin: 0; background: #1F1830; font-family: 'Inter', system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="assets/arcane-primitives.jsx"></script>
+<script type="text/babel" src="screens/homepage.jsx"></script>
+<script type="text/babel" src="screens/lobby.jsx"></script>
+<script type="text/babel" src="screens/playing.jsx"></script>
+<script type="text/babel" src="screens/review.jsx"></script>
+<script type="text/babel" src="screens/modals.jsx"></script>
+
+<script type="text/babel" data-presets="env,react">
+const { useState } = React;
+
+function App() {
+  return (
+    <>
+      <ArcanePaintDefs />
+      <DesignCanvas>
+
+        <DCSection id="overview" title="Beat Eikichi · écrans" subtitle="Maquettes dans le langage Arcane.kit — soot ink, bone paper, peinture bombée. 6 écrans + états.">
+          <DCArtboard id="home-desktop" label="01 · Homepage / Desktop" width={1440} height={1900}>
+            <HomepageScreen width={1440}/>
+          </DCArtboard>
+          <DCArtboard id="home-mobile" label="01 · Homepage / Mobile" width={400} height={1500}>
+            <HomepageScreen mobile/>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="lobby" title="Lobby" subtitle="Configuration collective, choix d'arme, désignation de l'Eikichi.">
+          <DCArtboard id="lobby-desktop" label="02 · Lobby / Desktop" width={1240} height={1150}>
+            <LobbyScreen/>
+          </DCArtboard>
+          <DCArtboard id="lobby-mobile" label="02 · Lobby / Mobile" width={400} height={1700}>
+            <LobbyScreen mobile/>
+          </DCArtboard>
+          <DCArtboard id="lobby-modal" label="02 · Lobby / Modale Armurerie" width={1240} height={1150}>
+            <LobbyScreen showModal/>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="playing" title="Playing — 6 états" subtitle="Écran de jeu : neutre, suggestions, faux, trouvé, attaqué, indices révélés.">
+          <DCArtboard id="play-neutral" label="03a · Playing / Neutre" width={1240} height={1100}>
+            <PlayingScreen state="neutral"/>
+          </DCArtboard>
+          <DCArtboard id="play-sugg" label="03b · Playing / Autocomplétion" width={1240} height={1200}>
+            <PlayingScreen state="suggestions"/>
+          </DCArtboard>
+          <DCArtboard id="play-wrong" label="03c · Playing / Réponse fausse + ruban" width={1240} height={1200}>
+            <PlayingScreen state="wrong"/>
+          </DCArtboard>
+          <DCArtboard id="play-found" label="03d · Playing / Trouvé (verrouillé)" width={1240} height={1100}>
+            <PlayingScreen state="found"/>
+          </DCArtboard>
+          <DCArtboard id="play-smoked" label="03e · Playing / Attaque Fumigène reçue" width={1240} height={1100}>
+            <PlayingScreen state="smoked"/>
+          </DCArtboard>
+          <DCArtboard id="play-hint" label="03f · Playing / Indices révélés" width={1240} height={1100}>
+            <PlayingScreen state="hint"/>
+          </DCArtboard>
+          <DCArtboard id="play-mobile" label="03 · Playing / Mobile (neutre)" width={400} height={1350}>
+            <PlayingScreen state="neutral" mobile/>
+          </DCArtboard>
+          <DCArtboard id="play-mobile-wrong" label="03 · Playing / Mobile (faux)" width={400} height={1400}>
+            <PlayingScreen state="wrong" mobile/>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="review" title="Review — intro + parcours" subtitle="Transition 3s puis parcours manuel des 20 questions.">
+          <DCArtboard id="rv-intro" label="04 · Review intro (3s)" width={1240} height={800}>
+            <ReviewIntroScreen/>
+          </DCArtboard>
+          <DCArtboard id="rv-intro-mobile" label="04 · Review intro / Mobile" width={400} height={700}>
+            <ReviewIntroScreen mobile/>
+          </DCArtboard>
+          <DCArtboard id="rv" label="05 · Review / Desktop" width={1240} height={1150}>
+            <ReviewScreen/>
+          </DCArtboard>
+          <DCArtboard id="rv-mobile" label="05 · Review / Mobile" width={400} height={1600}>
+            <ReviewScreen mobile/>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="leader" title="Leaderboard final" subtitle="Podium peint, stats globales, CTAs rejouer / retour lobby.">
+          <DCArtboard id="lb-desktop" label="06 · Leaderboard / Desktop" width={1240} height={1100}>
+            <LeaderboardScreen/>
+          </DCArtboard>
+          <DCArtboard id="lb-mobile" label="06 · Leaderboard / Mobile" width={400} height={1550}>
+            <LeaderboardScreen mobile/>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="modals" title="Modales & notifications" subtitle="Confirmation de sortie, écran de connexion, toasts système & attaques.">
+          <DCArtboard id="join-desktop" label="07 · Rejoindre la room / Desktop" width={1240} height={900}>
+            <JoinRoomScreen/>
+          </DCArtboard>
+          <DCArtboard id="join-mobile" label="07 · Rejoindre la room / Mobile" width={400} height={760}>
+            <JoinRoomScreen mobile/>
+          </DCArtboard>
+          <DCArtboard id="leave" label="08 · Quitter la room" width={1240} height={900}>
+            <LeaveRoomScreen/>
+          </DCArtboard>
+          <DCArtboard id="leave-mobile" label="08 · Quitter la room / Mobile" width={400} height={760}>
+            <LeaveRoomScreen mobile/>
+          </DCArtboard>
+          <DCArtboard id="creator-leave" label="09 · Créateur quitte (room supprimée)" width={1240} height={900}>
+            <CreatorLeaveScreen/>
+          </DCArtboard>
+          <DCArtboard id="creator-leave-mobile" label="09 · Créateur quitte / Mobile" width={400} height={900}>
+            <CreatorLeaveScreen mobile/>
+          </DCArtboard>
+          <DCArtboard id="back-lobby" label="10 · Retour au lobby (mid-partie)" width={1240} height={900}>
+            <BackToLobbyScreen/>
+          </DCArtboard>
+          <DCArtboard id="back-lobby-mobile" label="10 · Retour au lobby / Mobile" width={400} height={820}>
+            <BackToLobbyScreen mobile/>
+          </DCArtboard>
+          <DCArtboard id="notif-attack" label="11a · Attaque bloquée + échouée" width={1240} height={900}>
+            <NotificationsScreen variant="attack"/>
+          </DCArtboard>
+          <DCArtboard id="notif-room-deleted" label="11b · Room supprimée avec succès" width={1240} height={900}>
+            <NotificationsScreen variant="room-deleted"/>
+          </DCArtboard>
+          <DCArtboard id="notif-room-closed" label="11c · Room fermée par le créateur" width={1240} height={900}>
+            <NotificationsScreen variant="room-closed"/>
+          </DCArtboard>
+          <DCArtboard id="notif-gallery" label="11d · Catalogue toasts (doc)" width={1240} height={1400}>
+            <NotificationsScreen variant="gallery"/>
+          </DCArtboard>
+        </DCSection>
+
+      </DesignCanvas>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

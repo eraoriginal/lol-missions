@@ -1,161 +1,207 @@
 import { CreateRoomForm } from './components/CreateRoomForm';
 import { JoinRoomForm } from './components/JoinRoomForm';
+import {
+  AC,
+  AcCard,
+  AcDisplay,
+  AcDottedLabel,
+  AcGlyph,
+  AcGraffitiLayer,
+  AcScreen,
+  AcSectionNum,
+  AcShim,
+  AcSplat,
+  AcSpray,
+  AcStamp,
+} from './components/arcane';
 
 export default function Home() {
   return (
-    <main className="arcane-bg min-h-screen p-4 relative overflow-hidden">
-      <div className="max-w-5xl mx-auto py-12 md:py-16 relative z-10">
-        {/* Header */}
-        <header className="text-center mb-12 md:mb-16">
-          <h1 className="text-4xl md:text-6xl font-light text-purple-100 mb-4 tracking-wide">
-            Le bureau du{' '}
-            <span className="arcane-title-accent block md:inline">Mari de Poki</span>
-          </h1>
-          <p className="text-lg text-purple-300/70 tracking-wide">
-            Mini-jeux pour vos soirées entre amis
-          </p>
+    <AcScreen>
+      {/* Splats et spray positionnés pour déborder sans voler la place au contenu. */}
+      <div style={{ position: 'absolute', top: -60, left: -80, pointerEvents: 'none' }}>
+        <AcSplat color={AC.violet} size={520} opacity={0.6} seed={3} />
+      </div>
+      <div style={{ position: 'absolute', top: 140, right: -40, pointerEvents: 'none' }}>
+        <AcSplat color={AC.shimmer} size={340} opacity={0.45} seed={1} />
+      </div>
+      <div style={{ position: 'absolute', bottom: 200, left: -40, pointerEvents: 'none' }}>
+        <AcSpray color={AC.hex} size={300} seed={2} />
+      </div>
+      <AcGraffitiLayer density="heavy" />
+
+      <div
+        className="relative mx-auto px-5 sm:px-8 lg:px-12 py-6 sm:py-10"
+        style={{ maxWidth: 1280 }}
+      >
+        {/* Topbar */}
+        <header className="flex items-center justify-between mb-7 sm:mb-12">
+          <div className="flex items-center gap-2.5">
+            <AcGlyph kind="flame" color={AC.shimmer} size={22} />
+            <span
+              style={{
+                fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                fontSize: 11,
+                letterSpacing: '0.25em',
+                color: AC.bone2,
+                textTransform: 'uppercase',
+              }}
+            >
+              {'// le.bureau/v0.3'}
+            </span>
+          </div>
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 10,
+              letterSpacing: '0.2em',
+              color: AC.chem,
+            }}
+          >
+            ● ONLINE
+          </span>
         </header>
 
-        {/* Forms Grid */}
-        <div className="grid lg:grid-cols-2 gap-6 mb-16">
-          {/* Create Room */}
-          <div className="arcane-card p-6 md:p-8">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="arcane-icon w-14 h-14 flex items-center justify-center">
-                <svg className="w-7 h-7 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-purple-100">
-                  Créer une room
-                </h2>
-                <p className="text-sm text-purple-300/60">
-                  Lance une nouvelle partie
-                </p>
-              </div>
-            </div>
-            <CreateRoomForm />
+        {/* Hero */}
+        <section className="relative mb-10 sm:mb-16">
+          <AcDisplay
+            style={{
+              fontSize: 'clamp(42px, 8vw, 96px)',
+              maxWidth: 980,
+            }}
+          >
+            LA SALLE
+            <br />
+            <AcShim>DE PAUSE</AcShim>
+          </AcDisplay>
+          <div
+            className="mt-4 sm:mt-5"
+            style={{
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 'clamp(13px, 1.4vw, 15px)',
+              letterSpacing: '0.1em',
+              color: AC.bone2,
+              maxWidth: 760,
+            }}
+          >
+            {"// mini-jeux punk pour vos soirées entre amis — pas d'inscription, pas de compte, juste un code et trois bières"}
           </div>
+        </section>
 
-          {/* Join Room */}
-          <div className="arcane-card p-6 md:p-8">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="arcane-icon-cyan w-14 h-14 flex items-center justify-center">
-                <svg className="w-7 h-7 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-purple-100">
-                  Rejoindre une room
-                </h2>
-                <p className="text-sm text-purple-300/60">
-                  Entre le code de ton ami
-                </p>
-              </div>
-            </div>
-            <JoinRoomForm />
-          </div>
-        </div>
+        {/* Create + Join */}
+        <section className="mb-14 sm:mb-20">
+          <div className="grid gap-7 lg:grid-cols-[1.25fr_1fr]">
+            <AcCard fold drip dripColor={AC.shimmer} style={{ padding: 20 }}>
+              <CreateRoomForm />
+            </AcCard>
 
-        {/* How it works */}
-        <section className="mb-16">
-          <h3 className="text-sm font-semibold text-purple-400/80 uppercase tracking-widest text-center mb-10">
-            Comment ça marche
-          </h3>
-          <div className="grid md:grid-cols-3 gap-6 md:gap-8">
-            {/* Step 1 */}
-            <div className="text-center group">
-              <div className="arcane-step arcane-step-pink mx-auto mb-4 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-pink-500/20 transition-all">
-                1
+            <div className="relative">
+              <AcCard fold={false} dashed style={{ padding: 20 }}>
+                <JoinRoomForm />
+              </AcCard>
+              <div className="absolute z-10" style={{ top: -14, right: 20 }}>
+                <AcStamp color={AC.gold} rotate={-6}>
+                  {'// 42 rooms live'}
+                </AcStamp>
               </div>
-              <h4 className="text-base font-semibold text-purple-100 mb-2">Choisis ton jeu</h4>
-              <p className="text-sm text-purple-300/60 leading-relaxed">
-                Sélectionne parmi les mini-jeux
-              </p>
-            </div>
-
-            {/* Step 2 */}
-            <div className="text-center group">
-              <div className="arcane-step arcane-step-gold mx-auto mb-4 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-amber-500/20 transition-all">
-                2
-              </div>
-              <h4 className="text-base font-semibold text-purple-100 mb-2">Invite tes amis</h4>
-              <p className="text-sm text-purple-300/60 leading-relaxed">
-                Partage le code de la room
-              </p>
-            </div>
-
-            {/* Step 3 */}
-            <div className="text-center group">
-              <div className="arcane-step arcane-step-cyan mx-auto mb-4 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-cyan-500/20 transition-all">
-                3
-              </div>
-              <h4 className="text-base font-semibold text-purple-100 mb-2">Jouez</h4>
-              <p className="text-sm text-purple-300/60 leading-relaxed">
-                Lancez la partie et amusez-vous
-              </p>
             </div>
           </div>
         </section>
 
-        {/* Games list */}
-        <section>
-          <h3 className="text-sm font-semibold text-purple-400/80 uppercase tracking-widest text-center mb-8">
-            Jeux disponibles
-          </h3>
-          <div className="grid sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-purple-900/20 border border-purple-500/20 hover:border-pink-500/30 hover:bg-purple-900/30 transition-all">
-              <div className="arcane-step arcane-step-pink w-12 h-12 text-base">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+        {/* HOW IT WORKS */}
+        <section className="mb-12 sm:mb-20">
+          <div className="mb-7">
+            <AcDottedLabel color={AC.bone2}>{'// COMMENT ÇA MARCHE'}</AcDottedLabel>
+          </div>
+          <div className="grid gap-5 sm:gap-7 md:grid-cols-3">
+            {[
+              {
+                n: 1,
+                title: 'CHOISIS TON JEU',
+                desc: "Crée une room ou rejoins celle d'un pote avec un code à 6 caractères.",
+                color: AC.shimmer,
+                icon: 'ring' as const,
+              },
+              {
+                n: 2,
+                title: 'INVITE TES AMIS',
+                desc: "Partage le code ou le lien. Jusqu'à 12 joueurs par room.",
+                color: AC.chem,
+                icon: 'link' as const,
+              },
+              {
+                n: 3,
+                title: 'JOUEZ',
+                desc: "Parties de 5 à 15 minutes. Pas d'inscription. Pas de compte.",
+                color: AC.gold,
+                icon: 'play' as const,
+              },
+            ].map((s) => (
+              <div
+                key={s.n}
+                className="relative"
+                style={{ padding: 18, border: `1.5px dashed ${AC.bone2}` }}
+              >
+                <div className="flex items-center gap-3.5 mb-3">
+                  <AcSectionNum n={s.n} />
+                  <AcGlyph kind={s.icon} color={s.color} size={24} />
+                </div>
+                <div
+                  style={{
+                    fontFamily:
+                      "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                    fontWeight: 700,
+                    fontSize: 18,
+                    letterSpacing: '0.03em',
+                    color: AC.bone,
+                    marginBottom: 6,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {s.title}
+                </div>
+                <div
+                  style={{
+                    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                    fontSize: 12,
+                    color: AC.bone2,
+                    lineHeight: 1.55,
+                  }}
+                >
+                  {s.desc}
+                </div>
               </div>
-              <div>
-                <h5 className="text-sm font-semibold text-purple-100">ARAM Missions</h5>
-                <p className="text-xs text-purple-300/50">Missions secrètes pour vos parties LoL</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-purple-900/20 border border-purple-500/20 hover:border-cyan-500/30 hover:bg-purple-900/30 transition-all">
-              <div className="arcane-step arcane-step-cyan w-12 h-12 text-base">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </div>
-              <div>
-                <h5 className="text-sm font-semibold text-purple-100">Codename du CEO</h5>
-                <p className="text-xs text-purple-300/50">Jeu de mots en équipe</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-purple-900/20 border border-purple-500/20 hover:border-amber-500/30 hover:bg-purple-900/30 transition-all">
-              <div className="arcane-step arcane-step-gold w-12 h-12 text-base">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <div>
-                <h5 className="text-sm font-semibold text-purple-100">Beat Eikichi</h5>
-                <p className="text-xs text-purple-300/50">Devine le jeu vidéo à partir d&apos;une image</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-purple-900/10 border border-purple-500/10 opacity-50">
-              <div className="arcane-step arcane-step-green w-12 h-12 text-base opacity-50">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-              </div>
-              <div>
-                <h5 className="text-sm font-medium text-purple-300/50">Plus à venir</h5>
-                <p className="text-xs text-purple-400/30">De nouveaux jeux arrivent</p>
-              </div>
-            </div>
+            ))}
           </div>
         </section>
+
+        {/* Footer */}
+        <footer
+          className="flex justify-between items-center pt-4 opacity-70"
+          style={{ borderTop: `1.5px dashed ${AC.bone2}` }}
+        >
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 10,
+              letterSpacing: '0.2em',
+              color: AC.bone2,
+            }}
+          >
+            {'// v0.3 — EOF'}
+          </span>
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 10,
+              letterSpacing: '0.2em',
+              color: AC.bone2,
+            }}
+          >
+            {'// fait à la main à zaun'}
+          </span>
+        </footer>
       </div>
-    </main>
+    </AcScreen>
   );
 }

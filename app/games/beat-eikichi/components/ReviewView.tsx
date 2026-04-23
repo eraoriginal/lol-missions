@@ -6,12 +6,35 @@ import { BEAT_EIKICHI_CONFIG } from '@/lib/beatEikichi/config';
 import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
 import { BackToLobbyButton } from './BackToLobbyButton';
 import { ZoomPanImage } from './ZoomPanImage';
+import {
+  AC,
+  AC_CLIP,
+  AC_IMAGE_FRAME_CLIP,
+  AcAvatar,
+  AcButton,
+  AcDashed,
+  AcDisplay,
+  AcDrip,
+  AcEmote,
+  AcGlyph,
+  AcSectionNum,
+  AcScreen,
+  AcShim,
+  AcStamp,
+} from '@/app/components/arcane';
 
 interface ReviewViewProps {
   room: Room;
   roomCode: string;
   isCreator: boolean;
   creatorToken: string | null;
+}
+
+const AVATAR_PALETTE = [AC.shimmer, AC.chem, AC.hex, AC.gold, AC.violet, AC.rust];
+function colorForPlayer(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
 }
 
 export function ReviewView({
@@ -41,107 +64,346 @@ export function ReviewView({
 
   if (!question) return null;
 
+  // Stats question courante (trouvé / raté / temps moyen)
+  const questionAnswers = game.playerStates
+    .map((s) => s.answers.find((a) => a.position === game.currentIndex))
+    .filter((a) => a != null);
+  const foundCount = questionAnswers.filter((a) => a?.correct).length;
+  const missedCount = questionAnswers.length - foundCount;
+  const avgTimeMs = (() => {
+    const times = questionAnswers
+      .filter((a) => a?.correct && a.answeredAtMs != null)
+      .map((a) => a!.answeredAtMs as number);
+    if (times.length === 0) return null;
+    return times.reduce((a, b) => a + b, 0) / times.length;
+  })();
+
+  const isLast = game.currentIndex + 1 >= total;
+
   return (
-    <div className="min-h-screen arcane-bg p-4 md:p-6">
-      <div className="max-w-6xl mx-auto flex justify-end items-center gap-2 mb-3">
-        <BackToLobbyButton roomCode={roomCode} />
-        <LeaveRoomButton roomCode={roomCode} />
-      </div>
-      <div className="max-w-6xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-purple-300/70">
-            Révision{' '}
-            <span className="text-purple-100 font-semibold">
-              {game.currentIndex + 1}
-            </span>
-            {' / '}
-            {total}
+    <AcScreen>
+      <div
+        className="relative mx-auto px-4 sm:px-8 py-5 sm:py-8"
+        style={{ maxWidth: 1240 }}
+      >
+        {/* Header */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <div
+              style={{
+                fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                fontSize: 10,
+                letterSpacing: '0.3em',
+                color: AC.chem,
+              }}
+            >
+              {'// PHASE · REVIEW'}
+            </div>
+            <div className="flex items-baseline gap-3.5 mt-1.5">
+              <AcSectionNum n={game.currentIndex + 1} />
+              <AcDisplay style={{ fontSize: 'clamp(28px, 4vw, 44px)' }}>
+                QUESTION {String(game.currentIndex + 1).padStart(2, '0')} /{' '}
+                {String(total).padStart(2, '0')}
+              </AcDisplay>
+            </div>
           </div>
-          {isCreator && (
-            <button
+          <div className="flex items-center gap-3 flex-wrap">
+            {avgTimeMs != null && (
+              <AcStamp color={AC.gold} rotate={-3}>
+                {'// TEMPS MOYEN '}
+                {(avgTimeMs / 1000).toFixed(1)}s
+              </AcStamp>
+            )}
+            <AcStamp color={AC.chem} rotate={2}>
+              {'// '}
+              {foundCount} TROUVÉ · {missedCount} RATÉ
+            </AcStamp>
+            <div className="flex gap-2">
+              <BackToLobbyButton roomCode={roomCode} />
+              <LeaveRoomButton roomCode={roomCode} />
+            </div>
+          </div>
+        </div>
+
+        <AcDashed style={{ marginBottom: 18 }} />
+
+        {/* Image + reveal banner */}
+        <div className="relative mb-8">
+          <div
+            className="relative overflow-hidden"
+            style={{
+              aspectRatio: '16 / 10',
+              background: 'rgba(0,0,0,0.55)',
+              clipPath: AC_IMAGE_FRAME_CLIP,
+              boxShadow: `inset 0 0 0 2px ${AC.bone}`,
+            }}
+          >
+            {question.imageUrl ? (
+              <ZoomPanImage
+                src={question.imageUrl}
+                alt={question.name ?? ''}
+                className="object-contain"
+              />
+            ) : (
+              <div
+                className="w-full h-full flex items-center justify-center"
+                style={{
+                  color: AC.bone2,
+                  fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                }}
+              >
+                {'// image indisponible'}
+              </div>
+            )}
+          </div>
+          {/* Bandeau révélation du nom canonique */}
+          <div
+            className="absolute"
+            style={{
+              left: '50%',
+              bottom: -24,
+              transform: 'translateX(-50%)',
+              padding: '16px 28px',
+              background: AC.ink,
+              boxShadow: `inset 0 0 0 2px ${AC.shimmer}`,
+              clipPath: AC_CLIP,
+              minWidth: 'min(640px, 90%)',
+              textAlign: 'center',
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                fontSize: 10,
+                letterSpacing: '0.3em',
+                color: AC.chem,
+                marginBottom: 4,
+              }}
+            >
+              {'// NOM CANONIQUE'}
+            </div>
+            <AcDisplay style={{ fontSize: 'clamp(24px, 4vw, 44px)' }}>
+              <AcShim>{question.name ?? '—'}</AcShim>
+            </AcDisplay>
+            <div
+              style={{
+                position: 'absolute',
+                left: 20,
+                right: 20,
+                bottom: -22,
+                height: 26,
+              }}
+            >
+              <AcDrip color={AC.shimmer} seed={2} />
+            </div>
+          </div>
+        </div>
+
+        <div style={{ height: 32 }} />
+
+        {/* Réponses joueurs */}
+        <div className="flex items-center gap-2.5 mb-4">
+          <AcSectionNum n={1} />
+          <h3
+            className="m-0"
+            style={{
+              fontFamily:
+                "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+              fontWeight: 800,
+              fontSize: 18,
+              textTransform: 'uppercase',
+            }}
+          >
+            RÉPONSES DES JOUEURS
+          </h3>
+        </div>
+
+        <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+          {room.players.map((p) => {
+            const state = game.playerStates.find((s) => s.playerId === p.id);
+            const answer = state?.answers.find(
+              (a) => a.position === game.currentIndex,
+            );
+            const correct = answer?.correct ?? false;
+            const text = answer?.submittedText?.trim();
+            const timeS = answer?.answeredAtMs
+              ? answer.answeredAtMs / 1000
+              : null;
+            const slow = timeS != null && timeS > 20;
+            const emote = correct
+              ? timeS != null && timeS < 5
+                ? ':-D'
+                : ':-)'
+              : slow
+                ? '>:('
+                : ':-(';
+            const emoteColor = correct ? AC.chem : slow ? AC.gold : AC.rust;
+            return (
+              <div
+                key={p.id}
+                className="relative"
+                style={{
+                  padding: 14,
+                  background:
+                    'linear-gradient(135deg, rgba(26,22,15,0.9), rgba(13,11,8,0.9))',
+                  boxShadow: `inset 0 0 0 1.5px ${correct ? AC.chem : AC.rust}`,
+                  color: AC.bone,
+                }}
+              >
+                <div className="flex items-center gap-2.5 mb-2.5">
+                  <AcAvatar
+                    name={p.name}
+                    color={colorForPlayer(p.id)}
+                    size={34}
+                    halo={p.id === game.eikichiPlayerId ? AC.shimmer : undefined}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div
+                      style={{
+                        fontFamily:
+                          "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                        fontWeight: 700,
+                        fontSize: 14,
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {p.name}
+                    </div>
+                    {p.id === game.eikichiPlayerId && (
+                      <span
+                        style={{
+                          fontFamily:
+                            "'JetBrains Mono', 'Courier New', monospace",
+                          fontSize: 9,
+                          color: AC.shimmer,
+                          letterSpacing: '0.2em',
+                        }}
+                      >
+                        {'// EIKICHI'}
+                      </span>
+                    )}
+                  </div>
+                  <AcEmote face={emote} color={emoteColor} size={26} />
+                </div>
+                {/* Bulle réponse */}
+                <div
+                  style={{
+                    padding: '10px 12px',
+                    background: 'rgba(240,228,193,0.04)',
+                    border: `1.5px dashed ${AC.bone2}`,
+                    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                    fontSize: 13,
+                    marginBottom: 10,
+                  }}
+                >
+                  {text && text.length > 0 ? (
+                    <>
+                      <span style={{ color: AC.bone2 }}>«</span> {text}{' '}
+                      <span style={{ color: AC.bone2 }}>»</span>
+                    </>
+                  ) : (
+                    <span style={{ color: AC.bone2, fontStyle: 'italic' }}>
+                      (pas de réponse)
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {correct ? (
+                    <>
+                      <span
+                        style={{
+                          background: AC.chem,
+                          color: AC.ink,
+                          fontFamily:
+                            "'JetBrains Mono', 'Courier New', monospace",
+                          fontSize: 10,
+                          letterSpacing: '0.2em',
+                          padding: '3px 8px',
+                        }}
+                      >
+                        ✓ TROUVÉ
+                      </span>
+                      {timeS != null && (
+                        <span
+                          style={{
+                            fontFamily:
+                              "'JetBrains Mono', 'Courier New', monospace",
+                            fontSize: 11,
+                            color: AC.chem,
+                          }}
+                        >
+                          en {timeS.toFixed(1)}s
+                        </span>
+                      )}
+                      {slow && (
+                        <AcStamp color={AC.gold} rotate={-4}>
+                          {'// lent'}
+                        </AcStamp>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <span
+                        style={{
+                          background: AC.rust,
+                          color: AC.bone,
+                          fontFamily:
+                            "'JetBrains Mono', 'Courier New', monospace",
+                          fontSize: 10,
+                          letterSpacing: '0.2em',
+                          padding: '3px 8px',
+                        }}
+                      >
+                        ✗ RATÉ
+                      </span>
+                      <span
+                        style={{
+                          fontFamily:
+                            "'JetBrains Mono', 'Courier New', monospace",
+                          fontSize: 11,
+                          color: AC.rust,
+                        }}
+                      >
+                        {text ? '// mauvais' : '// timeout'}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Controls */}
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
+          <div
+            style={{
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 11,
+              letterSpacing: '0.2em',
+              color: AC.bone2,
+            }}
+          >
+            {'// navigation manuelle · créateur uniquement'}
+          </div>
+          {isCreator ? (
+            <AcButton
+              variant="primary"
+              size="lg"
+              drip
               onClick={handleNext}
               disabled={advancing}
-              className="px-6 py-2 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-semibold transition disabled:opacity-50"
+              icon={<AcGlyph kind="arrowRight" color={AC.ink} size={14} />}
             >
-              {game.currentIndex + 1 >= total ? 'Voir le classement' : 'Suivant →'}
-            </button>
-          )}
-        </div>
-
-        <div className="arcane-card p-0 aspect-[16/10] overflow-hidden bg-black/40">
-          {question.imageUrl ? (
-            <ZoomPanImage
-              src={question.imageUrl}
-              alt={question.name ?? ''}
-              className="object-contain"
-            />
+              {isLast ? 'VOIR LE CLASSEMENT' : 'QUESTION SUIVANTE'}
+            </AcButton>
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-purple-300/50">
-              Image indisponible
-            </div>
+            <AcStamp color={AC.bone2} rotate={-2} style={{ fontSize: 12, padding: '10px 14px' }}>
+              {'// EN ATTENTE DU CRÉATEUR…'}
+            </AcStamp>
           )}
         </div>
-
-        <div className="text-center">
-          <div className="text-xs uppercase tracking-widest text-purple-400/70 mb-1">
-            La bonne réponse était
-          </div>
-          <h2 className="text-2xl md:text-3xl font-semibold text-amber-300">
-            {question.name ?? ''}
-          </h2>
-        </div>
-
-        <div className="arcane-card p-4">
-          <h3 className="text-sm font-semibold text-purple-100 mb-3">
-            Réponses des joueurs
-          </h3>
-          <ul className="grid sm:grid-cols-2 gap-2">
-            {room.players.map((p) => {
-              const state = game.playerStates.find((s) => s.playerId === p.id);
-              const answer = state?.answers.find(
-                (a) => a.position === game.currentIndex,
-              );
-              const correct = answer?.correct ?? false;
-              const text = answer?.submittedText?.trim();
-              return (
-                <li
-                  key={p.id}
-                  className={`flex items-center gap-3 p-3 rounded-lg border ${
-                    correct
-                      ? 'border-emerald-500/50 bg-emerald-900/20'
-                      : 'border-red-500/40 bg-red-900/10'
-                  }`}
-                >
-                  <span
-                    className={`text-lg ${
-                      correct ? 'text-emerald-400' : 'text-red-400'
-                    }`}
-                  >
-                    {correct ? '✓' : '✗'}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-purple-100 truncate flex items-center gap-2">
-                      <span>{p.name}</span>
-                      {p.id === game.eikichiPlayerId && (
-                        <span className="beat-eikichi-badge">EIKICHI</span>
-                      )}
-                    </div>
-                    <div className="text-xs text-purple-300/70 truncate">
-                      {text && text.length > 0 ? `« ${text} »` : 'Pas de réponse'}
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-
-        {!isCreator && (
-          <div className="text-center text-purple-300/70 text-sm">
-            En attente du maître pour passer à la question suivante…
-          </div>
-        )}
       </div>
-    </div>
+    </AcScreen>
   );
 }

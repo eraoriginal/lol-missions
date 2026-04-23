@@ -1,180 +1,97 @@
 'use client';
 
-interface Game {
-    id: string;
-    name: string;
-    description: string;
-    icon: React.ReactNode;
-    color: 'pink' | 'cyan' | 'gold' | 'green';
-    available: boolean;
-}
+import { AC, AcGlyph, AcStamp } from './arcane';
+import { GAMES } from './gameCatalog';
 
 interface GameSelectorProps {
-    selectedGame: string;
-    onSelectGame: (gameId: string) => void;
+  selectedGame: string;
+  onSelectGame: (gameId: string) => void;
 }
 
-const games: Game[] = [
-    {
-        id: 'aram-missions',
-        name: 'ARAM Missions',
-        description: 'Missions secrètes pendant vos parties ARAM',
-        icon: (
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-        ),
-        color: 'pink',
-        available: true,
-    },
-    {
-        id: 'codename-ceo',
-        name: 'Codename du CEO',
-        description: 'Jeu de mots en équipe inspiré de Codenames',
-        icon: (
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-        ),
-        color: 'cyan',
-        available: true,
-    },
-    {
-        id: 'beat-eikichi',
-        name: 'Beat Eikichi',
-        description: 'Devine le jeu vidéo à partir d\'une image',
-        icon: (
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-        ),
-        color: 'gold',
-        available: true,
-    },
-    {
-        id: 'coming-game',
-        name: 'À venir',
-        description: 'Un nouveau jeu bientôt disponible...',
-        icon: (
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-        ),
-        color: 'green',
-        available: false,
-    },
-];
-
-const colorClasses = {
-    pink: {
-        icon: 'bg-pink-500/15 border-pink-500/30 text-pink-400',
-        iconSelected: 'bg-pink-500/25 border-pink-500/50 text-pink-300',
-        hover: 'hover:border-pink-500/40',
-    },
-    cyan: {
-        icon: 'bg-cyan-500/15 border-cyan-500/30 text-cyan-400',
-        iconSelected: 'bg-cyan-500/25 border-cyan-500/50 text-cyan-300',
-        hover: 'hover:border-cyan-500/40',
-    },
-    gold: {
-        icon: 'bg-amber-500/15 border-amber-500/30 text-amber-400',
-        iconSelected: 'bg-amber-500/25 border-amber-500/50 text-amber-300',
-        hover: 'hover:border-amber-500/40',
-    },
-    green: {
-        icon: 'bg-green-500/15 border-green-500/30 text-green-400',
-        iconSelected: 'bg-green-500/25 border-green-500/50 text-green-300',
-        hover: 'hover:border-green-500/40',
-    },
-};
+const OPTION_CLIP =
+  'polygon(2% 6%, 12% 2%, 50% 4%, 88% 2%, 98% 8%, 98% 92%, 90% 98%, 50% 96%, 10% 98%, 2% 92%)';
 
 export function GameSelector({ selectedGame, onSelectGame }: GameSelectorProps) {
-    return (
-        <div className="space-y-4">
-            <label className="block text-xs font-semibold text-purple-300/70 uppercase tracking-wider mb-3">
-                Choisis ton jeu
-            </label>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {games.map((game) => {
-                    const isSelected = selectedGame === game.id;
-                    const isDisabled = !game.available;
-                    const colors = colorClasses[game.color];
-
-                    return (
-                        <button
-                            key={game.id}
-                            type="button"
-                            onClick={() => game.available && onSelectGame(game.id)}
-                            disabled={isDisabled}
-                            className={`
-                                relative p-5 rounded-xl text-left transition-all duration-300
-                                ${isSelected
-                                    ? 'arcane-game-card selected'
-                                    : isDisabled
-                                        ? 'bg-purple-900/10 border border-purple-500/10 opacity-40 cursor-not-allowed'
-                                        : `arcane-game-card cursor-pointer ${colors.hover}`
-                                }
-                            `}
-                        >
-                            {/* Badge "Sélectionné" */}
-                            {isSelected && (
-                                <div className="absolute -top-2 -right-2 arcane-badge-cyan px-2.5 py-1 rounded-md flex items-center gap-1">
-                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    <span>Sélectionné</span>
-                                </div>
-                            )}
-
-                            {/* Badge "Bientôt" */}
-                            {isDisabled && (
-                                <div className="absolute -top-2 -right-2 arcane-badge-dim px-2.5 py-1 rounded-md flex items-center gap-1">
-                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                    </svg>
-                                    <span>Bientôt</span>
-                                </div>
-                            )}
-
-                            {/* Icon */}
-                            <div className={`
-                                inline-flex items-center justify-center w-12 h-12 rounded-lg border mb-4 transition-all
-                                ${isSelected
-                                    ? colors.iconSelected
-                                    : isDisabled
-                                        ? 'bg-purple-500/5 border-purple-500/10 text-purple-400/30'
-                                        : colors.icon
-                                }
-                            `}>
-                                {game.icon}
-                            </div>
-
-                            {/* Titre */}
-                            <h3 className={`text-sm font-semibold mb-1.5 ${
-                                isSelected
-                                    ? 'text-cyan-100'
-                                    : isDisabled
-                                        ? 'text-purple-300/40'
-                                        : 'text-purple-100'
-                            }`}>
-                                {game.name}
-                            </h3>
-
-                            {/* Description */}
-                            <p className={`text-xs leading-relaxed ${
-                                isSelected
-                                    ? 'text-cyan-200/60'
-                                    : isDisabled
-                                        ? 'text-purple-400/30'
-                                        : 'text-purple-300/50'
-                            }`}>
-                                {game.description}
-                            </p>
-                        </button>
-                    );
-                })}
-            </div>
-        </div>
-    );
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {GAMES.map((g) => {
+        const selected = g.id === selectedGame;
+        const disabled = !g.available;
+        return (
+          // Wrapper non-cliqué : porte le `position: relative` pour ancrer les
+          // stamps en absolute SANS être clippé par le bouton en dessous.
+          // Sans ce wrapper, clip-path du bouton mange les bords du tampon.
+          <div key={g.id} className="relative" style={{ overflow: 'visible' }}>
+            <button
+              type="button"
+              onClick={() => g.available && onSelectGame(g.id)}
+              disabled={disabled}
+              className="w-full text-left"
+              style={{
+                padding: 12,
+                background: selected
+                  ? 'rgba(255,61,139,0.12)'
+                  : 'rgba(240,228,193,0.03)',
+                border: selected
+                  ? `2px solid ${AC.shimmer}`
+                  : `1.5px dashed ${AC.bone2}`,
+                opacity: disabled ? 0.45 : 1,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                clipPath: OPTION_CLIP,
+                color: AC.bone,
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <AcGlyph kind={g.icon} color={g.color} size={20} />
+                <div
+                  className="text-xs"
+                  style={{
+                    fontFamily:
+                      "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  {g.name}
+                </div>
+              </div>
+              <div
+                className="mt-1.5"
+                style={{
+                  fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                  fontSize: 10,
+                  color: AC.bone2,
+                  lineHeight: 1.35,
+                }}
+              >
+                {g.description}
+              </div>
+            </button>
+            {/* Stamps rendus EN DEHORS du <button> clippé pour ne pas être
+                coupés par le clip-path. Positionnés absolus dans le wrapper. */}
+            {selected && (
+              <div
+                className="absolute pointer-events-none"
+                style={{ top: -10, right: -6, zIndex: 2 }}
+              >
+                <AcStamp color={AC.shimmer} rotate={-4} bg={AC.ink}>
+                  ✓ SÉLECTIONNÉ
+                </AcStamp>
+              </div>
+            )}
+            {disabled && (
+              <div
+                className="absolute pointer-events-none"
+                style={{ top: -8, right: -4, zIndex: 2 }}
+              >
+                <AcStamp color={AC.bone2} rotate={6} bg={AC.ink}>
+                  COMING SOON
+                </AcStamp>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }

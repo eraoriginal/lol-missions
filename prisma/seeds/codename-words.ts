@@ -49,7 +49,7 @@ const pseudos = [
     { "mot": "Kiru4", "categorie": "Pseudo" },
     { "mot": "Eikichi", "categorie": "Pseudo" },
     { "mot": "Tlz1", "categorie": "Pseudo" },
-    { "mot": "Le Mari de Poki", "categorie": "Pseudo" },
+    { "mot": "La Salle de Pause", "categorie": "Pseudo" },
     { "mot": "Era", "categorie": "Pseudo" },
     { "mot": "Kirua Black", "categorie": "Pseudo" },
     { "mot": "Kirua White", "categorie": "Pseudo" },

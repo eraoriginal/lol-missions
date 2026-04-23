@@ -61,6 +61,30 @@ export const WEAPONS: Weapon[] = [
     icon: '⚡',
     description: "L'image défile à grande vitesse de gauche à droite : lecture quasi impossible.",
   },
+  {
+    id: 'tag',
+    name: 'Tag aérosol',
+    icon: '🎨',
+    description: 'Un crew a repeint ton écran : 4 nuages aérosol opaques s\'étalent en cascade.',
+  },
+  {
+    id: 'glitch',
+    name: 'Glitch',
+    icon: '📺',
+    description: 'La cassette est morte. Bandes qui smearent, split RGB, blocs corrompus.',
+  },
+  {
+    id: 'acid',
+    name: 'Acide',
+    icon: '🧪',
+    description: 'Quelqu\'un a renversé de l\'acide sur ton écran : 5 trous noirs coulent vers le bas.',
+  },
+  {
+    id: 'strobe',
+    name: 'Strobe',
+    icon: '⚠️',
+    description: 'Tu viens de te prendre un gyrophare en pleine face : flashs multicolores rapides.',
+  },
 ];
 
 /**
