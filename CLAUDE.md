@@ -29,7 +29,10 @@ Si le shell atterrit dans un worktree, bascule immédiatement sur le repo princi
 | `npm run prisma:seed` | Missions + events ARAM |
 | `npm run seed:beat-eikichi` | Catalogue Beat Eikichi (1000 jeux RAWG, ~5 min, idempotent) |
 | `npm run seed:beat-eikichi-gifs` | Enrichit le catalogue avec 5 GIFs/jeu (GIPHY, ~10 min) |
+| `npx tsx prisma/seeds/cleanup_beat_eikichi_non_latin.ts` | Supprime jeux/aliases dont le nom contient des lettres non-latines (idempotent) |
 | `npx tsx scripts/test-fuzzyMatch.ts` | Tests unitaires fuzzy match (54 cas) |
+
+QA validation : ouvrir `/test/beat-eikichi` → section **Bulk** lance `isAcceptedAnswer` sur toutes les variantes d'écriture (~9/jeu) de tout le catalogue en ~25 ms, liste les ratés ; section **Sandbox** expose `AutocompleteInput` réel + contrôles pour simuler resetKey / shake / Eikichi / overlay d'arme / timer Acide. Indispensable après toute modif de `fuzzyMatch.ts` ou de `WeaponEffectOverlay.tsx`.
 
 `npx prisma generate` échoue (EPERM sur `.dll.node`) si le dev server tourne : tuer le serveur avant, ou utiliser directement `db push`.
 
@@ -61,14 +64,16 @@ app/
 lib/
   prisma.ts, pusher.ts           — Singletons
   types.ts                       — Types backend
-  beatEikichi/                   — config, fuzzyMatch, weapons, dailyQuestions, advanceQuestion
+  beatEikichi/                   — config, fuzzyMatch, weapons, dailyQuestions, advanceQuestion, isLatinOnly
   ...                            — balancedMissionAssignment, filterPrivateMissions, eventScheduling
 prisma/
   schema.prisma                  — `preferred: prisma db push`
-  seeds/                         — seed.ts, codename-words.ts, seed_beat_eikichi_*.ts
+  seeds/                         — seed.ts, codename-words.ts, seed_beat_eikichi_*.ts, cleanup_beat_eikichi_non_latin.ts
 maquettes/                       — Snapshots Claude Design (source de vérité visuelle, NON compilé)
+                                   - `Armes FX.html` + `screens/weapon-fx*.jsx` : catalogue FX retenus pour chaque arme
 design-system/                   — arcane-design-system.md + arcane-tokens.css (brief original)
 scripts/test-fuzzyMatch.ts       — 54 cas de regression fuzzy match
+app/test/beat-eikichi/page.tsx   — Harnais QA validation (bulk tests + sandbox interactif)
 ```
 
 ## Design system Arcane.kit
@@ -137,10 +142,41 @@ scripts/test-fuzzyMatch.ts       — 54 cas de regression fuzzy match
 - Devine le jeu vidéo à partir d'une image/GIF. 20 questions tirées au hasard par partie (rejouable).
 - Timer configurable 10–300s (défaut 30s).
 - **Rôle Eikichi** (optionnel) : un joueur désigné ; s'il trouve, la question passe immédiatement pour tous.
-- **Armes** (1 par joueur, 3 utilisations max) : smoke, c4, blade, freeze, zoomghost, tornado, puzzle, speed. Effet visuel à la question N+1 de la cible. Cf. `lib/beatEikichi/weapons.ts` + `WeaponEffectOverlay.tsx` + `app/games/beat-eikichi/weaponVisuals.ts` (mapping vers `AcGlyph`).
+- **Armes** (1 par joueur, 3 utilisations max) — **12 armes** : smoke, c4, blade, freeze, zoomghost, tornado, puzzle, speed, tag, glitch, acid, strobe. Effet visuel à la question N+1 de la cible. Cf. `lib/beatEikichi/weapons.ts` + `WeaponEffectOverlay.tsx` + `app/games/beat-eikichi/weaponVisuals.ts` (mapping vers `AcGlyph`).
 - **Bouclier** : indépendant des armes, 3 charges/partie. Annule toute attaque à la prochaine question.
 - **Indices** (opt-in créateur) : genre révélé à t=0, terme à t=timer/2, plateformes à t=timer-10.
 - **Mode blur** : image floutée au début, nette à timer-10.
+
+### Armes FX — spec
+Les 12 animations sont portées des maquettes `maquettes/Armes FX.html` (source de vérité visuelle). Chaque arme = variation « retenue » parmi 3 explorées :
+
+| ID | Variation retenue | Comportement temporel | Interaction |
+|---|---|---|---|
+| `c4` | Graffiti Raid | 7 tags slammés en cascade (delays 0.05 → 1.1s) puis stamp BOOM central ; shake 1.8s | — |
+| `smoke` | Paint Curtain | Coulures goo + wash bone qui couvre ; opacité finale 0.82 | — |
+| `blade` | Multi-Slash | 3 slashs + 3 triangles ink (delays 0 / 0.25 / 0.5s) + badge ×3 | — |
+| `freeze` | Shatter | 5 shards de l'image dérivent en diagonale, fond ink + voile bleuté + CRACKED tag, zoom bloqué | — |
+| `zoomghost` | Spotlight | Voile bone2 **opaque** avec trou circulaire qui roam, zoom bloqué | — |
+| `tornado` | Cyclone Pull | L'image tourne + scale down (270° sur 5.6s, loop), anneaux + sweep + trou noir | — |
+| `puzzle` | Pop-Out interactif | 9 tuiles pop out une-par-une (stagger 0.5s, duration 1.4s) → grille de « ? » | **Clic** sur un « ? » retourne la pièce pour révéler le crop. Une seule pièce retournée à la fois ; reclic ou clic autre pièce toggle |
+| `speed` | Conveyor Blur | Image scroll H blur + lignes shimmer + chevrons gold pulsants (loop) | — |
+| `tag` | Spray Cloud | 4 nuages aérosol (shimmer/gold/rust/chem, sizes 700-820) + stamp TAG géant (clamp 110-240px) | — |
+| `glitch` | Datamosh | RGB split + 5 bandes smear + 5 blocs corrupt (loop continu) | — |
+| `acid` | Corrosion dynamique | Blob ink + halo chem qui **grandit progressivement** (smoothstep), atteint couverture totale à `timerSeconds - 5`s | — |
+| `strobe` | Neon | Flashs couleur à ~12Hz cycle shimmer/chem/gold/violet/hex + pulse + RAVE stamp ; **respecte `prefers-reduced-motion`** (voile rose fixe fallback) | — |
+
+**Namespace CSS** : toutes les classes sont sous `bek-fx-*` dans `globals.css`. L'ancien namespace `beat-eikichi-fx-*` a été **entièrement supprimé** (vidéos, snowflakes, zoomghost-lens, katana SVG, etc.) — toutes les animations sont désormais 100 % CSS keyframes, pas de vidéo ni d'asset binaire.
+
+**Perf** : `will-change: transform, opacity` sur éléments animés haute fréquence ; `@media (prefers-reduced-motion: reduce)` neutralise tout et remplace Strobe par un voile rose statique.
+
+**Props dynamiques** : `WeaponEffectOverlay` reçoit `questionStartedAt` + `timerSeconds` (câblés depuis `game.questionStartedAt` / `game.timerSeconds`) → nécessaires pour Acide qui calcule sa progression.
+
+### Catalogue jeux — filtre alphabet latin
+`lib/beatEikichi/isLatinOnly(s)` teste qu'une chaîne s'écrit uniquement en lettres latines (via `\p{Script=Latin}`), tolérant ponctuation/chiffres/espaces/apostrophes typographiques. Utilisé à 2 endroits :
+1. **Seed catalogue** (`seed_beat_eikichi_catalog.ts`) : skip les jeux au nom non-latin + filtre les aliases non-latins avant insert.
+2. **Cleanup ponctuel** (`cleanup_beat_eikichi_non_latin.ts`) : supprime les jeux/aliases non-latins déjà en DB. À lancer après tout seed antérieur au filtre.
+
+Raison : le `tokenize()` de `fuzzyMatch.ts` split sur `[^a-z0-9]+` et stripe donc tout caractère non-latin → les aliases japonais/chinois/cyrilliques se normalisent à la chaîne vide et sont invalidables. Plutôt que supporter l'Unicode dans `tokenize` (risque de régression), on expurge le catalogue.
 
 ### Validation fuzzy — IMPORTANT
 `lib/beatEikichi/fuzzyMatch.ts::isAcceptedAnswer(input, name, aliases)` :
