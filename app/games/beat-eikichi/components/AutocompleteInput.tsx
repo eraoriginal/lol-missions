@@ -56,7 +56,13 @@ export function AutocompleteInput({
   const [userNavigated, setUserNavigated] = useState(false);
   // Dismiss via Escape : cache le dropdown sans blur l'input ; rouvert dès la saisie.
   const [dismissed, setDismissed] = useState(false);
+  // Direction d'ouverture du dropdown. `down` par défaut, bascule à `up` si
+  // l'input est trop proche du bord bas du viewport (sinon la liste déborde
+  // hors écran sans possibilité de scroller — sur mobile notamment, où l'input
+  // se place en bas de l'image juste au-dessus du clavier virtuel).
+  const [dropUp, setDropUp] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<Array<HTMLLIElement | null>>([]);
   // Garde le setTimeout du blur pour l'annuler si le focus revient entre-temps
   // (cas typique : mauvaise réponse → input disable pendant la fetch → browser blur,
@@ -73,6 +79,32 @@ export function AutocompleteInput({
       })
       .slice(0, MAX_SUGGESTIONS);
   }, [catalog, value]);
+
+  // Décide si le dropdown doit s'ouvrir vers le haut : on mesure l'espace
+  // disponible sous l'input dans le viewport ; s'il n'y a pas la place pour
+  // au moins la moitié du dropdown, on bascule au-dessus. Ré-évalué à chaque
+  // ouverture, à chaque nouvelle saisie (position change avec l'autofocus sur
+  // mobile) et sur resize/scroll (`resize` window + listener).
+  useEffect(() => {
+    if (!focused || suggestions.length === 0 || dismissed) return;
+    const update = () => {
+      const el = wrapperRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      // Flip up si pas assez de place sous l'input ET qu'on a plus de place au-dessus.
+      const needed = DROPDOWN_MAX_HEIGHT_PX + 12;
+      setDropUp(spaceBelow < needed && spaceAbove > spaceBelow);
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [focused, suggestions.length, dismissed, value]);
 
   // Reset complet à chaque nouvelle question (resetKey = questionKey côté parent).
   // Indispensable quand l'Eikichi coupe la question : on ne veut ni highlight
@@ -161,7 +193,7 @@ export function AutocompleteInput({
   const normValue = normalize(value);
 
   return (
-    <div className="relative">
+    <div className="relative" ref={wrapperRef}>
       <div
         className="relative"
         style={{
@@ -254,7 +286,10 @@ export function AutocompleteInput({
             zIndex: 10,
             left: 0,
             right: 0,
-            marginTop: 6,
+            // Positionne au-dessus ou en dessous selon l'espace disponible.
+            ...(dropUp
+              ? { bottom: '100%', marginBottom: 6 }
+              : { top: '100%', marginTop: 6 }),
             background: AC.ink2,
             boxShadow: `inset 0 0 0 1.5px ${AC.bone}`,
             maxHeight: DROPDOWN_MAX_HEIGHT_PX,
