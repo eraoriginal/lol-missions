@@ -1,6 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import {
+  AC,
+  AC_CLIP,
+  AcAlert,
+  AcCard,
+  AcGlyph,
+  AcSectionNum,
+} from '@/app/components/arcane';
 
 interface Category {
   name: string;
@@ -13,7 +21,11 @@ interface CategorySelectorProps {
   selectedCategories: string[];
 }
 
-export function CategorySelector({ roomCode, isCreator, selectedCategories: initialSelected }: CategorySelectorProps) {
+export function CategorySelector({
+  roomCode,
+  isCreator,
+  selectedCategories: initialSelected,
+}: CategorySelectorProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [defaultWordCount, setDefaultWordCount] = useState(0);
   const [selected, setSelected] = useState<string[]>(initialSelected);
@@ -28,9 +40,14 @@ export function CategorySelector({ roomCode, isCreator, selectedCategories: init
         setCategories(data.availableCategories);
         setDefaultWordCount(data.defaultWordCount || 0);
 
-        // Auto-select all categories if none are selected yet and user is creator
-        if (isCreator && data.selectedCategories.length === 0 && data.availableCategories.length > 0) {
-          const allCategoryNames = data.availableCategories.map((c: { name: string }) => c.name);
+        if (
+          isCreator &&
+          data.selectedCategories.length === 0 &&
+          data.availableCategories.length > 0
+        ) {
+          const allCategoryNames = data.availableCategories.map(
+            (c: { name: string }) => c.name,
+          );
           autoSelectAllCategories(allCategoryNames);
         }
       }
@@ -39,7 +56,7 @@ export function CategorySelector({ roomCode, isCreator, selectedCategories: init
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode]);
 
   useEffect(() => {
@@ -68,7 +85,7 @@ export function CategorySelector({ roomCode, isCreator, selectedCategories: init
     if (!isCreator || updating) return;
 
     const newSelected = selected.includes(category)
-      ? selected.filter(c => c !== category)
+      ? selected.filter((c) => c !== category)
       : [...selected, category];
 
     setUpdating(true);
@@ -83,7 +100,7 @@ export function CategorySelector({ roomCode, isCreator, selectedCategories: init
       });
     } catch (err) {
       console.error('Error updating categories:', err);
-      setSelected(selected); // Revert on error
+      setSelected(selected);
     } finally {
       setUpdating(false);
     }
@@ -91,78 +108,148 @@ export function CategorySelector({ roomCode, isCreator, selectedCategories: init
 
   if (loading) {
     return (
-      <div className="poki-panel p-4 text-center">
-        <p className="text-purple-300/70">Chargement des catégories...</p>
-      </div>
+      <AcCard fold={false} dashed style={{ padding: 14 }}>
+        <span
+          style={{
+            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontSize: 12,
+            color: AC.bone2,
+          }}
+        >
+          {'// chargement des catégories...'}
+        </span>
+      </AcCard>
     );
   }
 
-  // Calculate total words: default words + selected category words
-  const selectedCategoryWords = selected.length > 0
-    ? categories.filter(c => selected.includes(c.name)).reduce((sum, c) => sum + c.count, 0)
-    : 0;
+  const selectedCategoryWords =
+    selected.length > 0
+      ? categories
+          .filter((c) => selected.includes(c.name))
+          .reduce((sum, c) => sum + c.count, 0)
+      : 0;
   const totalWords = defaultWordCount + selectedCategoryWords;
 
   return (
-    <div className="poki-panel p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-bold poki-title flex items-center gap-2">
-          <span>🏷️</span> Catégories bonus
+    <div>
+      <div className="flex items-center gap-2.5 mb-3">
+        <AcSectionNum n={'CAT'} />
+        <h3
+          className="m-0"
+          style={{
+            fontFamily:
+              "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+            fontWeight: 800,
+            fontSize: 18,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+          }}
+        >
+          CATÉGORIES BONUS
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 11,
+              color: AC.bone2,
+              marginLeft: 10,
+              textTransform: 'none',
+              letterSpacing: '0.18em',
+            }}
+          >
+            {'// '}
+            {totalWords} mots
+          </span>
         </h3>
-        <span className="text-sm text-purple-300/70">
-          {totalWords} mots disponibles
-        </span>
       </div>
+      <AcCard fold={false} dashed style={{ padding: 16 }}>
+        <div
+          style={{
+            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontSize: 11,
+            color: AC.chem,
+            marginBottom: 10,
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+          }}
+        >
+          {'> '}
+          {defaultWordCount} mots de base toujours inclus
+        </div>
+        <div
+          style={{
+            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontSize: 11,
+            color: AC.bone2,
+            marginBottom: 14,
+            lineHeight: 1.55,
+          }}
+        >
+          {isCreator
+            ? '// ajoute des catégories pour enrichir le plateau'
+            : '// le créateur sélectionne les catégories bonus'}
+        </div>
 
-      {/* Default words info */}
-      <div className="mb-3 p-2 bg-purple-500/10 rounded-lg border border-purple-500/20">
-        <p className="text-sm text-purple-300/80">
-          <span className="text-green-400">✓</span> {defaultWordCount} mots de base toujours inclus
-        </p>
-      </div>
+        <div className="flex flex-wrap gap-2">
+          {categories.map((category) => {
+            const isSelected = selected.includes(category.name);
+            return (
+              <button
+                key={category.name}
+                type="button"
+                onClick={() => toggleCategory(category.name)}
+                disabled={!isCreator || updating}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  background: isSelected
+                    ? 'rgba(255,61,139,0.15)'
+                    : 'rgba(240,228,193,0.03)',
+                  border: isSelected
+                    ? `2px solid ${AC.shimmer}`
+                    : `1.5px dashed ${AC.bone2}`,
+                  clipPath: AC_CLIP,
+                  cursor: isCreator ? 'pointer' : 'default',
+                  opacity: updating ? 0.6 : 1,
+                  color: isSelected ? AC.bone : AC.bone2,
+                  fontFamily:
+                    "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {isSelected && (
+                  <AcGlyph kind="check" color={AC.shimmer} size={12} stroke={2.5} />
+                )}
+                {category.name}
+                <span
+                  style={{
+                    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                    fontSize: 10,
+                    color: isSelected ? AC.shimmer : AC.bone2,
+                    marginLeft: 2,
+                  }}
+                >
+                  ({category.count})
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
-      {isCreator ? (
-        <p className="text-sm text-purple-300/60 mb-3">
-          Ajoute des catégories pour enrichir le plateau avec des mots thématiques
-        </p>
-      ) : (
-        <p className="text-sm text-purple-300/60 mb-3">
-          Le créateur sélectionne les catégories bonus
-        </p>
-      )}
-
-      <div className="flex flex-wrap gap-2">
-        {categories.map((category) => {
-          const isSelected = selected.includes(category.name);
-          return (
-            <button
-              key={category.name}
-              onClick={() => toggleCategory(category.name)}
-              disabled={!isCreator || updating}
-              className={`
-                px-3 py-1.5 rounded-full text-sm font-medium transition-all
-                ${isSelected
-                  ? 'bg-pink-500 text-white shadow-lg shadow-pink-500/30'
-                  : 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                }
-                ${isCreator ? 'cursor-pointer hover:scale-105' : 'cursor-default'}
-                ${updating ? 'opacity-50' : ''}
-              `}
-            >
-              {category.name}
-              <span className={`ml-1.5 text-xs ${isSelected ? 'text-pink-200' : 'text-purple-400'}`}>
-                ({category.count})
+        {totalWords < 25 && (
+          <div className="mt-3">
+            <AcAlert tone="danger" tape="// WARN">
+              <span style={{ color: AC.bone }}>
+                {'// il faut au moins 25 mots pour générer un plateau'}
               </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {totalWords < 25 && (
-        <p className="mt-3 text-sm text-red-400">
-          ⚠️ Il faut au moins 25 mots pour générer un plateau
-        </p>
-      )}
+            </AcAlert>
+          </div>
+        )}
+      </AcCard>
     </div>
   );
 }

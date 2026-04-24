@@ -1,5 +1,7 @@
 'use client';
 
+import { AC, AcCard, AcGlyph, AcSectionNum } from '@/app/components/arcane';
+
 interface HistoryEntry {
   id: string;
   team: string;
@@ -15,88 +17,168 @@ interface GameHistoryProps {
   history: HistoryEntry[];
 }
 
-export function GameHistory({ history }: GameHistoryProps) {
-  if (history.length === 0) {
-    return null;
-  }
+function hexWithAlpha(hex: string, alpha: number): string {
+  const m = hex.match(/^#([0-9a-f]{6})$/i);
+  if (!m) return hex;
+  const bigint = parseInt(m[1], 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 
-  // Group history by clue (each clue followed by its guesses)
+const CARD_COLORS: Record<string, string> = {
+  red: AC.rust,
+  blue: AC.hex,
+  neutral: AC.bone2,
+  assassin: AC.ink,
+};
+
+export function GameHistory({ history }: GameHistoryProps) {
+  if (history.length === 0) return null;
+
   const groupedHistory: { clue: HistoryEntry; guesses: HistoryEntry[] }[] = [];
   let currentGroup: { clue: HistoryEntry; guesses: HistoryEntry[] } | null = null;
 
   for (const entry of history) {
     if (entry.type === 'clue') {
-      if (currentGroup) {
-        groupedHistory.push(currentGroup);
-      }
+      if (currentGroup) groupedHistory.push(currentGroup);
       currentGroup = { clue: entry, guesses: [] };
     } else if (entry.type === 'guess' && currentGroup) {
       currentGroup.guesses.push(entry);
     }
   }
-  if (currentGroup) {
-    groupedHistory.push(currentGroup);
-  }
-
-  const getCardColorClass = (color: string | null) => {
-    switch (color) {
-      case 'red':
-        return 'text-red-400';
-      case 'blue':
-        return 'text-blue-400';
-      case 'neutral':
-        return 'text-slate-300';
-      case 'assassin':
-        return 'text-gray-500';
-      default:
-        return 'text-purple-300';
-    }
-  };
-
-  const getCardColorEmoji = (color: string | null) => {
-    switch (color) {
-      case 'red':
-        return '🔴';
-      case 'blue':
-        return '🔵';
-      case 'neutral':
-        return '⚪';
-      case 'assassin':
-        return '💀';
-      default:
-        return '❓';
-    }
-  };
+  if (currentGroup) groupedHistory.push(currentGroup);
 
   return (
-    <div className="poki-panel p-3">
-      <h4 className="text-xs font-bold text-purple-300 mb-2">📜 Historique</h4>
-      <div className="space-y-2 max-h-48 overflow-y-auto text-xs">
-        {groupedHistory.map((group) => (
-          <div key={group.clue.id} className="border-b border-purple-500/20 pb-2 last:border-b-0">
-            {/* Clue */}
-            <div className={`flex items-center gap-1 ${group.clue.team === 'red' ? 'text-red-400' : 'text-blue-400'}`}>
-              <span>{group.clue.team === 'red' ? '🔴' : '🔵'}</span>
-              <span className="font-bold">{group.clue.clue}</span>
-              <span className="text-purple-400">({group.clue.number === 0 ? '∞' : group.clue.number})</span>
-            </div>
-            {/* Guesses */}
-            {group.guesses.length > 0 && (
-              <div className="ml-4 mt-1 flex flex-wrap gap-1">
-                {group.guesses.map((guess) => (
-                  <span
-                    key={guess.id}
-                    className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded ${getCardColorClass(guess.cardColor)} bg-purple-500/10`}
-                  >
-                    <span className="text-[10px]">{getCardColorEmoji(guess.cardColor)}</span>
-                    <span>{guess.cardWord}</span>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+    <div>
+      <div className="flex items-center gap-2.5 mb-3">
+        <AcSectionNum n={'LOG'} />
+        <h3
+          className="m-0"
+          style={{
+            fontFamily:
+              "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+            fontWeight: 800,
+            fontSize: 16,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+          }}
+        >
+          JOURNAL DE MISSION
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 10,
+              color: AC.bone2,
+              marginLeft: 8,
+              textTransform: 'none',
+              letterSpacing: '0.15em',
+            }}
+          >
+            {'// '}
+            {groupedHistory.length} tour{groupedHistory.length > 1 ? 's' : ''}
+          </span>
+        </h3>
       </div>
+
+      <AcCard fold={false} dashed style={{ padding: 14 }}>
+        <div
+          className="ac-scroll"
+          style={{
+            maxHeight: 240,
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+          }}
+        >
+          {groupedHistory.map((group) => {
+            const teamColor = group.clue.team === 'red' ? AC.rust : AC.hex;
+            const clueNum = group.clue.number;
+            return (
+              <div
+                key={group.clue.id}
+                style={{
+                  borderLeft: `3px solid ${teamColor}`,
+                  paddingLeft: 10,
+                  paddingBottom: 6,
+                }}
+              >
+                {/* Clue header */}
+                <div
+                  className="flex items-center gap-2 flex-wrap"
+                  style={{
+                    fontFamily:
+                      "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                    fontWeight: 700,
+                    fontSize: 14,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                    color: teamColor,
+                  }}
+                >
+                  <span
+                    style={{
+                      background: teamColor,
+                      color: group.clue.team === 'red' ? AC.bone : AC.ink,
+                      padding: '1px 6px',
+                      fontSize: 10,
+                      letterSpacing: '0.18em',
+                    }}
+                  >
+                    {group.clue.team === 'red' ? 'ROUGE' : 'BLEU'}
+                  </span>
+                  <span style={{ color: AC.bone }}>{group.clue.clue}</span>
+                  <span
+                    style={{
+                      color: AC.bone2,
+                      fontFamily:
+                        "'JetBrains Mono', 'Courier New', monospace",
+                      fontSize: 12,
+                    }}
+                  >
+                    ({clueNum === 0 ? '∞' : clueNum})
+                  </span>
+                </div>
+
+                {/* Guesses */}
+                {group.guesses.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {group.guesses.map((guess) => {
+                      const c =
+                        CARD_COLORS[guess.cardColor || 'neutral'] || AC.bone2;
+                      const isAssassin = guess.cardColor === 'assassin';
+                      return (
+                        <span
+                          key={guess.id}
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5"
+                          style={{
+                            background: hexWithAlpha(c, 0.15),
+                            border: `1px dashed ${c}`,
+                            color: c,
+                            fontFamily:
+                              "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                            fontWeight: 700,
+                            fontSize: 11,
+                            letterSpacing: '0.04em',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {isAssassin && (
+                            <AcGlyph kind="x" color={AC.rust} size={10} stroke={2.5} />
+                          )}
+                          {guess.cardWord}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </AcCard>
     </div>
   );
 }

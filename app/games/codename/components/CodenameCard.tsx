@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { AC, AC_CLIP, AcGlyph } from '@/app/components/arcane';
 
 interface Card {
   id: string;
@@ -20,31 +21,29 @@ interface CodenameCardProps {
   interestedPlayers?: string[];
 }
 
-const colorStyles: Record<string, { bg: string; border: string; text: string; shadow: string }> = {
-  red: {
-    bg: 'bg-gradient-to-br from-red-400 to-red-500',
-    border: 'border-red-400',
-    text: 'text-white',
-    shadow: 'shadow-red-500/50',
-  },
-  blue: {
-    bg: 'bg-gradient-to-br from-blue-400 to-blue-500',
-    border: 'border-blue-400',
-    text: 'text-white',
-    shadow: 'shadow-blue-500/50',
-  },
-  neutral: {
-    bg: 'bg-gradient-to-br from-gray-100 to-gray-200',
-    border: 'border-gray-300',
-    text: 'text-gray-700',
-    shadow: 'shadow-gray-300/50',
-  },
-  assassin: {
-    bg: 'bg-gradient-to-br from-gray-800 to-gray-950',
-    border: 'border-gray-600',
-    text: 'text-white',
-    shadow: 'shadow-black/60',
-  },
+function hexWithAlpha(hex: string, alpha: number): string {
+  const m = hex.match(/^#([0-9a-f]{6})$/i);
+  if (!m) return hex;
+  const bigint = parseInt(m[1], 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// Arcane palette mapping pour les 4 couleurs du jeu.
+// - red → rust (danger, chaud)
+// - blue → hex (info, froid)
+// - neutral → bone2 (papier)
+// - assassin → ink + bone (crâne, menace)
+const COLOR_STYLES: Record<
+  string,
+  { accent: string; textColor: string; bg: string }
+> = {
+  red: { accent: AC.rust, textColor: AC.bone, bg: AC.rust },
+  blue: { accent: AC.hex, textColor: AC.ink, bg: AC.hex },
+  neutral: { accent: AC.bone2, textColor: AC.ink, bg: AC.bone2 },
+  assassin: { accent: AC.ink, textColor: AC.bone, bg: '#1A160F' },
 };
 
 export function CodenameCard({
@@ -57,7 +56,6 @@ export function CodenameCard({
 }: CodenameCardProps) {
   const [isFlipping, setIsFlipping] = useState(false);
 
-  // Click on card body = toggle interest
   const handleCardClick = () => {
     if (!isClickable || card.revealed || isSpymaster) return;
     if (onToggleInterest) {
@@ -65,9 +63,8 @@ export function CodenameCard({
     }
   };
 
-  // Click on reveal button = actually reveal the card
   const handleRevealClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Don't trigger card click
+    e.stopPropagation();
     if (!isClickable || card.revealed || isSpymaster) return;
     if (onGuess) {
       setIsFlipping(true);
@@ -75,128 +72,248 @@ export function CodenameCard({
     }
   };
 
-  const style = colorStyles[card.color] || colorStyles.neutral;
-
+  const style = COLOR_STYLES[card.color] || COLOR_STYLES.neutral;
   const isRevealed = card.revealed || isFlipping;
   const hasInterests = interestedPlayers.length > 0 && !card.revealed;
   const showRevealButton = isClickable && !card.revealed && !isSpymaster;
+  const isAssassin = card.color === 'assassin';
 
   return (
     <div
-      className={`
-        relative w-full aspect-[4/3]
-        ${isClickable && !card.revealed && !isSpymaster ? 'cursor-pointer group' : ''}
-      `}
+      className={isClickable && !card.revealed && !isSpymaster ? 'cursor-pointer group' : ''}
       onClick={handleCardClick}
+      style={{ position: 'relative', width: '100%', aspectRatio: '4 / 3' }}
     >
-      {/* Front of card (unrevealed) */}
+      {/* FRONT - unrevealed */}
       <div
-        className={`
-          absolute inset-0 rounded-xl flex items-center justify-center
-          ${isSpymaster ? 'bg-gradient-to-br from-slate-200 to-slate-300' : 'poki-card'} border-2
-          ${isSpymaster ? style.border : 'border-purple-400/50'}
-          ${hasInterests ? 'border-pink-400 shadow-lg shadow-pink-400/30' : ''}
-          ${isClickable && !card.revealed && !isSpymaster && !hasInterests ? 'group-hover:border-pink-400/50' : ''}
-          transition-all duration-300
-          ${isRevealed ? 'opacity-0 pointer-events-none' : 'opacity-100'}
-        `}
         style={{
-          boxShadow: isSpymaster ? '0 4px 12px rgba(0, 0, 0, 0.15)' : undefined,
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: isSpymaster
+            ? `linear-gradient(180deg, ${hexWithAlpha(style.accent, 0.22)} 0%, rgba(13,11,8,0.55) 100%)`
+            : 'linear-gradient(180deg, rgba(240,228,193,0.08) 0%, rgba(13,11,8,0.6) 100%)',
+          border: isSpymaster
+            ? `2px solid ${style.accent}`
+            : hasInterests
+              ? `2px solid ${AC.shimmer}`
+              : `1.5px dashed ${AC.bone2}`,
+          clipPath: AC_CLIP,
+          opacity: isRevealed ? 0 : 1,
+          pointerEvents: isRevealed ? 'none' : 'auto',
+          transition: 'opacity 0.25s',
+          padding: 6,
         }}
       >
-        {/* Reveal button (top-left) - only for operatives when clickable */}
+        {/* Reveal button — coin haut-gauche */}
         {showRevealButton && (
           <button
+            type="button"
             onClick={handleRevealClick}
-            className="absolute top-0.5 left-0.5 z-20 w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-green-500 hover:bg-green-400 text-white flex items-center justify-center transition-all hover:scale-110 shadow-lg shadow-green-500/50"
             title="Révéler cette carte"
+            aria-label="Révéler cette carte"
+            style={{
+              position: 'absolute',
+              top: 3,
+              left: 3,
+              zIndex: 3,
+              width: 24,
+              height: 24,
+              background: AC.chem,
+              color: AC.ink,
+              border: `1.5px solid ${AC.ink}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              clipPath: AC_CLIP,
+            }}
           >
-            <span className="text-xs sm:text-sm">✓</span>
+            <AcGlyph kind="check" color={AC.ink} size={14} stroke={3} />
           </button>
         )}
 
-        {/* Spymaster color indicator */}
-        {isSpymaster && (
-          <div
-            className={`absolute inset-1 rounded-lg opacity-50 ${style.bg}`}
-          />
-        )}
-
-        {/* Category indicator (top-right) */}
+        {/* Category label top-right */}
         {card.category && (
           <div
-            className={`absolute top-0.5 right-0.5 text-[8px] sm:text-[9px] px-1 py-0.5 rounded
-              ${isSpymaster
-                ? 'bg-black/30 text-white/80'
-                : 'bg-purple-800/30 text-purple-200'
-              }
-            `}
+            style={{
+              position: 'absolute',
+              top: 3,
+              right: 3,
+              background: isSpymaster ? 'rgba(13,11,8,0.6)' : 'rgba(13,11,8,0.6)',
+              color: isSpymaster ? AC.bone : AC.bone2,
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 8,
+              letterSpacing: '0.15em',
+              padding: '2px 5px',
+              textTransform: 'uppercase',
+              border: `1px dashed ${AC.bone2}`,
+              zIndex: 2,
+            }}
           >
             {card.category}
           </div>
         )}
 
+        {/* Assassin skull — spymaster view */}
+        {isSpymaster && isAssassin && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 4,
+              left: card.category ? undefined : 4,
+              right: card.category ? 4 : undefined,
+              zIndex: 2,
+            }}
+          >
+            <AcGlyph kind="x" color={AC.rust} size={16} stroke={3} />
+          </div>
+        )}
+
+        {/* Word */}
         <span
-          className={`
-            relative z-10 text-center font-bold text-xs sm:text-sm md:text-base uppercase tracking-wide px-1
-            ${isSpymaster ? style.text : 'text-amber-900'}
-          `}
-          style={{ textShadow: isSpymaster ? '0 1px 3px rgba(0,0,0,0.4)' : 'none' }}
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            textAlign: 'center',
+            fontFamily:
+              "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+            fontWeight: 800,
+            fontSize: 'clamp(12px, 1.6vw, 18px)',
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            color: isSpymaster ? style.textColor : AC.bone,
+            padding: '0 6px',
+            lineHeight: 1.1,
+          }}
         >
           {card.word}
         </span>
 
-        {/* Player interest indicators (bottom) */}
+        {/* Interests — bottom */}
         {hasInterests && (
-          <div className="absolute bottom-0.5 left-0.5 right-0.5 z-10 flex flex-wrap gap-0.5 justify-center">
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 3,
+              left: 3,
+              right: 3,
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 2,
+              justifyContent: 'center',
+              zIndex: 2,
+            }}
+          >
             {interestedPlayers.slice(0, 4).map((name) => (
-              <div
+              <span
                 key={name}
-                className="bg-pink-500/90 text-white text-[7px] sm:text-[8px] px-1 py-0.5 rounded truncate max-w-[45%]"
+                style={{
+                  background: AC.shimmer,
+                  color: AC.ink,
+                  fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                  fontSize: 7,
+                  letterSpacing: '0.12em',
+                  padding: '1px 4px',
+                  textTransform: 'uppercase',
+                  maxWidth: '45%',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
               >
                 {name}
-              </div>
+              </span>
             ))}
           </div>
         )}
-
-        {/* Assassin skull indicator for spymaster */}
-        {isSpymaster && card.color === 'assassin' && !card.category && (
-          <div className="absolute top-0.5 right-0.5 text-base">💀</div>
-        )}
-        {isSpymaster && card.color === 'assassin' && card.category && (
-          <div className="absolute top-0.5 left-0.5 text-base">💀</div>
-        )}
       </div>
 
-      {/* Back of card (revealed) */}
+      {/* BACK - revealed */}
       <div
-        className={`
-          absolute inset-0 rounded-xl flex items-center justify-center
-          ${style.bg} ${style.border} border-2 shadow-lg ${style.shadow}
-          transition-all duration-300
-          ${isRevealed ? 'opacity-100' : 'opacity-0 pointer-events-none'}
-        `}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: isAssassin
+            ? 'repeating-linear-gradient(45deg, #1A160F 0 6px, #0D0B08 6px 12px)'
+            : style.bg,
+          border: `2px solid ${style.accent}`,
+          clipPath: AC_CLIP,
+          opacity: isRevealed ? 1 : 0,
+          pointerEvents: isRevealed ? 'auto' : 'none',
+          transition: 'opacity 0.3s',
+          padding: 6,
+        }}
       >
-        {/* Category indicator (top-right) on revealed card */}
+        {/* Stencil stamp when revealed */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 6,
+            border: `1.5px dashed ${isAssassin ? AC.rust : hexWithAlpha(style.textColor, 0.3)}`,
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* Category */}
         {card.category && (
-          <div className="absolute top-0.5 right-0.5 text-[8px] sm:text-[9px] px-1 py-0.5 rounded bg-black/30 text-white/80">
+          <div
+            style={{
+              position: 'absolute',
+              top: 3,
+              right: 3,
+              background: 'rgba(13,11,8,0.5)',
+              color: isAssassin ? AC.bone : style.textColor,
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 8,
+              letterSpacing: '0.15em',
+              padding: '2px 5px',
+              textTransform: 'uppercase',
+              border: `1px dashed ${isAssassin ? AC.bone : style.textColor}`,
+              zIndex: 2,
+            }}
+          >
             {card.category}
           </div>
         )}
 
+        {isAssassin && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 4,
+              left: card.category ? undefined : 4,
+              right: card.category ? 4 : undefined,
+              zIndex: 2,
+            }}
+          >
+            <AcGlyph kind="x" color={AC.rust} size={16} stroke={3} />
+          </div>
+        )}
+
         <span
-          className={`text-center font-bold text-xs sm:text-sm md:text-base uppercase tracking-wide px-1 ${style.text}`}
-          style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            textAlign: 'center',
+            fontFamily:
+              "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+            fontWeight: 800,
+            fontSize: 'clamp(12px, 1.6vw, 18px)',
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            color: style.textColor,
+            padding: '0 6px',
+            lineHeight: 1.1,
+          }}
         >
           {card.word}
         </span>
-        {card.color === 'assassin' && !card.category && (
-          <div className="absolute top-0.5 right-0.5 text-base">💀</div>
-        )}
-        {card.color === 'assassin' && card.category && (
-          <div className="absolute top-0.5 left-0.5 text-base">💀</div>
-        )}
       </div>
     </div>
   );

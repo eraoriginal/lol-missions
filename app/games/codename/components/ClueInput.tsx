@@ -1,6 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  AC,
+  AC_CLIP,
+  AcAlert,
+  AcButton,
+  AcCard,
+  AcGlyph,
+  AcSectionNum,
+} from '@/app/components/arcane';
 
 interface ClueInputProps {
   roomCode: string;
@@ -44,51 +53,139 @@ export function ClueInput({ roomCode, playerToken, onClueGiven }: ClueInputProps
   };
 
   return (
-    <div className="poki-panel p-4">
-      <h3 className="text-lg font-bold poki-title mb-3 text-center">
-        🔮 Donnez un indice
-      </h3>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="flex justify-center">
+    <AcCard fold dashed style={{ padding: 18 }}>
+      <div className="flex items-center gap-2.5 mb-3">
+        <AcSectionNum n={'TX'} />
+        <h3
+          className="m-0"
+          style={{
+            fontFamily:
+              "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+            fontWeight: 800,
+            fontSize: 18,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+          }}
+        >
+          TRANSMISSION D&apos;INDICE
+        </h3>
+      </div>
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        {/* Clue input */}
+        <div>
+          <div
+            style={{
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 10,
+              letterSpacing: '0.25em',
+              color: AC.chem,
+              marginBottom: 6,
+              textTransform: 'uppercase',
+            }}
+          >
+            {'> MOT-CODE'}
+          </div>
           <input
             type="text"
             value={clue}
             onChange={(e) => setClue(e.target.value)}
-            placeholder="Votre indice..."
-            className="poki-input w-1/2 px-4 py-2 text-center"
+            placeholder="Un seul mot..."
+            className="ac-input"
             maxLength={50}
             disabled={submitting}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              background: 'rgba(240,228,193,0.04)',
+              border: `1.5px solid ${AC.bone2}`,
+              color: AC.bone,
+              fontFamily:
+                "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+              fontWeight: 700,
+              fontSize: 20,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              outline: 'none',
+            }}
           />
         </div>
-        <div className="flex flex-wrap justify-center gap-2">
-          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => setNumber(n)}
-              disabled={submitting}
-              className={`w-10 h-10 rounded-lg font-bold text-lg transition-all ${
-                number === n
-                  ? 'bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white shadow-lg shadow-pink-500/30'
-                  : 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/40 border border-purple-500/30'
-              }`}
-            >
-              {n === 0 ? '∞' : n}
-            </button>
-          ))}
+
+        {/* Number picker */}
+        <div>
+          <div
+            style={{
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 10,
+              letterSpacing: '0.25em',
+              color: AC.chem,
+              marginBottom: 6,
+              textTransform: 'uppercase',
+            }}
+          >
+            {'> NOMBRE DE CARTES'}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => {
+              const active = n === number;
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setNumber(n)}
+                  disabled={submitting}
+                  style={{
+                    width: 40,
+                    height: 40,
+                    background: active ? AC.shimmer : 'rgba(240,228,193,0.03)',
+                    color: active ? AC.ink : AC.bone,
+                    border: active ? `2px solid ${AC.shimmer}` : `1.5px dashed ${AC.bone2}`,
+                    clipPath: AC_CLIP,
+                    fontFamily:
+                      "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                    fontWeight: 800,
+                    fontSize: 18,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {n === 0 ? '∞' : n}
+                </button>
+              );
+            })}
+          </div>
         </div>
-        <button
+
+        {/* Submit */}
+        <AcButton
+          variant="primary"
+          size="md"
+          drip
+          fullWidth
           type="submit"
           disabled={submitting || !clue.trim()}
-          className="w-full poki-btn-primary px-4 py-2 font-bold transition-all"
+          icon={<AcGlyph kind="arrowRight" color={AC.ink} size={14} />}
         >
-          {submitting ? '⏳ Envoi...' : '📤 Envoyer l\'indice'}
-        </button>
-        {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+          {submitting ? 'TRANSMISSION…' : 'ENVOYER L\'INDICE'}
+        </AcButton>
+
+        {error && (
+          <AcAlert tone="danger" tape="// ERR">
+            <span style={{ color: AC.bone }}>{'// '}{error}</span>
+          </AcAlert>
+        )}
+
+        <div
+          style={{
+            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontSize: 10,
+            color: AC.bone2,
+            lineHeight: 1.55,
+            letterSpacing: '0.1em',
+          }}
+        >
+          {'// ∞ = essais illimités · l\'indice ne peut pas être un mot du plateau'}
+        </div>
       </form>
-      <p className="text-xs text-purple-300/60 text-center mt-2">
-        ∞ = illimité • L&apos;indice ne peut pas être un mot du plateau
-      </p>
-    </div>
+    </AcCard>
   );
 }

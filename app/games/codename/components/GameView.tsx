@@ -12,6 +12,22 @@ import { RulesModal } from './RulesModal';
 import { GameHistory } from './GameHistory';
 import { useCardInterests } from '../hooks/useCardInterests';
 import { useCodenameSocket } from '../hooks/useCodenameSocket';
+import {
+  AC,
+  AC_CLIP,
+  AcAlert,
+  AcAvatar,
+  AcButton,
+  AcCard,
+  AcDottedLabel,
+  AcGlyph,
+  AcGraffitiLayer,
+  AcScreen,
+  AcSectionNum,
+  AcSplat,
+} from '@/app/components/arcane';
+import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
+import { ConfirmDialog } from '@/app/components/ConfirmDialog';
 
 interface CardInterest {
   id: string;
@@ -78,22 +94,37 @@ interface GameViewProps {
   roomCode: string;
 }
 
+function colorForPlayer(id: string): string {
+  const palette = [AC.shimmer, AC.chem, AC.hex, AC.gold, AC.violet, AC.rust];
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  return palette[Math.abs(hash) % palette.length];
+}
+
+function hexWithAlpha(hex: string, alpha: number): string {
+  const m = hex.match(/^#([0-9a-f]{6})$/i);
+  if (!m) return hex;
+  const bigint = parseInt(m[1], 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 export function GameView({ room, roomCode }: GameViewProps) {
   const [generating, setGenerating] = useState(false);
   const [restarting, setRestarting] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [joiningTeam, setJoiningTeam] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [leaving, setLeaving] = useState(false);
-  // Local cards state for real-time interest updates via Pusher
   const [localCards, setLocalCards] = useState<Card[]>(room.codenameGame?.cards || []);
-  // Track current team to detect turn changes
-  const [lastKnownTeam, setLastKnownTeam] = useState<string | null>(room.codenameGame?.currentTeam || null);
+  const [lastKnownTeam, setLastKnownTeam] = useState<string | null>(
+    room.codenameGame?.currentTeam || null,
+  );
   const router = useRouter();
+  void router;
 
-  // Listen for sound events via Pusher (all players hear sounds)
   const { isMuted, toggleMute } = useCodenameSocket(roomCode);
 
   const playerToken =
@@ -106,29 +137,21 @@ export function GameView({ room, roomCode }: GameViewProps) {
   const currentPlayer = room.players.find((p) => p.token === playerToken);
   const game = room.codenameGame;
 
-  // Sync local cards with server cards
   useEffect(() => {
     if (game?.cards) {
       const turnChanged = game.currentTeam !== lastKnownTeam;
-
       if (turnChanged) {
-        // Turn changed - use server data entirely (interests are cleared)
         setLocalCards(game.cards);
         setLastKnownTeam(game.currentTeam);
       } else {
-        // Same turn - merge local interests with server data
-        setLocalCards(prevCards => {
-          return game.cards.map(serverCard => {
-            const localCard = prevCards.find(c => c.id === serverCard.id);
-            // If card was revealed, use server data
-            if (serverCard.revealed) {
-              return serverCard;
-            }
-            // Otherwise, preserve local interests (they may be more up-to-date via Pusher)
+        setLocalCards((prevCards) => {
+          return game.cards.map((serverCard) => {
+            const localCard = prevCards.find((c) => c.id === serverCard.id);
+            if (serverCard.revealed) return serverCard;
             if (localCard && !serverCard.revealed) {
               return {
                 ...serverCard,
-                interests: localCard.interests || serverCard.interests
+                interests: localCard.interests || serverCard.interests,
               };
             }
             return serverCard;
@@ -138,33 +161,23 @@ export function GameView({ room, roomCode }: GameViewProps) {
     }
   }, [game?.cards, game?.currentTeam, lastKnownTeam]);
 
-  // Handle real-time interest updates from Pusher
   const handleCardsUpdate = useCallback((updatedCards: Card[]) => {
     setLocalCards(updatedCards);
   }, []);
 
-  // Subscribe to Pusher interest updates
   useCardInterests(roomCode, localCards, handleCardsUpdate);
-
-  // Game phases:
-  // 1. Lobby: gameStarted = false, codenameGame = null
-  // 2. Role Selection: gameStarted = true, codenameGame exists but has no cards
-  // 3. Playing: codenameGame has cards
-  // 4. Game Over: codenameGame.gameOver = true
 
   const isLobby = !room.gameStarted;
   const isRoleSelection = room.gameStarted && game && game.cards.length === 0;
   const isPlaying = game && game.cards.length > 0 && !game.gameOver;
   const isGameOver = game?.gameOver;
 
-  // Current player's state
   const isSpymaster = currentPlayer?.role === 'spymaster';
   const isOperative = currentPlayer?.role === 'operative';
   const isOnCurrentTeam = currentPlayer?.team === game?.currentTeam;
   const isMyTurn = isOnCurrentTeam && !!game;
   const isSpectator = currentPlayer && (!currentPlayer.team || currentPlayer.team === '');
 
-  // Team info
   const redPlayers = room.players.filter((p) => p.team === 'red');
   const bluePlayers = room.players.filter((p) => p.team === 'blue');
 
@@ -172,14 +185,12 @@ export function GameView({ room, roomCode }: GameViewProps) {
     if (!creatorToken) return;
     setGenerating(true);
     setError(null);
-
     try {
       const res = await fetch(`/api/games/codename/${roomCode}/generate-board`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ creatorToken }),
       });
-
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || 'Erreur');
@@ -195,14 +206,12 @@ export function GameView({ room, roomCode }: GameViewProps) {
     if (!creatorToken) return;
     setRestarting(true);
     setError(null);
-
     try {
       const res = await fetch(`/api/games/codename/${roomCode}/restart`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ creatorToken }),
       });
-
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || 'Erreur');
@@ -219,14 +228,12 @@ export function GameView({ room, roomCode }: GameViewProps) {
     setShowResetConfirm(false);
     setResetting(true);
     setError(null);
-
     try {
       const res = await fetch(`/api/games/codename/${roomCode}/reset-to-lobby`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ creatorToken }),
       });
-
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || 'Erreur');
@@ -242,14 +249,12 @@ export function GameView({ room, roomCode }: GameViewProps) {
     if (!creatorToken) return;
     setGenerating(true);
     setError(null);
-
     try {
       const res = await fetch(`/api/games/codename/${roomCode}/regenerate-board`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ creatorToken }),
       });
-
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || 'Erreur');
@@ -261,61 +266,26 @@ export function GameView({ room, roomCode }: GameViewProps) {
     }
   };
 
-  const handleLeaveClick = () => {
-    if (isCreator) {
-      setShowLeaveConfirm(true);
-    } else {
-      confirmLeave();
-    }
-  };
-
-  const confirmLeave = async () => {
-    setShowLeaveConfirm(false);
-    setLeaving(true);
-    try {
-      await fetch(`/api/rooms/${roomCode}/leave`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          playerToken,
-          creatorToken,
-        }),
-      });
-    } catch (err) {
-      console.error('Error leaving room:', err);
-    } finally {
-      localStorage.removeItem(`room_${roomCode}_player`);
-      localStorage.removeItem(`room_${roomCode}_creator`);
-      router.push('/');
-    }
-  };
-
   const handleJoinTeam = async (team: 'red' | 'blue') => {
     if (!playerToken) return;
     setJoiningTeam(true);
     setError(null);
-
     try {
-      // Join the team
       const teamRes = await fetch(`/api/rooms/${roomCode}/team`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerToken, team }),
       });
-
       if (!teamRes.ok) {
         const data = await teamRes.json();
         throw new Error(data.error || 'Erreur');
       }
-
-      // If game is already playing (cards generated), automatically set role to operative
       if (game && game.cards.length > 0) {
         const roleRes = await fetch(`/api/games/codename/${roomCode}/role`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ playerToken, role: 'operative' }),
         });
-
         if (!roleRes.ok) {
           const data = await roleRes.json();
           throw new Error(data.error || 'Erreur');
@@ -328,96 +298,183 @@ export function GameView({ room, roomCode }: GameViewProps) {
     }
   };
 
-  // Phase 1: Lobby - team selection
+  // Phase 1 — Lobby
   if (isLobby) {
     return <CodenameRoomLobby room={room} roomCode={roomCode} />;
   }
 
-  // Spectator join panel component
   const SpectatorJoinPanel = () => (
-    <div className="poki-panel p-4 border-2 border-yellow-500/50">
-      <div className="text-center mb-4">
-        <div className="text-3xl mb-2">👁️</div>
-        <h3 className="text-lg font-bold text-yellow-400">Mode Spectateur</h3>
-        <p className="text-purple-300/70 text-sm mt-1">
-          Rejoins une équipe pour participer !
-        </p>
+    <AcCard fold dashed style={{ padding: 16 }}>
+      <div className="flex items-center gap-2.5 mb-3">
+        <AcGlyph kind="zoom" color={AC.gold} size={18} stroke={2.5} />
+        <h3
+          className="m-0"
+          style={{
+            fontFamily:
+              "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+            fontWeight: 800,
+            fontSize: 16,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: AC.gold,
+          }}
+        >
+          MODE SPECTATEUR
+        </h3>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <button
+      <div
+        style={{
+          fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+          fontSize: 11,
+          color: AC.bone2,
+          marginBottom: 12,
+          letterSpacing: '0.1em',
+        }}
+      >
+        {'// rejoins une équipe pour participer'}
+      </div>
+      <div className="grid grid-cols-2 gap-2.5">
+        <AcButton
+          variant="danger"
+          size="md"
           onClick={() => handleJoinTeam('red')}
           disabled={joiningTeam || redPlayers.length >= 5}
-          className="py-3 px-4 rounded-xl font-bold text-white transition-all bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 shadow-lg shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+          icon={<AcGlyph kind="plus" color={AC.bone} size={14} />}
         >
-          {joiningTeam ? '⏳...' : `🔴 Rouge (${redPlayers.length}/5)`}
-        </button>
-        <button
+          {joiningTeam ? '...' : `ROUGE · ${redPlayers.length}/5`}
+        </AcButton>
+        <AcButton
+          variant="hex"
+          size="md"
           onClick={() => handleJoinTeam('blue')}
           disabled={joiningTeam || bluePlayers.length >= 5}
-          className="py-3 px-4 rounded-xl font-bold text-white transition-all bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+          icon={<AcGlyph kind="plus" color={AC.ink} size={14} />}
         >
-          {joiningTeam ? '⏳...' : `🔵 Bleu (${bluePlayers.length}/5)`}
-        </button>
+          {joiningTeam ? '...' : `BLEU · ${bluePlayers.length}/5`}
+        </AcButton>
       </div>
       {game && game.cards.length > 0 && (
-        <p className="text-center text-purple-300/60 text-xs mt-3">
-          Tu rejoindras en tant qu&apos;Agent
-        </p>
+        <div
+          className="text-center mt-3"
+          style={{
+            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontSize: 10,
+            color: AC.bone2,
+            letterSpacing: '0.15em',
+          }}
+        >
+          {"// tu rejoindras en tant qu'agent"}
+        </div>
       )}
+    </AcCard>
+  );
+
+  // Common top bar
+  const TopBar = () => (
+    <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <div className="flex items-center gap-3 flex-wrap">
+        <LeaveRoomButton roomCode={roomCode} />
+        <div className="hidden sm:block min-w-[180px]">
+          <AcDottedLabel>{'// ROOM · '}{roomCode}</AcDottedLabel>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <RulesModal />
+        <AcButton
+          variant="ghost"
+          size="sm"
+          onClick={toggleMute}
+          aria-label={isMuted ? 'Activer le son' : 'Couper le son'}
+          icon={
+            <AcGlyph
+              kind={isMuted ? 'x' : 'check'}
+              color={AC.bone}
+              size={12}
+            />
+          }
+        >
+          {isMuted ? 'MUET' : 'SON'}
+        </AcButton>
+        {isCreator && isGameOver && (
+          <AcButton
+            variant="primary"
+            size="sm"
+            onClick={handleRestart}
+            disabled={restarting}
+            icon={<AcGlyph kind="play" color={AC.ink} size={12} />}
+          >
+            {restarting ? '...' : 'REJOUER'}
+          </AcButton>
+        )}
+        {isCreator && isPlaying && (
+          <>
+            <AcButton
+              variant="ghost"
+              size="sm"
+              onClick={handleRegenerateBoard}
+              disabled={generating}
+              icon={<AcGlyph kind="puzzle" color={AC.bone} size={12} />}
+            >
+              {generating ? '...' : 'PLATEAU'}
+            </AcButton>
+            <AcButton
+              variant="ghost"
+              size="sm"
+              onClick={handleRestart}
+              disabled={restarting}
+              icon={<AcGlyph kind="zoom" color={AC.bone} size={12} />}
+            >
+              {restarting ? '...' : 'RÔLES'}
+            </AcButton>
+          </>
+        )}
+        {isCreator && isRoleSelection && (
+          <AcButton
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowResetConfirm(true)}
+            disabled={resetting}
+            icon={<AcGlyph kind="arrowLeft" color={AC.bone} size={12} />}
+          >
+            {resetting ? '...' : 'ÉQUIPES'}
+          </AcButton>
+        )}
+      </div>
     </div>
   );
 
-  // Phase 2: Role Selection
+  // Phase 2 — Role selection
   if (isRoleSelection) {
     return (
-      <>
-        <div className="space-y-4">
-          {/* Header */}
-          <div className="poki-panel p-4">
-            <div className="flex justify-between items-center">
-              <div className="flex-1">
-                <h1 className="text-xl font-bold poki-title">
-                  🕵️ Codename du CEO
-                </h1>
-                <p className="text-purple-300/70 text-sm">
-                  Room : <span className="font-mono font-bold text-pink-400">{roomCode}</span>
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <RulesModal />
-                <button
-                  onClick={toggleMute}
-                  className="poki-btn-secondary px-3 py-1.5 text-sm"
-                  title={isMuted ? 'Activer le son' : 'Couper le son'}
-                >
-                  {isMuted ? '🔇' : '🔊'}
-                </button>
-                {isCreator && (
-                  <button
-                    onClick={handleResetToLobby}
-                    disabled={resetting}
-                    className="poki-btn-secondary px-3 py-1.5 text-sm disabled:opacity-50"
-                  >
-                    {resetting ? '⏳...' : '⬅️ Équipes'}
-                  </button>
-                )}
-                <button
-                  onClick={handleLeaveClick}
-                  disabled={leaving}
-                  className="poki-btn-secondary px-3 py-1.5 text-sm disabled:opacity-50"
-                >
-                  {leaving ? '⏳...' : '🚪 Quitter'}
-                </button>
-              </div>
+      <AcScreen>
+        <div style={{ position: 'absolute', top: -40, right: -80, pointerEvents: 'none' }}>
+          <AcSplat color={AC.violet} size={420} opacity={0.4} seed={2} />
+        </div>
+        <div style={{ position: 'absolute', bottom: 60, left: -60, pointerEvents: 'none' }}>
+          <AcSplat color={AC.chem} size={300} opacity={0.3} seed={4} />
+        </div>
+        <AcGraffitiLayer />
+
+        <div
+          className="relative mx-auto px-4 sm:px-8 py-6 sm:py-9"
+          style={{ maxWidth: 1200 }}
+        >
+          <TopBar />
+
+          {error && (
+            <div className="mb-4">
+              <AcAlert tone="danger" tape="// ERR">
+                <span style={{ color: AC.bone }}>{'// '}{error}</span>
+              </AcAlert>
             </div>
-          </div>
+          )}
 
-          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+          {isSpectator && (
+            <div className="mb-5">
+              <SpectatorJoinPanel />
+            </div>
+          )}
 
-          {/* Spectator panel */}
-          {isSpectator && <SpectatorJoinPanel />}
-
-          {/* Role selection (only show if player has a team) */}
           {!isSpectator && (
             <RoleSelection
               roomCode={roomCode}
@@ -430,9 +487,8 @@ export function GameView({ room, roomCode }: GameViewProps) {
             />
           )}
 
-          {/* Show role selection to spectators as read-only */}
           {isSpectator && (
-            <div className="opacity-70">
+            <div style={{ opacity: 0.6 }}>
               <RoleSelection
                 roomCode={roomCode}
                 players={room.players}
@@ -446,298 +502,336 @@ export function GameView({ room, roomCode }: GameViewProps) {
           )}
         </div>
 
-        {/* Leave confirmation modal for creator */}
-        {showLeaveConfirm && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-            <div className="poki-panel p-6 max-w-md w-full animate-scale-in">
-              <h2 className="text-xl font-bold poki-title mb-3">⚠️ Tu es le créateur !</h2>
-              <p className="text-purple-200/80 leading-relaxed mb-6">
-                Si tu quittes, la room sera supprimée et tous les joueurs seront déconnectés. Es-tu sûr ?
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowLeaveConfirm(false)}
-                  className="flex-1 px-4 py-3 poki-btn-secondary font-medium"
-                >
-                  Rester
-                </button>
-                <button
-                  onClick={confirmLeave}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-red-500/30"
-                >
-                  Quitter
-                </button>
-              </div>
-            </div>
-          </div>
+        {showResetConfirm && (
+          <ConfirmDialog
+            title="Retour aux équipes ?"
+            message="La partie en cours sera annulée et tout le monde retournera au lobby."
+            confirmText="Recommencer"
+            cancelText="Annuler"
+            confirmColor="orange"
+            tapeLabel="// RESET"
+            onConfirm={handleResetToLobby}
+            onCancel={() => setShowResetConfirm(false)}
+          />
         )}
-      </>
+      </AcScreen>
     );
   }
 
-  // Determine background class based on current team
-  const getTeamBackgroundClass = () => {
-    if (!game || game.gameOver) return '';
-    if (game.currentTeam === 'red') {
-      return 'codename-bg-red';
-    }
-    if (game.currentTeam === 'blue') {
-      return 'codename-bg-blue';
-    }
-    return '';
-  };
+  // Phase 3 & 4 — Playing / Game Over
+  const turnColor = game
+    ? game.currentTeam === 'red'
+      ? AC.rust
+      : AC.hex
+    : AC.bone;
 
-  // Phase 3 & 4: Playing / Game Over
   return (
-    <div className={`space-y-4 transition-all duration-500 ${getTeamBackgroundClass()}`}>
-      {/* Header */}
-      <div className="poki-panel p-3">
-        <div className="flex justify-between items-center">
-          <div className="flex-1">
-            <h1 className="text-lg font-bold poki-title">
-              🕵️ Codename du CEO
-            </h1>
-            <p className="text-purple-300/70 text-xs">
-              Room : <span className="font-mono font-bold text-pink-400">{roomCode}</span>
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <RulesModal />
-            <button
-              onClick={toggleMute}
-              className="poki-btn-secondary px-3 py-1.5 text-sm"
-              title={isMuted ? 'Activer le son' : 'Couper le son'}
-            >
-              {isMuted ? '🔇' : '🔊'}
-            </button>
-            {isCreator && isGameOver && (
-              <button
-                onClick={handleRestart}
-                disabled={restarting}
-                className="poki-btn-primary px-3 py-1.5 text-sm"
-              >
-                {restarting ? '⏳...' : '🔄 Rejouer'}
-              </button>
-            )}
-            {isCreator && isPlaying && (
-              <>
-                <button
-                  onClick={handleRegenerateBoard}
-                  disabled={generating}
-                  className="poki-btn-secondary px-3 py-1.5 text-sm disabled:opacity-50"
-                >
-                  {generating ? '⏳...' : '🔄 Plateau'}
-                </button>
-                <button
-                  onClick={handleRestart}
-                  disabled={restarting}
-                  className="poki-btn-secondary px-3 py-1.5 text-sm disabled:opacity-50"
-                >
-                  {restarting ? '⏳...' : '🎭 Rôles'}
-                </button>
-              </>
-            )}
-            <button
-              onClick={handleLeaveClick}
-              disabled={leaving}
-              className="poki-btn-secondary px-3 py-1.5 text-sm disabled:opacity-50"
-            >
-              {leaving ? '⏳...' : '🚪 Quitter'}
-            </button>
-          </div>
-        </div>
+    <AcScreen>
+      <div style={{ position: 'absolute', top: -40, right: -80, pointerEvents: 'none' }}>
+        <AcSplat
+          color={isPlaying ? turnColor : AC.shimmer}
+          size={420}
+          opacity={0.35}
+          seed={2}
+        />
+      </div>
+      <div style={{ position: 'absolute', bottom: 80, left: -80, pointerEvents: 'none' }}>
+        <AcSplat color={AC.chem} size={300} opacity={0.25} seed={4} />
       </div>
 
-      {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+      <div
+        className="relative mx-auto px-4 sm:px-8 py-6 sm:py-9"
+        style={{ maxWidth: 1300 }}
+      >
+        <TopBar />
 
-      {/* Game status */}
-      {game && (
-        <GameStatus
-          currentTeam={game.currentTeam}
-          redRemaining={game.redRemaining}
-          blueRemaining={game.blueRemaining}
-          currentClue={game.currentClue}
-          currentNumber={game.currentNumber}
-          guessesLeft={game.guessesLeft}
-          gameOver={game.gameOver}
-          winner={game.winner}
-        />
-      )}
+        {error && (
+          <div className="mb-4">
+            <AcAlert tone="danger" tape="// ERR">
+              <span style={{ color: AC.bone }}>{'// '}{error}</span>
+            </AcAlert>
+          </div>
+        )}
 
-      {/* Spectator join panel during game */}
-      {isPlaying && isSpectator && <SpectatorJoinPanel />}
-
-      {/* Playing phase */}
-      {isPlaying && currentPlayer && game && (
-        <>
-          {isSpymaster ? (
-            <SpymasterView
-              roomCode={roomCode}
-              playerToken={playerToken || ''}
-              cards={localCards}
-              isMyTurn={isMyTurn}
-              hasGivenClue={!!game.currentClue}
-            />
-          ) : isOperative ? (
-            <OperativeView
-              roomCode={roomCode}
-              playerToken={playerToken || ''}
-              playerName={currentPlayer?.name || ''}
-              cards={localCards}
-              isMyTurn={isMyTurn}
-              hasClue={!!game.currentClue}
-              guessesLeft={game.guessesLeft}
+        {/* Status / Clue */}
+        {game && (
+          <div className="mb-5">
+            <GameStatus
               currentTeam={game.currentTeam}
+              redRemaining={game.redRemaining}
+              blueRemaining={game.blueRemaining}
+              currentClue={game.currentClue}
+              currentNumber={game.currentNumber}
+              guessesLeft={game.guessesLeft}
+              gameOver={game.gameOver}
+              winner={game.winner}
             />
-          ) : (
-            // Spectator view (player without team or role)
-            <div className="space-y-4">
+          </div>
+        )}
+
+        {isPlaying && isSpectator && (
+          <div className="mb-5">
+            <SpectatorJoinPanel />
+          </div>
+        )}
+
+        {/* Playing phase */}
+        {isPlaying && currentPlayer && game && (
+          <div className="mb-5">
+            {isSpymaster ? (
+              <SpymasterView
+                roomCode={roomCode}
+                playerToken={playerToken || ''}
+                cards={localCards}
+                isMyTurn={isMyTurn}
+                hasGivenClue={!!game.currentClue}
+              />
+            ) : isOperative ? (
+              <OperativeView
+                roomCode={roomCode}
+                playerToken={playerToken || ''}
+                playerName={currentPlayer?.name || ''}
+                cards={localCards}
+                isMyTurn={isMyTurn}
+                hasClue={!!game.currentClue}
+                guessesLeft={game.guessesLeft}
+                currentTeam={game.currentTeam}
+              />
+            ) : (
               <GameBoard cards={localCards} isSpymaster={false} isClickable={false} />
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Spectator join panel during game over */}
-      {isGameOver && isSpectator && <SpectatorJoinPanel />}
-
-      {/* Game over - show final board */}
-      {isGameOver && game && (
-        <div className="space-y-4">
-          <GameBoard cards={localCards} isSpymaster={true} isClickable={false} />
-
-          {isCreator && (
-            <div className="text-center">
-              <button
-                onClick={handleRestart}
-                disabled={restarting}
-                className="poki-btn-primary px-6 py-3 font-bold text-lg"
-              >
-                {restarting ? '⏳ Préparation...' : '🔄 Nouvelle partie'}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Team rosters during game - compact */}
-      {(isPlaying || isGameOver) && (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            {/* Red team */}
-            <div className="poki-panel p-2 border border-red-500/30">
-              <h4 className="text-xs font-bold text-red-400 mb-1.5">🔴 Rouge</h4>
-              <div className="space-y-0.5 text-xs">
-                {redPlayers.map((p) => (
-                  <div key={p.id} className={`flex items-center gap-1 ${p.token === playerToken ? 'text-pink-300 font-medium' : 'text-purple-200/80'}`}>
-                    <span className="truncate">{p.name}</span>
-                    {p.token === playerToken && (
-                      <span className="text-[10px] text-pink-400">(vous)</span>
-                    )}
-                    <span className={`text-[10px] ml-auto whitespace-nowrap ${p.role === 'spymaster' ? 'text-pink-400' : 'text-purple-400/60'}`}>
-                      {p.role === 'spymaster' ? '🔮 Espion' : '🎯 Agent'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Blue team */}
-            <div className="poki-panel p-2 border border-blue-500/30">
-              <h4 className="text-xs font-bold text-blue-400 mb-1.5">🔵 Bleu</h4>
-              <div className="space-y-0.5 text-xs">
-                {bluePlayers.map((p) => (
-                  <div key={p.id} className={`flex items-center gap-1 ${p.token === playerToken ? 'text-cyan-300 font-medium' : 'text-purple-200/80'}`}>
-                    <span className="truncate">{p.name}</span>
-                    {p.token === playerToken && (
-                      <span className="text-[10px] text-cyan-400">(vous)</span>
-                    )}
-                    <span className={`text-[10px] ml-auto whitespace-nowrap ${p.role === 'spymaster' ? 'text-cyan-400' : 'text-purple-400/60'}`}>
-                      {p.role === 'spymaster' ? '🔮 Espion' : '🎯 Agent'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
           </div>
+        )}
 
-          {/* Spectators */}
-          {room.players.filter((p) => !p.team || p.team === '').length > 0 && (
-            <div className="poki-panel p-2 border border-yellow-500/30">
-              <h4 className="text-xs font-bold text-yellow-400 mb-1.5">👁️ Spectateurs</h4>
-              <div className="flex flex-wrap gap-2 text-xs">
-                {room.players
-                  .filter((p) => !p.team || p.team === '')
-                  .map((p) => (
-                    <div key={p.id} className={`flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-500/10 border border-yellow-500/20 ${p.token === playerToken ? 'text-yellow-300 font-medium' : 'text-purple-200/80'}`}>
-                      <span>{p.name}</span>
-                      {p.token === playerToken && (
-                        <span className="text-[10px] text-yellow-400">(vous)</span>
-                      )}
-                    </div>
-                  ))}
+        {isGameOver && isSpectator && (
+          <div className="mb-5">
+            <SpectatorJoinPanel />
+          </div>
+        )}
+
+        {/* Game over */}
+        {isGameOver && game && (
+          <div className="mb-5 flex flex-col gap-4">
+            <GameBoard cards={localCards} isSpymaster={true} isClickable={false} />
+            {isCreator && (
+              <div className="text-center">
+                <AcButton
+                  variant="primary"
+                  size="lg"
+                  drip
+                  onClick={handleRestart}
+                  disabled={restarting}
+                  icon={<AcGlyph kind="play" color={AC.ink} size={16} />}
+                >
+                  {restarting ? 'PRÉPARATION…' : 'NOUVELLE PARTIE'}
+                </AcButton>
               </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Game history */}
-      {(isPlaying || isGameOver) && game?.history && game.history.length > 0 && (
-        <GameHistory history={game.history} />
-      )}
-
-      {/* Leave confirmation modal for creator */}
-      {showLeaveConfirm && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="poki-panel p-6 max-w-md w-full animate-scale-in">
-            <h2 className="text-xl font-bold poki-title mb-3">⚠️ Tu es le créateur !</h2>
-            <p className="text-purple-200/80 leading-relaxed mb-6">
-              Si tu quittes, la room sera supprimée et tous les joueurs seront déconnectés. Es-tu sûr ?
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowLeaveConfirm(false)}
-                className="flex-1 px-4 py-3 poki-btn-secondary font-medium"
-              >
-                Rester
-              </button>
-              <button
-                onClick={confirmLeave}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-red-500/30"
-              >
-                Quitter
-              </button>
-            </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Reset confirmation modal */}
-      {showResetConfirm && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="poki-panel p-6 max-w-md w-full animate-scale-in">
-            <h2 className="text-xl font-bold poki-title mb-3">🔄 Recommencer la partie ?</h2>
-            <p className="text-purple-200/80 leading-relaxed mb-6">
-              La partie en cours sera annulée et tout le monde retournera à la sélection des équipes.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowResetConfirm(false)}
-                className="flex-1 px-4 py-3 poki-btn-secondary font-medium"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleResetToLobby}
-                className="flex-1 px-4 py-3 poki-btn-primary font-medium"
-              >
-                Recommencer
-              </button>
-            </div>
+        {/* Team rosters */}
+        {(isPlaying || isGameOver) && (
+          <div className="mb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <TeamRoster
+              label="ROUGE"
+              color={AC.rust}
+              players={redPlayers}
+              playerToken={playerToken}
+            />
+            <TeamRoster
+              label="BLEU"
+              color={AC.hex}
+              players={bluePlayers}
+              playerToken={playerToken}
+            />
+            {room.players.filter((p) => !p.team || p.team === '').length > 0 && (
+              <div className="sm:col-span-2">
+                <SpectatorsList
+                  players={room.players.filter((p) => !p.team || p.team === '')}
+                  playerToken={playerToken}
+                />
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
+
+        {/* History */}
+        {(isPlaying || isGameOver) && game?.history && game.history.length > 0 && (
+          <GameHistory history={game.history} />
+        )}
+      </div>
+    </AcScreen>
+  );
+}
+
+function TeamRoster({
+  label,
+  color,
+  players,
+  playerToken,
+}: {
+  label: string;
+  color: string;
+  players: Player[];
+  playerToken: string | null;
+}) {
+  return (
+    <div
+      style={{
+        padding: 10,
+        border: `1.5px solid ${color}`,
+        background: `linear-gradient(180deg, ${hexWithAlpha(color, 0.08)} 0%, rgba(13,11,8,0.55) 100%)`,
+      }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span
+          style={{
+            background: color,
+            color: label === 'ROUGE' ? AC.bone : AC.ink,
+            fontFamily:
+              "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+            fontWeight: 800,
+            fontSize: 14,
+            letterSpacing: '0.12em',
+            padding: '2px 8px',
+          }}
+        >
+          ÉQUIPE {label}
+        </span>
+        <span
+          style={{
+            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontSize: 10,
+            color: color,
+            letterSpacing: '0.15em',
+          }}
+        >
+          {players.length}
+        </span>
+      </div>
+      <div className="flex flex-col gap-1">
+        {players.map((p) => {
+          const isMe = p.token === playerToken;
+          const isSpy = p.role === 'spymaster';
+          return (
+            <div
+              key={p.id}
+              className="flex items-center gap-2 px-2 py-1"
+              style={{
+                background: 'rgba(13,11,8,0.45)',
+                border: `1px dashed ${hexWithAlpha(color, 0.3)}`,
+              }}
+            >
+              <AcAvatar name={p.name} color={colorForPlayer(p.id)} size={20} />
+              <span
+                style={{
+                  fontFamily:
+                    "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 12,
+                  letterSpacing: '0.02em',
+                  textTransform: 'uppercase',
+                  color: AC.bone,
+                  flex: 1,
+                }}
+              >
+                {p.name}
+                {isMe && (
+                  <span style={{ color: AC.bone2, fontSize: 9, marginLeft: 4 }}>(TOI)</span>
+                )}
+              </span>
+              <span
+                className="flex items-center gap-1"
+                style={{
+                  fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                  fontSize: 9,
+                  letterSpacing: '0.15em',
+                  color: isSpy ? color : AC.bone2,
+                  textTransform: 'uppercase',
+                }}
+              >
+                <AcGlyph
+                  kind={isSpy ? 'zoom' : 'target'}
+                  color={isSpy ? color : AC.bone2}
+                  size={10}
+                  stroke={2}
+                />
+                {isSpy ? 'ESPION' : 'AGENT'}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SpectatorsList({
+  players,
+  playerToken,
+}: {
+  players: Player[];
+  playerToken: string | null;
+}) {
+  return (
+    <div
+      style={{
+        padding: 10,
+        border: `1.5px dashed ${AC.gold}`,
+        background: 'rgba(245,185,18,0.06)',
+      }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <AcSectionNum n={'SP'} />
+        <span
+          style={{
+            fontFamily:
+              "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+            fontWeight: 800,
+            fontSize: 13,
+            letterSpacing: '0.08em',
+            color: AC.gold,
+            textTransform: 'uppercase',
+          }}
+        >
+          SPECTATEURS · {players.length}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {players.map((p) => {
+          const isMe = p.token === playerToken;
+          return (
+            <div
+              key={p.id}
+              className="flex items-center gap-1.5 px-2 py-1"
+              style={{
+                background: 'rgba(13,11,8,0.45)',
+                border: `1px dashed ${hexWithAlpha(AC.gold, 0.4)}`,
+                clipPath: AC_CLIP,
+              }}
+            >
+              <AcAvatar name={p.name} color={colorForPlayer(p.id)} size={16} />
+              <span
+                style={{
+                  fontFamily:
+                    "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 11,
+                  letterSpacing: '0.02em',
+                  textTransform: 'uppercase',
+                  color: AC.bone,
+                }}
+              >
+                {p.name}
+                {isMe && (
+                  <span style={{ color: AC.bone2, fontSize: 9, marginLeft: 4 }}>(TOI)</span>
+                )}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

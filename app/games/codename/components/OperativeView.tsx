@@ -2,6 +2,12 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { GameBoard } from './GameBoard';
+import {
+  AC,
+  AcAlert,
+  AcButton,
+  AcGlyph,
+} from '@/app/components/arcane';
 
 interface CardInterest {
   id: string;
@@ -41,76 +47,64 @@ export function OperativeView({
 }: OperativeViewProps) {
   const [guessing, setGuessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Optimistic local state: cardId -> expected state (true = interested, false = not interested)
-  const [optimisticInterests, setOptimisticInterests] = useState<Record<string, boolean>>({});
+  const [optimisticInterests, setOptimisticInterests] = useState<
+    Record<string, boolean>
+  >({});
 
   const canGuess = isMyTurn && hasClue && guessesLeft > 0 && !guessing;
 
-  // Clean up optimistic state when server data matches expected state
   useEffect(() => {
-    setOptimisticInterests(prev => {
+    setOptimisticInterests((prev) => {
       const newState = { ...prev };
       let changed = false;
-
       for (const cardId of Object.keys(prev)) {
-        const card = cards.find(c => c.id === cardId);
-        const serverHasInterest = card?.interests?.some(i => i.playerName === playerName) ?? false;
+        const card = cards.find((c) => c.id === cardId);
+        const serverHasInterest =
+          card?.interests?.some((i) => i.playerName === playerName) ?? false;
         const expectedState = prev[cardId];
-
-        // If server now matches what we expected, remove from optimistic state
         if (serverHasInterest === expectedState) {
           delete newState[cardId];
           changed = true;
         }
       }
-
       return changed ? newState : prev;
     });
   }, [cards, playerName]);
 
-  // Merge server interests with optimistic local state
   const cardsWithOptimisticInterests = useMemo(() => {
-    return cards.map(card => {
+    return cards.map((card) => {
       const serverInterests = card.interests || [];
       const expectedState = optimisticInterests[card.id];
-
-      // If no optimistic state for this card, use server data as-is
-      if (expectedState === undefined) {
-        return card;
-      }
-
-      const playerInServer = serverInterests.some(i => i.playerName === playerName);
-
-      // If server already matches expected state, use server data
-      if (playerInServer === expectedState) {
-        return card;
-      }
-
-      // Apply optimistic change
+      if (expectedState === undefined) return card;
+      const playerInServer = serverInterests.some(
+        (i) => i.playerName === playerName,
+      );
+      if (playerInServer === expectedState) return card;
       let finalInterests = [...serverInterests];
-
       if (expectedState && !playerInServer) {
-        // Add optimistic interest
-        finalInterests.push({ id: 'optimistic', cardId: card.id, playerName });
+        finalInterests.push({
+          id: 'optimistic',
+          cardId: card.id,
+          playerName,
+        });
       } else if (!expectedState && playerInServer) {
-        // Remove optimistic interest
-        finalInterests = finalInterests.filter(i => i.playerName !== playerName);
+        finalInterests = finalInterests.filter(
+          (i) => i.playerName !== playerName,
+        );
       }
-
       return { ...card, interests: finalInterests };
     });
   }, [cards, optimisticInterests, playerName]);
 
   const handleToggleInterest = async (cardId: string) => {
-    // Find current displayed state (including optimistic)
-    const card = cardsWithOptimisticInterests.find(c => c.id === cardId);
-    const isCurrentlyShown = card?.interests?.some(i => i.playerName === playerName) ?? false;
+    const card = cardsWithOptimisticInterests.find((c) => c.id === cardId);
+    const isCurrentlyShown =
+      card?.interests?.some((i) => i.playerName === playerName) ?? false;
     const newExpectedState = !isCurrentlyShown;
 
-    // Optimistic update - instant UI feedback
-    setOptimisticInterests(prev => ({
+    setOptimisticInterests((prev) => ({
       ...prev,
-      [cardId]: newExpectedState
+      [cardId]: newExpectedState,
     }));
 
     try {
@@ -119,12 +113,9 @@ export function OperativeView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerToken, cardId }),
       });
-      // Don't clear optimistic state here - let the useEffect clean it up
-      // when server data arrives and matches expected state
     } catch (err) {
       console.error('Error toggling interest:', err);
-      // Revert optimistic update on error
-      setOptimisticInterests(prev => {
+      setOptimisticInterests((prev) => {
         const newState = { ...prev };
         delete newState[cardId];
         return newState;
@@ -134,23 +125,18 @@ export function OperativeView({
 
   const handleGuess = async (cardId: string) => {
     if (!canGuess) return;
-
     setGuessing(true);
     setError(null);
-
     try {
       const res = await fetch(`/api/games/codename/${roomCode}/guess`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerToken, cardId }),
       });
-
       const data = await res.json();
-
       if (!res.ok) {
         throw new Error(data.error || 'Erreur');
       }
-      // Sounds are now played via Pusher for all players
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur');
     } finally {
@@ -160,46 +146,64 @@ export function OperativeView({
 
   const handlePass = async () => {
     if (!isMyTurn || !hasClue) return;
-
     try {
       const res = await fetch(`/api/games/codename/${roomCode}/pass`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerToken }),
       });
-
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || 'Erreur');
       }
-      // Turn change sound is now played via Pusher for all players
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur');
     }
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {/* Action bar */}
       {isMyTurn && hasClue && (
-        <div className="flex items-center justify-center gap-3">
-          <span className="text-sm text-green-400 animate-pulse">Cliquez ✓ pour révéler</span>
-          <button
+        <div
+          className="flex items-center justify-center gap-3 flex-wrap"
+          style={{
+            padding: '10px 14px',
+            border: `1.5px dashed ${AC.chem}`,
+            background: 'rgba(18,214,168,0.08)',
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <AcGlyph kind="target" color={AC.chem} size={16} stroke={2.5} />
+            <span
+              style={{
+                fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                fontSize: 11,
+                letterSpacing: '0.2em',
+                color: AC.chem,
+                textTransform: 'uppercase',
+              }}
+            >
+              {'// clique le bouton ✓ pour révéler une carte'}
+            </span>
+          </div>
+          <AcButton
+            variant="ghost"
+            size="sm"
             onClick={handlePass}
-            className="text-sm poki-btn-secondary px-3 py-1"
+            icon={<AcGlyph kind="arrowRight" color={AC.bone} size={12} />}
           >
-            ⏭️ Passer
-          </button>
+            PASSER
+          </AcButton>
         </div>
       )}
 
       {error && (
-        <div className="text-center text-red-400 text-sm bg-red-500/20 px-3 py-2 rounded-lg border border-red-500/50">
-          {error}
-        </div>
+        <AcAlert tone="danger" tape="// ERR">
+          <span style={{ color: AC.bone }}>{'// '}{error}</span>
+        </AcAlert>
       )}
 
-      {/* Game board - operative only sees revealed colors */}
       <GameBoard
         cards={cardsWithOptimisticInterests}
         isSpymaster={false}
@@ -209,8 +213,17 @@ export function OperativeView({
       />
 
       {guessing && (
-        <div className="text-center text-purple-300/70 text-sm">
-          ⏳ Révélation...
+        <div
+          className="text-center"
+          style={{
+            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontSize: 11,
+            letterSpacing: '0.2em',
+            color: AC.bone2,
+            textTransform: 'uppercase',
+          }}
+        >
+          {'// révélation en cours...'}
         </div>
       )}
     </div>

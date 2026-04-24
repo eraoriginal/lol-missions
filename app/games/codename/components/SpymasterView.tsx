@@ -2,6 +2,7 @@
 
 import { GameBoard } from './GameBoard';
 import { ClueInput } from './ClueInput';
+import { AC } from '@/app/components/arcane';
 
 interface CardInterest {
   id: string;
@@ -35,34 +36,56 @@ export function SpymasterView({
   hasGivenClue,
 }: SpymasterViewProps) {
   return (
-    <div className="space-y-4">
-      {/* Clue input (only if it's my turn and I haven't given a clue yet) */}
+    <div className="flex flex-col gap-4">
       {isMyTurn && !hasGivenClue && (
         <ClueInput roomCode={roomCode} playerToken={playerToken} />
       )}
 
-      {/* Game board - spymaster sees all colors */}
       <GameBoard cards={cards} isSpymaster={true} isClickable={false} />
 
       {/* Legend */}
-      <div className="flex justify-center gap-4 text-xs text-purple-300/70">
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-full bg-red-500"></div>
-          <span>Rouge</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-          <span>Bleu</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-full bg-stone-400"></div>
-          <span>Neutre</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-full bg-gray-900 border border-gray-600"></div>
-          <span>💀 Assassin</span>
-        </div>
+      <div
+        className="flex justify-center gap-3 flex-wrap"
+        style={{
+          fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+          fontSize: 10,
+          letterSpacing: '0.2em',
+          color: AC.bone2,
+          textTransform: 'uppercase',
+        }}
+      >
+        <LegendItem color={AC.rust} label="ROUGE" />
+        <LegendItem color={AC.hex} label="BLEU" />
+        <LegendItem color={AC.bone2} label="NEUTRE" />
+        <LegendItem color="#1A160F" label="ASSASSIN" striped />
       </div>
+    </div>
+  );
+}
+
+function LegendItem({
+  color,
+  label,
+  striped,
+}: {
+  color: string;
+  label: string;
+  striped?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span
+        style={{
+          width: 12,
+          height: 12,
+          background: striped
+            ? 'repeating-linear-gradient(45deg, #1A160F 0 3px, #0D0B08 3px 6px)'
+            : color,
+          border: `1.5px solid ${striped ? AC.rust : color}`,
+          display: 'inline-block',
+        }}
+      />
+      <span>{label}</span>
     </div>
   );
 }
