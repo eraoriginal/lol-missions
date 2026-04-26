@@ -18,7 +18,9 @@
 
 import { mkdir, writeFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { COUNTRIES } from '../lib/worldle/countries';
+// Le script tourne côté Node — il peut importer le module server.
+// Worldle = 44 pays (server-only), ALL_COUNTRIES = ~190 pays (Quiz CEO).
+import { COUNTRIES } from '../lib/worldle/server';
 import { ALL_COUNTRIES } from '../lib/quizCeo/allCountries';
 
 const CDN_BASE = 'https://cdn-assets.teuteuf.fr/data/common/country-shapes';

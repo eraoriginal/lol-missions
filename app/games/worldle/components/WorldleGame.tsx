@@ -11,15 +11,11 @@ import {
   AcGlyph,
 } from '@/app/components/arcane';
 import {
-  COUNTRIES,
+  WORLDLE_PUBLIC_COUNTRIES,
   arrowForBearing,
-  bearingDeg,
-  findCountry,
-  haversineKm,
-  shapeUrl,
-  type WorldleCountry,
-} from '@/lib/worldle/countries';
-import { dailyDateKey, pickByDay } from '@/lib/solo/dailyIndex';
+  type WorldlePublicCountry,
+} from '@/lib/worldle/publicNames';
+import { dailyDateKey } from '@/lib/solo/dailyIndex';
 
 const MAX_ATTEMPTS = 7;
 
@@ -28,20 +24,15 @@ interface Attempt {
   countryName: string;
   distanceKm: number;
   bearing: number;
-  proximityPct: number; // 0..100, 100 = exact
+  proximityPct: number;
   correct: boolean;
 }
 
 interface SavedState {
   date: string;
   attempts: Attempt[];
-  won: boolean;
-}
-
-/** Convertit distance en % de proximité. 0 km = 100 %, 20 000 km = 0 %. */
-function proximityPct(km: number): number {
-  const max = 20000; // ~demi-circonférence terre
-  return Math.max(0, Math.min(100, (1 - km / max) * 100));
+  /** Pays cible révélé par le serveur quand correct OU épuisé. */
+  target: { id: string; name: string } | null;
 }
 
 function colorForPct(pct: number): string {
@@ -53,55 +44,90 @@ function colorForPct(pct: number): string {
 }
 
 export function WorldleGame() {
-  const target = useMemo<WorldleCountry>(() => pickByDay(COUNTRIES), []);
   const today = dailyDateKey();
   const storageKey = `worldle_${today}`;
 
   const defaultState = useMemo<SavedState>(
-    () => ({ date: today, attempts: [], won: false }),
+    () => ({ date: today, attempts: [], target: null }),
     [today],
   );
-  const [saved, setSaved] = usePersistedState<SavedState>(storageKey, defaultState);
+  const [saved, setSaved] = usePersistedState<SavedState>(
+    storageKey,
+    defaultState,
+  );
   const attempts = useMemo(
     () => (saved.date === today ? saved.attempts : []),
     [saved, today],
   );
+  const target = saved.date === today ? saved.target : null;
+
   const [input, setInput] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [suggest, setSuggest] = useState<WorldleCountry[]>([]);
+  const [suggest, setSuggest] = useState<WorldlePublicCountry[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
   const won = attempts.some((a) => a.correct);
   const lost = !won && attempts.length >= MAX_ATTEMPTS;
   const finished = won || lost;
 
-  const submit = useCallback(() => {
-    if (finished) return;
-    const country = findCountry(input.trim());
-    if (!country) {
-      setError('Pays inconnu. Exemples : France, Japon, Brésil…');
-      return;
-    }
-    if (attempts.some((a) => a.countryId === country.id)) {
-      setError('Tu as déjà essayé ce pays.');
-      return;
-    }
-    const d = haversineKm(country.lat, country.lng, target.lat, target.lng);
-    const b = bearingDeg(country.lat, country.lng, target.lat, target.lng);
-    const correct = country.id === target.id;
-    const entry: Attempt = {
-      countryId: country.id,
-      countryName: country.name,
-      distanceKm: Math.round(d),
-      bearing: b,
-      proximityPct: proximityPct(d),
-      correct,
-    };
-    const next = [...attempts, entry];
-    setSaved({ date: today, attempts: next, won: correct });
-    setInput('');
-    setSuggest([]);
+  const submit = useCallback(async () => {
+    if (finished || submitting) return;
+    if (!input.trim()) return;
+    setSubmitting(true);
     setError(null);
-  }, [attempts, finished, input, setSaved, target, today]);
+    try {
+      const res = await fetch('/api/solo/worldle/guess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          country: input.trim(),
+          attemptIndex: attempts.length,
+        }),
+      });
+      const data = (await res.json()) as
+        | {
+            countryId: string;
+            countryName: string;
+            distanceKm: number;
+            bearing: number;
+            proximityPct: number;
+            correct: boolean;
+            target?: { id: string; name: string };
+          }
+        | { error: string };
+      if (!res.ok || 'error' in data) {
+        setError(
+          'error' in data
+            ? data.error
+            : 'Erreur serveur',
+        );
+        return;
+      }
+      if (attempts.some((a) => a.countryId === data.countryId)) {
+        setError('Tu as déjà essayé ce pays.');
+        return;
+      }
+      const entry: Attempt = {
+        countryId: data.countryId,
+        countryName: data.countryName,
+        distanceKm: data.distanceKm,
+        bearing: data.bearing,
+        proximityPct: data.proximityPct,
+        correct: data.correct,
+      };
+      setSaved({
+        date: today,
+        attempts: [...attempts, entry],
+        target: data.target ?? saved.target,
+      });
+      setInput('');
+      setSuggest([]);
+    } catch (err) {
+      setError(`Erreur réseau : ${(err as Error).message}`);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [attempts, finished, input, saved.target, setSaved, submitting, today]);
 
   const updateInput = (v: string) => {
     setInput(v);
@@ -113,18 +139,18 @@ export function WorldleGame() {
     const norm = v
       .toLowerCase()
       .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-    const hits = COUNTRIES.filter((c) => {
+      .replace(/[̀-ͯ]/g, '');
+    const hits = WORLDLE_PUBLIC_COUNTRIES.filter((c) => {
       const name = c.name
         .toLowerCase()
         .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
+        .replace(/[̀-ͯ]/g, '');
       return name.startsWith(norm) || name.includes(norm);
     }).slice(0, 6);
     setSuggest(hits);
   };
 
-  const pickSuggest = (c: WorldleCountry) => {
+  const pickSuggest = (c: WorldlePublicCountry) => {
     setInput(c.name);
     setSuggest([]);
   };
@@ -161,7 +187,7 @@ export function WorldleGame() {
             }}
           >
             <img
-              src={shapeUrl(target)}
+              src="/api/solo/worldle/silhouette"
               alt=""
               style={{
                 maxWidth: '100%',
@@ -179,7 +205,7 @@ export function WorldleGame() {
               color: AC.bone2,
             }}
           >
-            {finished
+            {finished && target
               ? `// ${target.name}`
               : '// silhouette du jour — trouve le pays'}
           </div>
@@ -272,6 +298,7 @@ export function WorldleGame() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') submit();
                   }}
+                  disabled={submitting}
                   placeholder="Tape un pays…"
                   className="ac-input"
                   style={{
@@ -290,7 +317,7 @@ export function WorldleGame() {
                   variant="primary"
                   size="md"
                   onClick={submit}
-                  disabled={!input.trim()}
+                  disabled={!input.trim() || submitting}
                   icon={<AcGlyph kind="arrowRight" color={AC.ink} size={12} />}
                 >
                   OK
@@ -351,14 +378,14 @@ export function WorldleGame() {
 
       {/* État final */}
       <div className="mt-5">
-        {won && (
+        {won && target && (
           <AcAlert tone="info" tape="// BRAVO">
             <span style={{ color: AC.bone }}>
               {`// ${target.name} en ${attempts.length} essai${attempts.length > 1 ? 's' : ''} — à demain`}
             </span>
           </AcAlert>
         )}
-        {lost && (
+        {lost && target && (
           <AcAlert tone="danger" tape="// PERDU">
             <span style={{ color: AC.bone }}>
               {"// c'était "}

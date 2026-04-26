@@ -15,7 +15,7 @@
 
 import { readdir, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
-import { COUNTRIES } from '../lib/worldle/countries';
+import { COUNTRIES } from '../lib/worldle/server';
 
 const DIR = join(process.cwd(), 'public', 'country-shapes');
 const DRY = process.env.DRY === '1' || process.argv.includes('--dry');

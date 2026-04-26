@@ -24,6 +24,8 @@ import {
   AcStamp,
 } from '@/app/components/arcane';
 import type { LolChampionPayload } from '@/lib/quizCeo/lolChampion';
+import type { LolMatchCardData } from '@/lib/quizCeo/lolMatchCard';
+import { LolMatchCard } from './LolMatchCard';
 import { QUESTION_TYPE_MAP, splitMusicPoints } from '@/lib/quizCeo/config';
 
 interface Props {
@@ -403,7 +405,6 @@ function QuestionDisplay({ question }: { question: QuizCeoQuestion }) {
   const p = question.payload;
   switch (question.type) {
     case 'image-personality':
-    case 'media-image':
     case 'brand-logo':
     case 'price':
     case 'worldle':
@@ -411,6 +412,10 @@ function QuestionDisplay({ question }: { question: QuizCeoQuestion }) {
     case 'lol-champion': {
       const lp = p as unknown as LolChampionPayload;
       return <LolChampionReviewDisplay payload={lp} />;
+    }
+    case 'lol-player-match': {
+      const matchData = p as unknown as LolMatchCardData;
+      return <LolMatchCard data={matchData} />;
     }
     case 'music':
       return (
@@ -665,7 +670,6 @@ function CanonicalAnswer({ question }: { question: QuizCeoQuestion }) {
     case 'text-question':
     case 'expression':
     case 'translation':
-    case 'media-image':
     case 'country-motto':
     case 'brand-logo':
     case 'who-said':
@@ -702,7 +706,8 @@ function CanonicalAnswer({ question }: { question: QuizCeoQuestion }) {
           </div>
         </div>
       );
-    case 'multiple-choice': {
+    case 'multiple-choice':
+    case 'lol-player-match': {
       const idx = Number(a.correctIndex ?? -1);
       const choices = (question.payload.choices as string[]) ?? [];
       return (

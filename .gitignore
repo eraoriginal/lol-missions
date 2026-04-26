@@ -45,3 +45,6 @@ next-env.d.ts
 # Claude Code local config + worktrees
 /.claude/
 /.idea/
+
+# Riot API local cache (regénérable via download-lol-match-history.ts)
+/.cache/

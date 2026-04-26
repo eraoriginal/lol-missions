@@ -25,6 +25,7 @@ import {
   pickRandomChampion,
   pickRandomMode,
 } from '@/lib/quizCeo/lolChampion';
+import { LOL_PLAYERS } from '@/lib/quizCeo/lolPlayers';
 
 const bodySchema = z.object({
   creatorToken: z.string().min(1),
@@ -178,14 +179,18 @@ export async function POST(
         points: q.points,
         prompt: q.prompt,
       };
-      // Pour le ranking, on re-mélange l'ordre d'affichage à chaque partie.
+      // Pour le ranking : on shuffle À LA FOIS `items` ET `shuffledOrder`.
+      // Sans le shuffle de `items` un cheater pouvait lire l'ordre canonique
+      // de la réponse directement dans le payload (`payload.items[].id`)
+      // car le seed déclare souvent items dans l'ordre de la solution.
       if (q.type === 'ranking') {
         const payload = q.payload as unknown as RankingPayload;
-        const shuffledOrder = shuffle(payload.items.map((it) => it.id));
+        const shuffledItems = shuffle(payload.items);
+        const shuffledOrder = shuffle(shuffledItems.map((it) => it.id));
         return {
           ...base,
           type: 'ranking',
-          payload: { ...payload, shuffledOrder },
+          payload: { ...payload, items: shuffledItems, shuffledOrder },
           answer: q.answer as unknown as { order: string[] },
         } as FullQuestion;
       }
@@ -204,6 +209,42 @@ export async function POST(
           countryName: country.name,
         };
         return { ...base, type: 'worldle', payload, answer } as FullQuestion;
+      }
+      // Pour lol-player-match : la DB stocke `payload = LolMatchCardData` et
+      // `answer = { text: playerName }`. On transforme en QCM 4 choix à chaque
+      // partie : 1 bon + 3 distractors random pris parmi les autres joueurs
+      // de `LOL_PLAYERS` (que les `displayName`, jamais les tags `#XXX`).
+      if (q.type === 'lol-player-match') {
+        const correctName = (q.answer as { text?: string } | null)?.text;
+        if (correctName) {
+          const distractorPool = LOL_PLAYERS.map((p) => p.displayName).filter(
+            (n) => n !== correctName,
+          );
+          const distractors = shuffle(distractorPool).slice(0, 3);
+          const choices = shuffle([correctName, ...distractors]) as [
+            string,
+            string,
+            string,
+            string,
+          ];
+          const correctIndex = choices.indexOf(correctName);
+          return {
+            ...base,
+            type: 'lol-player-match',
+            payload: {
+              ...(q.payload as object),
+              choices,
+            } as unknown as object,
+            answer: { correctIndex },
+          } as FullQuestion;
+        }
+        // Garde-fou : si l'answer ne contient pas `text`, on retombe sur la
+        // shape DB de base (le strip de `answer` empêche tout leak côté client).
+        return {
+          ...base,
+          payload: q.payload as unknown as object,
+          answer: q.answer as unknown as object,
+        } as FullQuestion;
       }
       // Pour lol-champion : on tire un champion + un mode (splash art filtré
       // « Contours » OU 5 icônes de sorts en disposition « Passif central »)

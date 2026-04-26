@@ -9,44 +9,37 @@ import {
   AcCard,
   AcStamp,
 } from '@/app/components/arcane';
-import {
-  MOTUS_CLEAN_WORDS,
-  normalizeMotus,
-} from '@/lib/motus/words';
-import { dailyDateKey, pickByDay } from '@/lib/solo/dailyIndex';
+import { normalizeMotus } from '@/lib/motus/normalize';
+import { dailyDateKey } from '@/lib/solo/dailyIndex';
 
 const MAX_ATTEMPTS = 6;
 
 type Feedback = 'correct' | 'misplaced' | 'absent';
 
-function computeFeedback(guess: string, target: string): Feedback[] {
-  const n = target.length;
-  const result: Feedback[] = Array(n).fill('absent');
-  const chars = target.split('');
-  for (let i = 0; i < n; i++) {
-    if (guess[i] === target[i]) {
-      result[i] = 'correct';
-      chars[i] = '';
-    }
-  }
-  for (let i = 0; i < n; i++) {
-    if (result[i] === 'correct') continue;
-    const idx = chars.indexOf(guess[i]);
-    if (idx >= 0) {
-      result[i] = 'misplaced';
-      chars[idx] = '';
-    }
-  }
-  return result;
+interface GuessRecord {
+  guess: string;
+  feedback: Feedback[];
+}
+
+interface SavedState {
+  date: string;
+  /** Historique des essais avec leur feedback (tout est public côté client) */
+  records: GuessRecord[];
+  /** Mot du jour révélé par le serveur quand won OU dernier essai. */
+  target: string | null;
 }
 
 /** Scaffold = lettres déjà bien placées dans les essais précédents + 1re lettre. */
-function computeScaffold(word: string, guesses: string[]): (string | null)[] {
-  const scaffold: (string | null)[] = Array(word.length).fill(null);
-  scaffold[0] = word[0];
-  for (const g of guesses) {
-    for (let i = 0; i < word.length; i++) {
-      if (g[i] === word[i]) scaffold[i] = word[i];
+function computeScaffold(
+  wordLength: number,
+  firstLetter: string,
+  records: GuessRecord[],
+): (string | null)[] {
+  const scaffold: (string | null)[] = Array(wordLength).fill(null);
+  scaffold[0] = firstLetter;
+  for (const r of records) {
+    for (let i = 0; i < wordLength; i++) {
+      if (r.feedback[i] === 'correct') scaffold[i] = r.guess[i];
     }
   }
   return scaffold;
@@ -73,39 +66,153 @@ const KEYBOARD_ROWS = [
   ['ENTER', 'W', 'X', 'C', 'V', 'B', 'N', 'BACK'],
 ];
 
-interface SavedState {
-  date: string;
-  guesses: string[];
-  won: boolean;
+interface TodayMeta {
+  wordLength: number;
+  firstLetter: string;
 }
 
 export function MotusGame() {
-  const word = useMemo(() => pickByDay(MOTUS_CLEAN_WORDS), []);
-  const n = word.length;
   const today = dailyDateKey();
   const storageKey = `motus_${today}`;
 
-  // Persistance via useSyncExternalStore (pattern lint-strict).
+  // Métadonnées du puzzle (longueur + 1re lettre) — fetched depuis le serveur
+  // au mount. Tant que c'est null, on rend un loader.
+  const [meta, setMeta] = useState<TodayMeta | null>(null);
+  const [metaError, setMetaError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/solo/motus/today', { cache: 'no-store' })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data: TodayMeta) => {
+        if (!cancelled) setMeta(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setMetaError((err as Error).message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const defaultState = useMemo<SavedState>(
-    () => ({ date: today, guesses: [], won: false }),
+    () => ({ date: today, records: [], target: null }),
     [today],
   );
-  const [saved, setSaved] = usePersistedState<SavedState>(storageKey, defaultState);
-  const guesses = useMemo(
-    () => (saved.date === today ? saved.guesses : []),
+  const [saved, setSaved] = usePersistedState<SavedState>(
+    storageKey,
+    defaultState,
+  );
+  const records = useMemo(
+    () => (saved.date === today ? saved.records : []),
     [saved, today],
   );
-  const [toast, setToast] = useState<string | null>(null);
+  const targetRevealed = saved.date === today ? saved.target : null;
 
-  // Initialise le brouillon courant avec le scaffold.
+  const [toast, setToast] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  // État de fin dérivé : on a gagné si un record matche `target` (révélé),
+  // sinon on a perdu si on a épuisé les essais avec le mot révélé qui est
+  // forcément le dernier guess incorrect.
+  const won =
+    targetRevealed !== null &&
+    records.some((r) => r.guess === targetRevealed);
+  const lost =
+    !won && targetRevealed !== null && records.length >= MAX_ATTEMPTS;
+  const finished = won || lost;
+
+  if (metaError) {
+    return (
+      <SoloScreen title="MOTUS" accent={AC.chem}>
+        <AcAlert tone="danger" tape="// ERREUR">
+          <span style={{ color: AC.bone }}>
+            {`// impossible de charger le puzzle du jour : ${metaError}`}
+          </span>
+        </AcAlert>
+      </SoloScreen>
+    );
+  }
+  if (!meta) {
+    return (
+      <SoloScreen title="MOTUS" accent={AC.chem}>
+        <AcCard fold={false} dashed style={{ padding: 24 }}>
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 12,
+              color: AC.bone2,
+            }}
+          >
+            {'// chargement du puzzle…'}
+          </span>
+        </AcCard>
+      </SoloScreen>
+    );
+  }
+
+  return (
+    <MotusBoard
+      meta={meta}
+      today={today}
+      records={records}
+      targetRevealed={targetRevealed}
+      saved={saved}
+      setSaved={setSaved}
+      toast={toast}
+      setToast={setToast}
+      submitting={submitting}
+      setSubmitting={setSubmitting}
+      won={won}
+      lost={lost}
+      finished={finished}
+    />
+  );
+}
+
+interface MotusBoardProps {
+  meta: TodayMeta;
+  today: string;
+  records: GuessRecord[];
+  targetRevealed: string | null;
+  saved: SavedState;
+  setSaved: (s: SavedState) => void;
+  toast: string | null;
+  setToast: (s: string | null) => void;
+  submitting: boolean;
+  setSubmitting: (b: boolean) => void;
+  won: boolean;
+  lost: boolean;
+  finished: boolean;
+}
+
+function MotusBoard({
+  meta,
+  today,
+  records,
+  targetRevealed,
+  saved,
+  setSaved,
+  toast,
+  setToast,
+  submitting,
+  setSubmitting,
+  won,
+  lost,
+  finished,
+}: MotusBoardProps) {
+  const n = meta.wordLength;
+  const firstLetter = meta.firstLetter;
+
   const scaffold = useMemo(
-    () => computeScaffold(word, guesses),
-    [word, guesses],
+    () => computeScaffold(n, firstLetter, records),
+    [n, firstLetter, records],
   );
 
-  // Calcule la valeur initiale de `current` comme le préfixe scaffold contigu
-  // (toutes les lettres verrouillées au début). Ex : si scaffold = [R, null, ...],
-  // current démarre à "R".
+  // Préfixe scaffold contigu (toutes les lettres verrouillées au début).
   const scaffoldPrefix = useMemo(() => {
     let s = '';
     for (const c of scaffold) {
@@ -117,67 +224,106 @@ export function MotusGame() {
 
   const [current, setCurrent] = useState<string>(scaffoldPrefix);
 
-  // Resync current quand le nb de guesses change (pattern "derived state").
-  const [lastGuessCount, setLastGuessCount] = useState(0);
-  if (lastGuessCount !== guesses.length) {
-    setLastGuessCount(guesses.length);
+  // Resync current quand le nb de records change (pattern "derived state").
+  const [lastRecordCount, setLastRecordCount] = useState(0);
+  if (lastRecordCount !== records.length) {
+    setLastRecordCount(records.length);
     setCurrent(scaffoldPrefix);
   }
 
-  const won = guesses.some((g) => g === word);
-  const lost = !won && guesses.length >= MAX_ATTEMPTS;
-  const finished = won || lost;
-
   const onLetter = useCallback(
     (letter: string) => {
-      if (finished) return;
+      if (finished || submitting) return;
       setCurrent((prev) => {
-        // Ne dépasse pas la longueur.
         if (prev.length >= n) return prev;
         let next = prev + letter;
-        // Saute automatiquement les positions déjà verrouillées par le scaffold.
         while (next.length < n && scaffold[next.length] !== null) {
           next += scaffold[next.length] as string;
         }
         return next;
       });
     },
-    [finished, n, scaffold],
+    [finished, n, scaffold, submitting],
   );
 
   const onBack = useCallback(() => {
-    if (finished) return;
+    if (finished || submitting) return;
     setCurrent((prev) => {
-      if (prev.length <= 1) return prev; // garder au moins la 1re lettre
+      if (prev.length <= 1) return prev;
       let next = prev.slice(0, -1);
-      // Ne pas descendre sous une position scaffold : recule encore.
       while (next.length > 0 && scaffold[next.length - 1] !== null) {
         next = next.slice(0, -1);
       }
-      // Mais ré-injecte le scaffold de gauche à droite pour garder la cohérence.
       let rebuilt = '';
       for (let i = 0; i < next.length; i++) {
         rebuilt += scaffold[i] ?? next[i];
       }
       return rebuilt;
     });
-  }, [finished, scaffold]);
+  }, [finished, scaffold, submitting]);
 
-  const onSubmit = useCallback(() => {
-    if (finished) return;
+  const onSubmit = useCallback(async () => {
+    if (finished || submitting) return;
     if (current.length !== n) {
       setToast('Complète le mot avant de valider');
       setTimeout(() => setToast(null), 1500);
       return;
     }
-    const next = [...guesses, current];
-    setSaved({ date: today, guesses: next, won: current === word });
-  }, [current, finished, guesses, n, setSaved, today, word]);
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/solo/motus/guess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          guess: current,
+          attemptIndex: records.length,
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        setToast(data.error ?? 'Erreur serveur');
+        setTimeout(() => setToast(null), 2000);
+        return;
+      }
+      const data = (await res.json()) as {
+        feedback: Feedback[];
+        won: boolean;
+        target?: string;
+      };
+      const newRecord: GuessRecord = {
+        guess: current,
+        feedback: data.feedback,
+      };
+      setSaved({
+        date: today,
+        records: [...records, newRecord],
+        target: data.target ?? saved.target,
+      });
+    } catch (err) {
+      setToast(`Erreur réseau : ${(err as Error).message}`);
+      setTimeout(() => setToast(null), 2000);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [
+    current,
+    finished,
+    n,
+    records,
+    saved.target,
+    setSaved,
+    setSubmitting,
+    setToast,
+    submitting,
+    today,
+  ]);
 
   // Gestion clavier physique
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (finished) return;
+      if (finished || submitting) return;
       if (e.key === 'Enter') {
         e.preventDefault();
         onSubmit();
@@ -191,28 +337,26 @@ export function MotusGame() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onLetter, onBack, onSubmit, finished]);
+  }, [onLetter, onBack, onSubmit, finished, submitting]);
 
   // Calcule l'état de chaque touche du clavier (le meilleur signal vu jusqu'ici).
   const keyFeedback = useMemo(() => {
     const m = new Map<string, Feedback>();
-    for (const g of guesses) {
-      const fb = computeFeedback(g, word);
-      for (let i = 0; i < g.length; i++) {
-        const prev = m.get(g[i]);
-        const next = fb[i];
-        // Promotion : correct > misplaced > absent
+    for (const r of records) {
+      for (let i = 0; i < r.guess.length; i++) {
+        const prev = m.get(r.guess[i]);
+        const next = r.feedback[i];
         if (
           prev === undefined ||
           (prev === 'absent' && next !== 'absent') ||
           (prev === 'misplaced' && next === 'correct')
         ) {
-          m.set(g[i], next);
+          m.set(r.guess[i], next);
         }
       }
     }
     return m;
-  }, [guesses, word]);
+  }, [records]);
 
   return (
     <SoloScreen title="MOTUS" accent={AC.chem}>
@@ -237,8 +381,10 @@ export function MotusGame() {
             color: AC.chem,
           }}
         >
-          {'// essai ' + Math.min(guesses.length + (finished ? 0 : 1), MAX_ATTEMPTS) +
-            '/' + MAX_ATTEMPTS}
+          {'// essai ' +
+            Math.min(records.length + (finished ? 0 : 1), MAX_ATTEMPTS) +
+            '/' +
+            MAX_ATTEMPTS}
         </span>
       </div>
 
@@ -246,14 +392,15 @@ export function MotusGame() {
       <AcCard fold={false} style={{ padding: 16, marginBottom: 18 }}>
         <div className="flex flex-col gap-1.5 items-center">
           {Array.from({ length: MAX_ATTEMPTS }).map((_, rowIdx) => {
-            const isPast = rowIdx < guesses.length;
-            const isCurrent = rowIdx === guesses.length && !finished;
-            const rowWord = isPast
-              ? guesses[rowIdx]
+            const isPast = rowIdx < records.length;
+            const isCurrent = rowIdx === records.length && !finished;
+            const past = isPast ? records[rowIdx] : null;
+            const rowWord = past
+              ? past.guess
               : isCurrent
                 ? current.padEnd(n, ' ')
                 : scaffold.map((c) => c ?? ' ').join('');
-            const fb = isPast ? computeFeedback(guesses[rowIdx], word) : null;
+            const fb = past ? past.feedback : null;
             return (
               <div key={rowIdx} className="flex gap-1">
                 {Array.from({ length: n }).map((__, i) => {
@@ -300,7 +447,9 @@ export function MotusGame() {
                             ? AC.ink
                             : AC.bone,
                         textTransform: 'uppercase',
-                        boxShadow: isCursor ? `inset 0 -3px 0 ${AC.chem}` : undefined,
+                        boxShadow: isCursor
+                          ? `inset 0 -3px 0 ${AC.chem}`
+                          : undefined,
                       }}
                     >
                       {letter !== ' ' ? letter : ''}
@@ -318,17 +467,17 @@ export function MotusGame() {
         <div className="mb-4">
           <AcAlert tone="info" tape="// BRAVO">
             <span style={{ color: AC.bone }}>
-              {`// trouvé en ${guesses.length} essai${guesses.length > 1 ? 's' : ''} — reviens demain`}
+              {`// trouvé en ${records.length} essai${records.length > 1 ? 's' : ''} — reviens demain`}
             </span>
           </AcAlert>
         </div>
       )}
-      {lost && (
+      {lost && targetRevealed && (
         <div className="mb-4">
           <AcAlert tone="danger" tape="// PERDU">
             <span style={{ color: AC.bone }}>
               {"// le mot était "}
-              <strong style={{ color: AC.gold }}>{word}</strong>
+              <strong style={{ color: AC.gold }}>{targetRevealed}</strong>
               {" — reviens demain"}
             </span>
           </AcAlert>
@@ -353,7 +502,7 @@ export function MotusGame() {
                     key={k}
                     type="button"
                     onClick={onSubmit}
-                    disabled={finished}
+                    disabled={finished || submitting}
                     style={keyStyle('special')}
                   >
                     ENTRÉE
@@ -366,7 +515,7 @@ export function MotusGame() {
                     key={k}
                     type="button"
                     onClick={onBack}
-                    disabled={finished}
+                    disabled={finished || submitting}
                     style={keyStyle('special')}
                   >
                     ⌫
@@ -379,7 +528,7 @@ export function MotusGame() {
                   key={k}
                   type="button"
                   onClick={() => onLetter(k)}
-                  disabled={finished}
+                  disabled={finished || submitting}
                   style={keyStyle(fb)}
                 >
                   {k}

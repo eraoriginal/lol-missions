@@ -10,67 +10,94 @@ import {
   AcCard,
   AcGlyph,
 } from '@/app/components/arcane';
-import {
-  PUZZLES,
-  normalizeCemantix,
-  scoreGuess,
-  tierLabel,
-  type CemantixPuzzle,
-} from '@/lib/cemantix/puzzles';
-import { dailyDateKey, pickByDay } from '@/lib/solo/dailyIndex';
+import { tierLabel, type CemantixTier } from '@/lib/cemantix/shared';
+import { dailyDateKey } from '@/lib/solo/dailyIndex';
 
 interface Attempt {
   word: string;
   rank: number;
-  tier: 1 | 2 | 3 | 4 | 5;
+  tier: CemantixTier;
   order: number; // ordre chronologique
 }
 
 interface SavedState {
   date: string;
   attempts: Attempt[];
-  won: boolean;
+  /** Mot du jour révélé par le serveur quand won. */
+  target: string | null;
+}
+
+function normalizeForDedup(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9 -]/g, '');
 }
 
 export function CemantixGame() {
-  const puzzle = useMemo<CemantixPuzzle>(() => pickByDay(PUZZLES), []);
   const today = dailyDateKey();
   const storageKey = `cemantix_${today}`;
 
   const defaultState = useMemo<SavedState>(
-    () => ({ date: today, attempts: [], won: false }),
+    () => ({ date: today, attempts: [], target: null }),
     [today],
   );
-  const [saved, setSaved] = usePersistedState<SavedState>(storageKey, defaultState);
+  const [saved, setSaved] = usePersistedState<SavedState>(
+    storageKey,
+    defaultState,
+  );
   const attempts = useMemo(
     () => (saved.date === today ? saved.attempts : []),
     [saved, today],
   );
+  const target = saved.date === today ? saved.target : null;
   const [input, setInput] = useState('');
   const [lastAttempt, setLastAttempt] = useState<Attempt | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const won = attempts.some((a) => a.rank === 0);
+  const won = target !== null && attempts.some((a) => a.rank === 0);
 
-  const submit = useCallback(() => {
-    if (won) return;
-    const norm = normalizeCemantix(input);
+  const submit = useCallback(async () => {
+    if (won || submitting) return;
+    const norm = normalizeForDedup(input);
     if (!norm) return;
-    if (attempts.some((a) => normalizeCemantix(a.word) === norm)) {
+    if (attempts.some((a) => normalizeForDedup(a.word) === norm)) {
       setInput('');
       return;
     }
-    const { rank, tier } = scoreGuess(puzzle, input);
-    const entry: Attempt = {
-      word: norm,
-      rank,
-      tier,
-      order: attempts.length + 1,
-    };
-    const next = [...attempts, entry];
-    setSaved({ date: today, attempts: next, won: rank === 0 });
-    setLastAttempt(entry);
-    setInput('');
-  }, [attempts, input, puzzle, setSaved, today, won]);
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/solo/cemantix/guess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word: input.trim() }),
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        rank: number;
+        tier: CemantixTier;
+        won: boolean;
+        target?: string;
+      };
+      const entry: Attempt = {
+        word: norm,
+        rank: data.rank,
+        tier: data.tier,
+        order: attempts.length + 1,
+      };
+      setSaved({
+        date: today,
+        attempts: [...attempts, entry],
+        target: data.target ?? saved.target,
+      });
+      setLastAttempt(entry);
+      setInput('');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [attempts, input, saved.target, setSaved, submitting, today, won]);
 
   // Historique trié par proximité (rank croissant).
   const sorted = [...attempts].sort((a, b) => a.rank - b.rank);
@@ -101,6 +128,7 @@ export function CemantixGame() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') submit();
               }}
+              disabled={submitting}
               placeholder="Tape un mot et devine le mot du jour…"
               className="ac-input"
               style={{
@@ -119,7 +147,7 @@ export function CemantixGame() {
               variant="primary"
               size="md"
               onClick={submit}
-              disabled={!input.trim()}
+              disabled={!input.trim() || submitting}
               icon={<AcGlyph kind="arrowRight" color={AC.ink} size={12} />}
             >
               OK
@@ -169,12 +197,12 @@ export function CemantixGame() {
         </AcCard>
       )}
 
-      {won && (
+      {won && target && (
         <div className="mt-5">
           <AcAlert tone="info" tape="// BRAVO">
             <span style={{ color: AC.bone }}>
               {`// trouvé en ${attempts.length} essais — le mot était `}
-              <strong style={{ color: AC.gold }}>{puzzle.target}</strong>
+              <strong style={{ color: AC.gold }}>{target}</strong>
             </span>
           </AcAlert>
         </div>
@@ -192,7 +220,6 @@ function AttemptRow({
 }) {
   const t = tierLabel(attempt.tier);
   const isTarget = attempt.rank === 0;
-  // Progress bar 0..100%.
   const pct = isTarget
     ? 100
     : Math.max(
@@ -239,7 +266,6 @@ function AttemptRow({
       >
         {attempt.word}
       </span>
-      {/* Proximity bar */}
       <div
         style={{
           width: 120,

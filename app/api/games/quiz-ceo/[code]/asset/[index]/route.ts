@@ -1,32 +1,50 @@
 /**
- * GET /api/games/quiz-ceo/[code]/asset/[index]
+ * GET /api/games/quiz-ceo/[code]/asset/[index]?slot=<q|w|e|r|p>
  *
- * Proxy opaque pour servir les SVG dont le nom de fichier révèle la réponse
- * (logos de marques sous `public/brand-logos/<slug>.svg`, silhouettes de pays
- * sous `public/country-shapes/<iso2>.svg`).
+ * Proxy opaque pour servir les assets dont le nom de fichier révèle la
+ * réponse. Sans ce proxy, le client recevrait dans la payload de la
+ * question quelque chose comme `/brand-logos/apple.svg` — un joueur ouvre
+ * les devtools et voit la réponse. Avec ce proxy, l'URL devient
+ * `/asset/<index>` qui ne contient aucun indice.
  *
- * Sans ce proxy, le client recevrait dans la payload de la question quelque
- * chose comme `/brand-logos/apple.svg` — un joueur ouvre les devtools et
- * voit la réponse. Avec ce proxy, l'URL devient `/asset/<index>` qui ne
- * contient aucun indice. Le serveur lit le vrai chemin depuis la DB
- * (`QuizCeoGame.questions[index].payload.imageUrl`) et stream le fichier.
+ * Catégories couvertes :
+ *   - `brand-logo`   → `/brand-logos/<slug>.svg`
+ *   - `worldle`      → `/country-shapes/<iso2>.svg`
+ *   - `lol-champion` mode splash → `/lol-champions/<id>.jpg` (`payload.imageUrl`)
+ *   - `lol-champion` mode spells → `/lol-champion-spells/<id>/<slot>.png`
+ *     (`payload.iconUrls[slot]`, requiert `?slot=q|w|e|r|p`)
  *
  * Sécurité :
- *   - Whitelist stricte de répertoires (`/brand-logos/`, `/country-shapes/`)
- *     pour éviter tout path traversal (`../etc/passwd`).
+ *   - Whitelist stricte de répertoires sources (anti-path-traversal).
  *   - Le path normalisé doit rester sous `public/` après résolution.
- *   - Pas de cache HTTP : sinon un navigateur pourrait corréler URL → contenu
- *     entre parties (toutefois, la même partie peut cacher en mémoire).
+ *   - Pas de cache HTTP long : 2 minutes (couvre la durée d'une question
+ *     sans déclencher de re-fetch infini sur les re-renders React).
+ *   - Aucun header ne révèle le filename d'origine.
  */
 
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { prisma } from '@/lib/prisma';
 
-const ALLOWED_PREFIXES = ['/brand-logos/', '/country-shapes/'];
+const ALLOWED_PREFIXES = [
+  '/brand-logos/',
+  '/country-shapes/',
+  '/lol-champions/',
+  '/lol-champion-spells/',
+];
+
+const ALLOWED_SLOTS = new Set(['q', 'w', 'e', 'r', 'p']);
+
+function contentTypeForPath(p: string): string {
+  if (p.endsWith('.svg')) return 'image/svg+xml; charset=utf-8';
+  if (p.endsWith('.png')) return 'image/png';
+  if (p.endsWith('.jpg') || p.endsWith('.jpeg')) return 'image/jpeg';
+  if (p.endsWith('.webp')) return 'image/webp';
+  return 'application/octet-stream';
+}
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ code: string; index: string }> },
 ) {
   try {
@@ -34,6 +52,12 @@ export async function GET(
     const idx = Number.parseInt(index, 10);
     if (!Number.isFinite(idx) || idx < 0) {
       return new Response('Bad index', { status: 400 });
+    }
+
+    const url = new URL(request.url);
+    const slot = url.searchParams.get('slot');
+    if (slot !== null && !ALLOWED_SLOTS.has(slot)) {
+      return new Response('Bad slot', { status: 400 });
     }
 
     const room = await prisma.room.findUnique({
@@ -45,17 +69,26 @@ export async function GET(
     }
 
     const questions = room.quizCeoGame.questions as unknown as Array<{
-      payload?: { imageUrl?: string };
+      payload?: {
+        imageUrl?: string;
+        iconUrls?: Record<string, string>;
+      };
     }>;
     const q = questions[idx];
     if (!q) {
       return new Response('Not found', { status: 404 });
     }
-    const realPath = q.payload?.imageUrl;
+
+    // Résolution du chemin réel selon présence du slot :
+    //   - avec slot → on lit `payload.iconUrls[slot]` (cas lol-champion spells)
+    //   - sans slot → on lit `payload.imageUrl` (cas splash / brand / worldle)
+    const realPath = slot
+      ? q.payload?.iconUrls?.[slot]
+      : q.payload?.imageUrl;
     if (typeof realPath !== 'string') {
       return new Response('Not found', { status: 404 });
     }
-    // Whitelist stricte de répertoires (anti-path-traversal).
+
     if (!ALLOWED_PREFIXES.some((p) => realPath.startsWith(p))) {
       return new Response('Forbidden', { status: 403 });
     }
@@ -76,21 +109,12 @@ export async function GET(
 
     return new Response(new Uint8Array(content), {
       headers: {
-        'Content-Type': 'image/svg+xml; charset=utf-8',
-        // Cache court privé : 2 minutes suffisent à couvrir une question
-        // (timer max ~30s) sans que le navigateur re-fetch à chaque render
-        // React (le timer interne tickait toutes les 200ms et provoquait un
-        // refetch infini avec no-store, ce qui faisait clignoter le DOM).
-        // L'URL `/asset/<index>` est unique par (room, index) donc pas de
-        // leak cross-partie : une nouvelle game crée une nouvelle room ou
-        // un nouveau snapshot, jamais la même URL ne sert deux assets.
+        'Content-Type': contentTypeForPath(realPath),
         'Cache-Control': 'private, max-age=120',
-        // Anti-spoil supplémentaire : ne révèle pas le filename d'origine.
         'X-Content-Type-Options': 'nosniff',
       },
     });
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error('[QUIZ-CEO asset proxy] error', err);
     return new Response('Server error', { status: 500 });
   }

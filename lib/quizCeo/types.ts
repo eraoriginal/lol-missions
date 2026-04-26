@@ -11,6 +11,7 @@
 
 import type { QuestionTypeId, Difficulty } from './config';
 import type { LolChampionPayload } from './lolChampion';
+import type { LolMatchCardData } from './lolMatchCard';
 
 // ------- Payloads (ce que le joueur voit) -------
 
@@ -85,7 +86,13 @@ export type FullQuestion = BaseQuestion &
         payload: QuestionTextChoicesPayload;
         answer: OddIndexAnswer;
       }
-    | { type: 'media-image'; payload: ImageLikePayload; answer: StringAnswer }
+    | {
+        type: 'lol-player-match';
+        payload: LolMatchCardData & {
+          choices: [string, string, string, string];
+        };
+        answer: ChoiceIndexAnswer;
+      }
     | { type: 'country-motto'; payload: TextPayload; answer: StringAnswer }
     | { type: 'brand-logo'; payload: ImageLikePayload; answer: StringAnswer }
     | {

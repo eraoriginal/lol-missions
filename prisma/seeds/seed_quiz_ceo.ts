@@ -37,6 +37,7 @@ import {
   TEXT_QUESTIONS_MEDIUM,
   TEXT_QUESTIONS_HARD,
 } from '../../lib/quizCeo/textQuestions';
+import { LOL_PLAYER_MATCHES } from '../../lib/quizCeo/lolPlayerMatches';
 
 const prisma = new PrismaClient();
 
@@ -128,24 +129,11 @@ const QUESTIONS: SeedInput[] = [
     },
   },
 
-  // 10. Image manga / série / film — « Le Voyage dans la Lune » (1902, domaine public)
-  {
-    type: 'media-image',
-    difficulty: 'medium',
-    prompt: "De quel film s'agit-il ?",
-    payload: {
-      imageUrl:
-        'https://en.wikipedia.org/wiki/Special:FilePath/Le_Voyage_dans_la_lune.jpg?width=450',
-    },
-    answer: {
-      text: 'Le Voyage dans la Lune',
-      aliases: [
-        'Voyage dans la Lune',
-        'A Trip to the Moon',
-        'Le voyage dans la lune',
-      ],
-    },
-  },
+  // 10. Catégorie `lol-player-match` — la catégorie est bulk-loadée plus bas
+  // depuis `lib/quizCeo/lolPlayerMatches.ts` (~648 entrées générées par
+  // `npx tsx scripts/download-lol-match-history.ts`). Pas de placeholder
+  // ici : le bulk loader fournit déjà toutes les entrées avec leurs payloads
+  // et answers. (Anciennement `media-image` qui a été remplacé.)
 
   // Note : la catégorie "country-motto" est seedée séparément en bas du
   // fichier depuis `lib/quizCeo/countryMottos.ts` (200 entrées : 75 EASY +
@@ -468,6 +456,24 @@ async function main() {
     const result = await prisma.quizCeoQuestion.createMany({ data });
     created += result.count;
   }
+
+  // Insertion en masse des matches LoL depuis `lib/quizCeo/lolPlayerMatches.ts`
+  // (catégorie `lol-player-match`). ~648 entrées générées par
+  // `download-lol-match-history.ts` (12 amis + Slim Natsu × ~50 matches).
+  // Tous en difficulty `medium` (2 pts). Validation manuelle par le créateur
+  // en review (le pseudo des amis n'est pas dans un fuzzy match auto).
+  const matchData = LOL_PLAYER_MATCHES.map((entry) => ({
+    type: 'lol-player-match',
+    difficulty: 'medium' as const,
+    points: DIFFICULTY_POINTS.medium,
+    prompt: 'Quel joueur est derrière cette partie ?',
+    payload: entry.data as unknown as object,
+    answer: { text: entry.playerName } as unknown as object,
+  }));
+  const matchResult = await prisma.quizCeoQuestion.createMany({
+    data: matchData,
+  });
+  created += matchResult.count;
 
   console.log(`[quiz-ceo seed] ${created} question(s) insérée(s).`);
 }

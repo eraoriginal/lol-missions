@@ -13,6 +13,8 @@ import {
   LOL_CONTOURS_FILTER,
   type LolChampionPayload,
 } from '@/lib/quizCeo/lolChampion';
+import type { LolMatchCardData } from '@/lib/quizCeo/lolMatchCard';
+import { LolMatchCard } from './LolMatchCard';
 import {
   applyRankingDrop,
   computeRankingHoverIndex,
@@ -101,7 +103,6 @@ function TypedBody({
   const payload = question.payload;
   switch (question.type) {
     case 'image-personality':
-    case 'media-image':
     case 'brand-logo':
       return (
         <>
@@ -114,6 +115,27 @@ function TypedBody({
           />
         </>
       );
+    case 'lol-player-match': {
+      // Carte de match LoL réelle — devine quel joueur a joué ça.
+      // Mécanique QCM : 4 choix (1 correct + 3 distractors random) générés
+      // à chaque partie par `start/route.ts`. Le payload contient à la fois
+      // les data de la MatchCard ET le tableau `choices: [string × 4]`.
+      const matchPayload = payload as unknown as LolMatchCardData;
+      const choices = (payload.choices as string[]) ?? [];
+      return (
+        <>
+          <div className="mb-4">
+            <LolMatchCard data={matchPayload} />
+          </div>
+          <ChoicesInput
+            choices={choices}
+            value={value}
+            onChange={onChange}
+            disabled={disabled}
+          />
+        </>
+      );
+    }
     case 'text-question':
     case 'expression':
     case 'translation':

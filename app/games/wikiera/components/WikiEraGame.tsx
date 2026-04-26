@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SoloScreen } from '@/app/games/solo/SoloScreen';
 import { usePersistedState } from '@/app/games/solo/usePersistedState';
 import {
@@ -10,52 +10,146 @@ import {
   AcCard,
   AcGlyph,
 } from '@/app/components/arcane';
-import {
-  WIKIERA_ENTRIES,
-  matchesWikiera,
-  type WikiEraEntry,
-} from '@/lib/wikiera/entries';
-import { dailyDateKey, pickByDay } from '@/lib/solo/dailyIndex';
+import { dailyDateKey } from '@/lib/solo/dailyIndex';
+
+interface AttemptRecord {
+  guess: string;
+  correct: boolean;
+}
 
 interface SavedState {
   date: string;
-  attempts: string[];
-  won: boolean;
+  attempts: AttemptRecord[];
+  /** Sujet révélé par le serveur quand correct OU abandon. */
+  target: string | null;
   gaveUp: boolean;
 }
 
 export function WikiEraGame() {
-  const entry = useMemo<WikiEraEntry>(() => pickByDay(WIKIERA_ENTRIES), []);
   const today = dailyDateKey();
   const storageKey = `wikiera_${today}`;
 
+  const [text, setText] = useState<string | null>(null);
+  const [textError, setTextError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/solo/wikiera/today', { cache: 'no-store' })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data: { text: string }) => {
+        if (!cancelled) setText(data.text);
+      })
+      .catch((err) => {
+        if (!cancelled) setTextError((err as Error).message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const defaultState = useMemo<SavedState>(
-    () => ({ date: today, attempts: [], won: false, gaveUp: false }),
+    () => ({ date: today, attempts: [], target: null, gaveUp: false }),
     [today],
   );
-  const [saved, setSaved] = usePersistedState<SavedState>(storageKey, defaultState);
+  const [saved, setSaved] = usePersistedState<SavedState>(
+    storageKey,
+    defaultState,
+  );
   const current = saved.date === today ? saved : defaultState;
-  const { attempts, won, gaveUp } = current;
-  const [input, setInput] = useState('');
+  const { attempts, target, gaveUp } = current;
 
+  const won = attempts.some((a) => a.correct);
   const finished = won || gaveUp;
 
-  const submit = useCallback(() => {
-    if (finished || !input.trim()) return;
-    const nextAttempts = [...attempts, input.trim()];
-    const matched = matchesWikiera(input, entry);
-    setSaved({
-      date: today,
-      attempts: nextAttempts,
-      won: matched,
-      gaveUp: false,
-    });
-    setInput('');
-  }, [attempts, entry, finished, input, setSaved, today]);
+  const [input, setInput] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const giveUp = () => {
-    setSaved({ date: today, attempts, won: false, gaveUp: true });
-  };
+  const submit = useCallback(async () => {
+    if (finished || submitting || !input.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/solo/wikiera/guess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guess: input.trim() }),
+      });
+      if (!res.ok) {
+        setSubmitting(false);
+        return;
+      }
+      const data = (await res.json()) as {
+        correct: boolean;
+        target?: string;
+      };
+      const newAttempt: AttemptRecord = {
+        guess: input.trim(),
+        correct: data.correct,
+      };
+      setSaved({
+        date: today,
+        attempts: [...attempts, newAttempt],
+        target: data.target ?? saved.target,
+        gaveUp: false,
+      });
+      setInput('');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [attempts, finished, input, saved.target, setSaved, submitting, today]);
+
+  const giveUp = useCallback(async () => {
+    if (finished || submitting) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/solo/wikiera/guess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guess: '_giveup_', giveUp: true }),
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as { target?: string };
+      setSaved({
+        date: today,
+        attempts,
+        target: data.target ?? null,
+        gaveUp: true,
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }, [attempts, finished, setSaved, submitting, today]);
+
+  if (textError) {
+    return (
+      <SoloScreen title="WIKIERA" accent={AC.violet}>
+        <AcAlert tone="danger" tape="// ERREUR">
+          <span style={{ color: AC.bone }}>
+            {`// impossible de charger le wiki du jour : ${textError}`}
+          </span>
+        </AcAlert>
+      </SoloScreen>
+    );
+  }
+  if (!text) {
+    return (
+      <SoloScreen title="WIKIERA" accent={AC.violet}>
+        <AcCard fold={false} dashed style={{ padding: 24 }}>
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 12,
+              color: AC.bone2,
+            }}
+          >
+            {'// chargement…'}
+          </span>
+        </AcCard>
+      </SoloScreen>
+    );
+  }
 
   return (
     <SoloScreen title="WIKIERA" accent={AC.violet}>
@@ -95,8 +189,7 @@ export function WikiEraGame() {
             color: AC.bone,
           }}
         >
-          {/* Le nom du sujet est masqué : on remplace toute occurrence par "[???]". */}
-          {entry.text}
+          {text}
         </div>
       </AcCard>
 
@@ -111,6 +204,7 @@ export function WikiEraGame() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') submit();
               }}
+              disabled={submitting}
               placeholder="Tape ta réponse…"
               className="ac-input"
               style={{
@@ -129,7 +223,7 @@ export function WikiEraGame() {
               variant="primary"
               size="md"
               onClick={submit}
-              disabled={!input.trim()}
+              disabled={!input.trim() || submitting}
               icon={<AcGlyph kind="arrowRight" color={AC.ink} size={12} />}
             >
               OK
@@ -137,7 +231,12 @@ export function WikiEraGame() {
           </div>
           {attempts.length >= 2 && (
             <div className="mt-3 text-right">
-              <AcButton variant="ghost" size="sm" onClick={giveUp}>
+              <AcButton
+                variant="ghost"
+                size="sm"
+                onClick={giveUp}
+                disabled={submitting}
+              >
                 ABANDONNER
               </AcButton>
             </div>
@@ -161,50 +260,47 @@ export function WikiEraGame() {
             {'// TES ESSAIS'}
           </div>
           <div className="flex flex-col gap-1">
-            {attempts.map((a, i) => {
-              const matched = matchesWikiera(a, entry);
-              return (
-                <div
-                  key={i}
-                  className="flex items-center gap-2"
-                  style={{
-                    padding: '6px 10px',
-                    borderLeft: `3px solid ${matched ? AC.chem : AC.rust}`,
-                    background: 'rgba(240,228,193,0.03)',
-                    fontFamily:
-                      "'JetBrains Mono', 'Courier New', monospace",
-                    fontSize: 13,
-                    color: AC.bone,
-                  }}
-                >
-                  <span style={{ color: AC.bone2, minWidth: 24 }}>
-                    #{i + 1}
-                  </span>
-                  <span className="flex-1">{a}</span>
-                  <span style={{ color: matched ? AC.chem : AC.rust }}>
-                    {matched ? '✓' : '✗'}
-                  </span>
-                </div>
-              );
-            })}
+            {attempts.map((a, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2"
+                style={{
+                  padding: '6px 10px',
+                  borderLeft: `3px solid ${a.correct ? AC.chem : AC.rust}`,
+                  background: 'rgba(240,228,193,0.03)',
+                  fontFamily:
+                    "'JetBrains Mono', 'Courier New', monospace",
+                  fontSize: 13,
+                  color: AC.bone,
+                }}
+              >
+                <span style={{ color: AC.bone2, minWidth: 24 }}>
+                  #{i + 1}
+                </span>
+                <span className="flex-1">{a.guess}</span>
+                <span style={{ color: a.correct ? AC.chem : AC.rust }}>
+                  {a.correct ? '✓' : '✗'}
+                </span>
+              </div>
+            ))}
           </div>
         </AcCard>
       )}
 
       {/* États finaux */}
-      {won && (
+      {won && target && (
         <AcAlert tone="info" tape="// BRAVO">
           <span style={{ color: AC.bone }}>
             {`// trouvé en ${attempts.length} essai${attempts.length > 1 ? 's' : ''} — c'était `}
-            <strong style={{ color: AC.gold }}>{entry.topic}</strong>
+            <strong style={{ color: AC.gold }}>{target}</strong>
           </span>
         </AcAlert>
       )}
-      {gaveUp && (
+      {gaveUp && target && (
         <AcAlert tone="danger" tape="// ABANDON">
           <span style={{ color: AC.bone }}>
             {"// la réponse était "}
-            <strong style={{ color: AC.gold }}>{entry.topic}</strong>
+            <strong style={{ color: AC.gold }}>{target}</strong>
             {" — à demain"}
           </span>
         </AcAlert>

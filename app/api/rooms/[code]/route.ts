@@ -161,24 +161,68 @@ export async function GET(
             const phase = quizGame.phase;
             if (phase === 'playing' || phase === 'waiting_review') {
                 if (Array.isArray(quizGame.questions)) {
+                    // Préfixes d'assets dont le filename révèle la réponse :
+                    //   - /brand-logos/<slug>.svg            (brand-logo)
+                    //   - /country-shapes/<iso2>.svg         (worldle)
+                    //   - /lol-champions/<id>.jpg            (lol-champion splash)
+                    //   - /lol-champion-spells/<id>/<x>.png  (lol-champion spells)
+                    // Toutes ces URLs sont remplacées par un proxy opaque
+                    // `/api/games/quiz-ceo/<code>/asset/<index>` qui résout
+                    // le vrai chemin server-side depuis la DB.
+                    const SPOIL_PREFIXES = [
+                        '/brand-logos/',
+                        '/country-shapes/',
+                        '/lol-champions/',
+                        '/lol-champion-spells/',
+                    ];
+                    const isSpoiler = (s: string) =>
+                        SPOIL_PREFIXES.some((p) => s.startsWith(p));
+                    const proxyBase = `/api/games/quiz-ceo/${code}/asset`;
+
                     quizGame.questions = quizGame.questions.map((q, index) => {
                         const clone = { ...q };
                         delete clone.answer;
-                        // Anti-spoil DevTools : pour les questions dont l'imageUrl
-                        // pointe vers un asset local nommé d'après la réponse
-                        // (ex. `/brand-logos/apple.svg`), on réécrit vers une
-                        // URL proxy opaque qui ne révèle rien.
-                        const payload = clone.payload as { imageUrl?: string } | undefined;
+                        const payload = clone.payload as
+                            | {
+                                  imageUrl?: string;
+                                  iconUrls?: Record<string, string>;
+                              }
+                            | undefined;
+
+                        // Cas 1 : payload.imageUrl (brand-logo, worldle,
+                        // lol-champion splash mode).
                         const url = payload?.imageUrl;
-                        if (
-                            typeof url === 'string' &&
-                            (url.startsWith('/brand-logos/') ||
-                                url.startsWith('/country-shapes/'))
-                        ) {
+                        if (typeof url === 'string' && isSpoiler(url)) {
                             clone.payload = {
                                 ...payload,
-                                imageUrl: `/api/games/quiz-ceo/${code}/asset/${index}`,
+                                imageUrl: `${proxyBase}/${index}`,
                             };
+                        }
+
+                        // Cas 2 : payload.iconUrls.{q,w,e,r,p} (lol-champion
+                        // spells mode). Chaque slot pointe vers un fichier
+                        // distinct → URL proxy distincte via ?slot=.
+                        const icons = payload?.iconUrls;
+                        if (icons && typeof icons === 'object') {
+                            const proxiedIcons: Record<string, string> = {};
+                            let touched = false;
+                            for (const [slot, iconUrl] of Object.entries(icons)) {
+                                if (
+                                    typeof iconUrl === 'string' &&
+                                    isSpoiler(iconUrl)
+                                ) {
+                                    proxiedIcons[slot] = `${proxyBase}/${index}?slot=${slot}`;
+                                    touched = true;
+                                } else {
+                                    proxiedIcons[slot] = iconUrl;
+                                }
+                            }
+                            if (touched) {
+                                clone.payload = {
+                                    ...(clone.payload as object),
+                                    iconUrls: proxiedIcons,
+                                };
+                            }
                         }
                         return clone;
                     });

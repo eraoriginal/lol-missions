@@ -49,9 +49,10 @@ export const QUESTION_TYPES = [
     description: '4 propositions, 3 vraies, trouver la fausse.',
   },
   {
-    id: 'media-image',
-    label: 'Image de manga/série/film',
-    description: "Image d'une œuvre, à deviner.",
+    id: 'lol-player-match',
+    label: 'Devine le joueur',
+    description:
+      "Une carte de match LoL (champion, KDA, items, runes…) tirée de l'historique d'un joueur connu — devine qui a joué cette partie.",
   },
   {
     id: 'country-motto',
