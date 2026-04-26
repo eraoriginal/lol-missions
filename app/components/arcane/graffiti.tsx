@@ -150,9 +150,15 @@ export function AcSpray({
   seed?: number;
   style?: CSSProperties;
 }) {
-  // Déterministe : on reproduit le même splat à chaque render.
-  const rand = (n: number) =>
-    ((Math.sin((n + seed) * 12.9898) * 43758.5453) % 1 + 1) % 1;
+  // Déterministe : hash entier (xxhash-like) — `Math.sin` à grandes valeurs
+  // diverge légèrement entre Node et V8 du navigateur et casse l'hydratation.
+  const rand = (n: number) => {
+    let x = ((n + seed) | 0) + 0x9e3779b9;
+    x = Math.imul(x ^ (x >>> 16), 0x85ebca6b);
+    x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35);
+    x = x ^ (x >>> 16);
+    return (x >>> 0) / 4294967296;
+  };
   const shards: string[] = [];
   for (let i = 0; i < 18; i++) {
     const cx = 10 + rand(i) * 100;

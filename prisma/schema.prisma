@@ -69,11 +69,15 @@ model Room {
   beatEikichiHintsEnabled Boolean @default(false)        // indices activés par le créateur (Beat Eikichi)
   beatEikichiTimerSeconds Int     @default(30)           // durée d'une question (Beat Eikichi) - réglable par le créateur
   beatEikichiMode         String  @default("standard")   // mode de jeu (Beat Eikichi) : "standard" ou "blur"
+  quizCeoTimerSeconds     Int     @default(30)           // durée d'une question (Quiz du CEO) - 10..300
+  quizCeoQuestionCount    Int     @default(16)           // nombre de questions par partie (Quiz du CEO)
+  quizCeoDisabledTypes    String[] @default([])          // types de questions désactivés par le créateur (Quiz du CEO)
   createdAt           DateTime  @default(now())
 
   players          Player[]
   codenameGame     CodenameGame?
   beatEikichiGame  BeatEikichiGame?
+  quizCeoGame      QuizCeoGame?
   gameHistories    GameHistory[]
   roomEvents       RoomEvent[]
   playerBets       PlayerBet[]
@@ -145,6 +149,7 @@ model Player {
   bets           PlayerBet[]  @relation("PlayerBets")
   betTargets     PlayerBet[]  @relation("BetTargets")
   beatEikichiStates BeatEikichiPlayerState[]
+  quizCeoStates     QuizCeoPlayerState[]
 
   @@index([roomId])
   @@index([token])
@@ -371,4 +376,62 @@ model BeatEikichiWeaponEvent {
   data            Json?
 
   @@index([gameId, questionIndex])
+}
+
+// Le Quiz du CEO - banque de questions
+// Chaque question a un type parmi 16 (image-personality, gif, text, country-shape,
+// expression, music, translation, multiple-choice, odd-one-out, media-image,
+// country-motto, brand-logo, absurd-law, price, who-said, ranking).
+// `payload` et `answer` sont des JSON dont le schéma dépend de `type`.
+model QuizCeoQuestion {
+  id         String   @id @default(cuid())
+  type       String   // voir lib/quizCeo/config.ts pour la liste
+  difficulty String   // "easy" | "medium" | "hard"
+  points     Int      // 1 (easy), 2 (medium), 3 (hard)
+  prompt     String   // consigne spécifique à la question, ex: "Qui est cette personnalité ?"
+  payload    Json     // données d'affichage (imageUrl, choices, text…) — dépend de `type`
+  answer     Json     // réponse correcte — strippée côté API en phase "playing"
+  createdAt  DateTime @default(now())
+
+  @@index([type])
+}
+
+// Le Quiz du CEO - état de la partie pour une room
+model QuizCeoGame {
+  id                String    @id @default(cuid())
+  roomId            String    @unique
+  room              Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  // Snapshot des questions tirées au démarrage. Array de
+  // { id, type, difficulty, points, prompt, payload, answer }.
+  questions         Json
+
+  // "playing" | "waiting_review" | "review" | "leaderboard"
+  phase             String    @default("playing")
+  currentIndex      Int       @default(0)       // 0..N-1 — réutilisé en review
+  questionStartedAt DateTime?                   // début de la question courante (timer)
+
+  timerSeconds      Int       @default(30)      // snapshoté depuis Room.quizCeoTimerSeconds
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  playerStates      QuizCeoPlayerState[]
+}
+
+// Le Quiz du CEO - état par joueur
+model QuizCeoPlayerState {
+  id       String      @id @default(cuid())
+  gameId   String
+  game     QuizCeoGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  playerId String
+  player   Player      @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  // Array de { position, type, submitted (JSON), validated? : bool,
+  //   validatedArtist? / validatedTitle? pour "music", pointsAwarded? : int }.
+  answers  Json        @default("[]")
+  score    Int         @default(0)
+
+  @@unique([gameId, playerId])
+  @@index([gameId])
 }

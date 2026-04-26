@@ -11,6 +11,10 @@ import {
     GameView as BeatEikichiGameView,
     BeatEikichiLobby,
 } from '@/app/games/beat-eikichi/components';
+import {
+    GameView as QuizCeoGameView,
+    QuizCeoLobby,
+} from '@/app/games/quiz-ceo/components';
 import { Toast } from '@/app/components/Toast';
 import { ComingSoonGame } from '@/app/components/ComingSoonGame';
 import {
@@ -320,10 +324,11 @@ export default function RoomPage({
 
     // Determine background class based on game type (anciens jeux non-refaits)
     const bgClass = room.gameType === 'codename-ceo' ? 'poki-bg' : 'lol-bg';
-    const isNewDesign = room.gameType === 'beat-eikichi';
+    const isNewDesign =
+        room.gameType === 'beat-eikichi' || room.gameType === 'quiz-ceo';
 
-    // Beat Eikichi utilise le design system Arcane (AcScreen gère le fond).
-    // Les autres jeux gardent leur ancien fond `bgClass`.
+    // Beat Eikichi et Quiz du CEO utilisent le design system Arcane (AcScreen
+    // gère le fond). Les autres jeux gardent leur ancien fond `bgClass`.
     const content = (
         <>
             {room.gameType === 'aram-missions' ? (
@@ -339,6 +344,12 @@ export default function RoomPage({
                     <BeatEikichiGameView room={room} roomCode={code} refetch={refetch} />
                 ) : (
                     <BeatEikichiLobby room={room} roomCode={code} />
+                )
+            ) : room.gameType === 'quiz-ceo' ? (
+                room.gameStarted ? (
+                    <QuizCeoGameView room={room} roomCode={code} refetch={refetch} />
+                ) : (
+                    <QuizCeoLobby room={room} roomCode={code} />
                 )
             ) : (
                 <ComingSoonGame

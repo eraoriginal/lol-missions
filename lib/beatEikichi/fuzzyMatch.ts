@@ -181,38 +181,44 @@ function stripEditionSuffix(name: string): string {
 }
 
 /**
- * Vérifie si `input` est une réponse acceptable pour `name` ou une de ses `aliases`.
+ * Vérifie si `input` est une réponse acceptable pour `name`.
+ *
+ * **Seul le nom canonique est source de vérité.** Les aliases ne sont plus
+ * pris en compte (décision produit suite à des faux positifs : un alias trop
+ * permissif validait des réponses qui n'étaient pas le bon jeu).
+ *
  * Match STRICT après normalisation (casse, accents, ponctuation, « the » initial,
  * chiffres romains ↔ arabes, « & » ↔ « and », lookalikes cyrilliques → latin,
  * et suffixes d'édition optionnels). Pas de tolérance aux fautes de frappe pour
  * éviter les faux positifs entre des jeux similaires (ex. "Halo 2" vs "Halo 3",
  * distance Levenshtein = 1).
+ *
+ * Le 3e paramètre `_aliases` est conservé pour rétrocompatibilité de la
+ * signature avec les tests / appelants existants, mais il est **ignoré**.
  */
 export function isAcceptedAnswer(
   input: string,
   name: string,
-  aliases: string[] = [],
+  _aliases: string[] = [],
 ): boolean {
+  void _aliases;
   const normalizedInput = normalize(input);
   if (!normalizedInput) return false;
 
-  const targets = [name, ...aliases].filter(Boolean);
+  const normalizedTarget = normalize(name);
+  if (!normalizedTarget) return false;
 
-  for (const target of targets) {
-    const normalizedTarget = normalize(target);
-    if (!normalizedTarget) continue;
+  if (normalizedInput === normalizedTarget) {
+    return true;
+  }
 
-    if (normalizedInput === normalizedTarget) {
+  // Fallback : accepte aussi la version sans suffixe d'édition.
+  // Ex. « Crysis 2 » accepté quand le nom canonique est « Crysis 2 - Maximum Edition ».
+  const stripped = stripEditionSuffix(name);
+  if (stripped !== name) {
+    const normalizedStripped = normalize(stripped);
+    if (normalizedStripped && normalizedInput === normalizedStripped) {
       return true;
-    }
-
-    // Fallback : accepte aussi la version sans suffixe d'édition.
-    const stripped = stripEditionSuffix(target);
-    if (stripped !== target) {
-      const normalizedStripped = normalize(stripped);
-      if (normalizedStripped && normalizedInput === normalizedStripped) {
-        return true;
-      }
     }
   }
 
@@ -221,10 +227,13 @@ export function isAcceptedAnswer(
 
 /**
  * Calcule un niveau de proximité "close / medium / far" entre une réponse donnée
- * et la liste des cibles (name + aliases). Utilisé uniquement pour le feedback
- * visuel après une mauvaise réponse — n'impacte pas la validation.
+ * et le nom canonique. Utilisé uniquement pour le feedback visuel après une
+ * mauvaise réponse — n'impacte pas la validation.
  *
- * Critères (meilleur des cibles testées) :
+ * Le 3e paramètre `_aliases` est conservé pour rétrocompatibilité mais
+ * **ignoré** (depuis que la validation ne se base plus que sur `name`).
+ *
+ * Critères :
  *   - close  : Levenshtein ratio ≤ 0.25, OU franchise partagée (premier token
  *              signifiant identique + les deux titres ont plusieurs tokens),
  *              OU l'un est préfixe de l'autre (longueur ≥ 4)
@@ -234,13 +243,14 @@ export function isAcceptedAnswer(
 export function computeCloseness(
   input: string,
   name: string,
-  aliases: string[] = [],
+  _aliases: string[] = [],
 ): 'close' | 'medium' | 'far' {
+  void _aliases;
   const normalizedInput = normalize(input);
   const inputTokens = meaningfulTokens(input);
   if (!normalizedInput) return 'far';
 
-  const targets = [name, ...aliases].filter(Boolean);
+  const targets = [name].filter(Boolean);
 
   let bestLevRatio = 1;
   let franchiseMatch = false;

@@ -86,16 +86,13 @@ export async function POST(
       );
     }
 
-    const correct = isAcceptedAnswer(text, currentQuestion.name, currentQuestion.aliases);
+    // Validation : seul le nom canonique fait foi (pas les aliases).
+    const correct = isAcceptedAnswer(text, currentQuestion.name);
 
     if (!correct) {
       // Feedback de proximité informatif — ne change PAS la validation (stricte),
       // mais guide le joueur (chaud / tiède / froid).
-      const closeness = computeCloseness(
-        text,
-        currentQuestion.name,
-        currentQuestion.aliases,
-      );
+      const closeness = computeCloseness(text, currentQuestion.name);
       return Response.json({ correct: false, closeness });
     }
 

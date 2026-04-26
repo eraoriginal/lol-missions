@@ -15,6 +15,12 @@
     "seed:beat-eikichi": "tsx prisma/seeds/seed_beat_eikichi_catalog.ts",
     "seed:beat-eikichi-gifs": "tsx prisma/seeds/seed_beat_eikichi_gifs.ts",
     "seed:beat-eikichi-hints": "tsx prisma/seeds/seed_beat_eikichi_hints.ts",
+    "download:country-shapes": "tsx scripts/download-country-shapes.ts",
+    "cleanup:country-shapes": "tsx scripts/cleanup-country-shapes.ts",
+    "prune:country-shapes": "tsx scripts/prune-country-shapes.ts",
+    "download:brand-logos": "tsx scripts/download-brand-logos.ts",
+    "cleanup:brand-logos": "tsx scripts/cleanup-brand-logos.ts",
+    "prune:brand-logos": "tsx scripts/prune-brand-logos.ts",
     "prisma:studio": "prisma studio",
     "prisma:reset": "prisma migrate reset --force"
   },

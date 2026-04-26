@@ -162,6 +162,72 @@ export interface BeatEikichiGame {
     weaponEvents?: BeatEikichiWeaponEvent[];
 }
 
+// ------- Le Quiz du CEO -------
+
+export type QuizCeoPhase = 'playing' | 'waiting_review' | 'review' | 'leaderboard';
+
+export interface QuizCeoSubmittedText { kind: 'text'; value: string }
+export interface QuizCeoSubmittedMusic { kind: 'music'; value: string }
+export interface QuizCeoSubmittedChoice { kind: 'choice'; index: number }
+export interface QuizCeoSubmittedBoolean { kind: 'boolean'; value: boolean }
+export interface QuizCeoSubmittedPrice { kind: 'price'; value: number }
+export interface QuizCeoSubmittedRanking { kind: 'ranking'; order: string[] }
+export type QuizCeoSubmitted =
+    | QuizCeoSubmittedText
+    | QuizCeoSubmittedMusic
+    | QuizCeoSubmittedChoice
+    | QuizCeoSubmittedBoolean
+    | QuizCeoSubmittedPrice
+    | QuizCeoSubmittedRanking
+    | null;
+
+export interface QuizCeoPlayerAnswer {
+    position: number;
+    type: string;
+    submitted: QuizCeoSubmitted;
+    validated?: boolean;
+    validatedArtist?: boolean;
+    validatedTitle?: boolean;
+    pointsAwarded?: number;
+    submittedAtMs?: number | null;
+}
+
+export interface QuizCeoPlayerState {
+    id: string;
+    playerId: string;
+    answers: QuizCeoPlayerAnswer[];
+    score: number;
+}
+
+export interface QuizCeoRankingItem {
+    id: string;
+    label: string;
+    url: string;
+}
+
+// Question publique envoyée aux clients — `answer` est strippé pendant "playing".
+// Les payloads sont type-dépendants ; on laisse `payload` en `Record<string, unknown>`
+// côté frontend, les composants narrow selon le type.
+export interface QuizCeoQuestion {
+    id: string;
+    type: string;
+    difficulty: 'easy' | 'medium' | 'hard';
+    points: number;
+    prompt: string;
+    payload: Record<string, unknown>;
+    answer?: Record<string, unknown>;
+}
+
+export interface QuizCeoGame {
+    id: string;
+    questions: QuizCeoQuestion[];
+    phase: QuizCeoPhase;
+    currentIndex: number;
+    questionStartedAt: string | null;
+    timerSeconds: number;
+    playerStates: QuizCeoPlayerState[];
+}
+
 export interface Room {
     id: string;
     code: string;
@@ -186,9 +252,13 @@ export interface Room {
     beatEikichiHintsEnabled?: boolean;
     beatEikichiTimerSeconds?: number;
     beatEikichiMode?: 'standard' | 'blur';
+    quizCeoTimerSeconds?: number;
+    quizCeoQuestionCount?: number;
+    quizCeoDisabledTypes?: string[];
     players: Player[];
     codenameGame?: CodenameGame | null;
     beatEikichiGame?: BeatEikichiGame | null;
+    quizCeoGame?: QuizCeoGame | null;
     roomEvents?: RoomEvent[];
     playerBets?: PlayerBet[];
 }

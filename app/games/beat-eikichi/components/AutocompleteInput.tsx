@@ -72,11 +72,12 @@ export function AutocompleteInput({
   const suggestions = useMemo(() => {
     const n = normalize(value);
     if (!n) return [];
+    // Filtre uniquement sur le **nom canonique** : c'est la seule chose
+    // acceptée par `isAcceptedAnswer` côté serveur. Si on suggérait via les
+    // aliases, l'utilisateur pouvait cliquer un jeu apparu grâce à un alias
+    // permissif et se retrouver avec sa réponse refusée (cf. bug Watch Dogs).
     return catalog
-      .filter((g) => {
-        const candidates = [g.name, ...g.aliases];
-        return candidates.some((c) => normalize(c).includes(n));
-      })
+      .filter((g) => normalize(g.name).includes(n))
       .slice(0, MAX_SUGGESTIONS);
   }, [catalog, value]);
 

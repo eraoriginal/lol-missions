@@ -1278,6 +1278,78 @@ body {
 .ac-input::-webkit-input-placeholder { color: var(--ac-bone); opacity: 0.28; }
 .ac-input::-moz-placeholder         { color: var(--ac-bone); opacity: 0.28; }
 
+/* Cache les flèches natives sur input[type=number] pour Quiz CEO Price —
+   on rend nos propres spinners stylés à droite. */
+.ac-price-input::-webkit-outer-spin-button,
+.ac-price-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.ac-price-input {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Quiz CEO · Drag & drop ranking — feedback visuel marqué pour qu'on sente
+   qu'on tient quelque chose et qu'on cible un slot.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.qc-drag-row {
+  position: relative;
+  transition: transform 0.14s ease-out, box-shadow 0.14s ease-out,
+              background-color 0.14s ease-out, border-color 0.14s ease-out,
+              opacity 0.14s ease-out;
+  user-select: none;
+}
+.qc-drag-row:not(.qc-drag-row--disabled):hover {
+  background: rgba(245, 185, 18, 0.07) !important;
+  border-color: var(--ac-gold) !important;
+}
+.qc-drag-row--dragging {
+  opacity: 0.45;
+  transform: scale(0.97) rotate(-0.6deg);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.55);
+  border-style: solid !important;
+  border-color: var(--ac-gold) !important;
+  background: rgba(245, 185, 18, 0.18) !important;
+}
+.qc-drag-row--target {
+  transform: scale(1.015) translateX(4px);
+  background: rgba(94, 184, 255, 0.16) !important;
+  border-style: solid !important;
+  border-color: var(--ac-hex) !important;
+  box-shadow: inset 0 0 0 2px var(--ac-hex), 0 0 0 1px var(--ac-hex);
+}
+.qc-drag-row--target::before {
+  content: "";
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  top: -3px;
+  height: 3px;
+  background: var(--ac-hex);
+  box-shadow: 0 0 8px var(--ac-hex);
+  pointer-events: none;
+}
+.qc-drag-handle {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 4px;
+  color: var(--ac-bone-2);
+  cursor: grab;
+  line-height: 0;
+}
+.qc-drag-row--dragging .qc-drag-handle,
+.qc-drag-handle:active { cursor: grabbing; }
+.qc-drag-handle span {
+  display: block;
+  width: 14px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 1px;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Beat Eikichi · Armes FX — keyframes pur CSS portées des maquettes
    Arcane.kit (voir `maquettes/Armes FX.html`). Namespace `bek-fx-` pour

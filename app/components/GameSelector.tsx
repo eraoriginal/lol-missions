@@ -1,7 +1,7 @@
 'use client';
 
 import { AC, AcGlyph, AcStamp } from './arcane';
-import { GAMES } from './gameCatalog';
+import { MULTI_GAMES } from './gameCatalog';
 
 interface GameSelectorProps {
   selectedGame: string;
@@ -14,7 +14,7 @@ const OPTION_CLIP =
 export function GameSelector({ selectedGame, onSelectGame }: GameSelectorProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {GAMES.map((g) => {
+      {MULTI_GAMES.map((g) => {
         const selected = g.id === selectedGame;
         const disabled = !g.available;
         return (

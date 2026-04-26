@@ -1,5 +1,7 @@
+import Link from 'next/link';
 import { CreateRoomForm } from './components/CreateRoomForm';
 import { JoinRoomForm } from './components/JoinRoomForm';
+import { SOLO_GAMES } from './components/gameCatalog';
 import {
   AC,
   AcCard,
@@ -88,8 +90,36 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Create + Join */}
-        <section className="mb-14 sm:mb-20">
+        {/* Section 01 — MULTI JOUEURS : Create + Join */}
+        <section className="mb-10 sm:mb-14">
+          <div className="flex items-baseline gap-3 mb-5">
+            <AcSectionNum n={1} />
+            <h2
+              className="m-0"
+              style={{
+                fontFamily:
+                  "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                fontWeight: 800,
+                fontSize: 'clamp(22px, 3vw, 30px)',
+                letterSpacing: '0.02em',
+                textTransform: 'uppercase',
+                color: AC.bone,
+              }}
+            >
+              MULTI <AcShim color={AC.shimmer}>JOUEURS</AcShim>
+            </h2>
+            <span
+              style={{
+                fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                fontSize: 10,
+                letterSpacing: '0.22em',
+                color: AC.bone2,
+                textTransform: 'uppercase',
+              }}
+            >
+              {'// en room — avec des potes'}
+            </span>
+          </div>
           <div className="grid gap-7 lg:grid-cols-[1.25fr_1fr]">
             <AcCard fold drip dripColor={AC.shimmer} style={{ padding: 20 }}>
               <CreateRoomForm />
@@ -105,6 +135,98 @@ export default function Home() {
                 </AcStamp>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* Section 02 — SOLO : jeux quotidiens */}
+        <section className="mb-12 sm:mb-20">
+          <div className="flex items-baseline gap-3 mb-5 flex-wrap">
+            <AcSectionNum n={2} />
+            <h2
+              className="m-0"
+              style={{
+                fontFamily:
+                  "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                fontWeight: 800,
+                fontSize: 'clamp(22px, 3vw, 30px)',
+                letterSpacing: '0.02em',
+                textTransform: 'uppercase',
+                color: AC.bone,
+              }}
+            >
+              MODE <AcShim color={AC.chem}>SOLO</AcShim>
+            </h2>
+            <span
+              style={{
+                fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                fontSize: 10,
+                letterSpacing: '0.22em',
+                color: AC.bone2,
+                textTransform: 'uppercase',
+              }}
+            >
+              {'// un puzzle par jour — clique et joue'}
+            </span>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {SOLO_GAMES.map((g) => (
+              <Link
+                key={g.id}
+                href={`/play/${g.id}`}
+                style={{ textDecoration: 'none', display: 'block' }}
+              >
+                <AcCard
+                  fold={false}
+                  dashed
+                  style={{
+                    padding: 18,
+                    cursor: 'pointer',
+                    height: '100%',
+                  }}
+                >
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <AcGlyph kind={g.icon} color={g.color} size={22} />
+                    <span
+                      style={{
+                        fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                        fontSize: 9,
+                        letterSpacing: '0.22em',
+                        color: g.color,
+                        background: 'rgba(13,11,8,0.55)',
+                        padding: '2px 6px',
+                        border: `1px solid ${g.color}`,
+                      }}
+                    >
+                      {g.tag}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      fontFamily:
+                        "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
+                      fontWeight: 800,
+                      fontSize: 22,
+                      letterSpacing: '0.02em',
+                      textTransform: 'uppercase',
+                      color: AC.bone,
+                      marginBottom: 4,
+                    }}
+                  >
+                    {g.name}
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                      fontSize: 11,
+                      color: AC.bone2,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {g.description}
+                  </div>
+                </AcCard>
+              </Link>
+            ))}
           </div>
         </section>
 

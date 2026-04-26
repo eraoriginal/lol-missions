@@ -58,6 +58,11 @@ export async function GET(
                         },
                     },
                 },
+                quizCeoGame: {
+                    include: {
+                        playerStates: true,
+                    },
+                },
                 gameHistories: {
                     orderBy: { gameNumber: 'asc' },
                 },
@@ -140,6 +145,51 @@ export async function GET(
                 hintTerm: hintsEnabled ? q.hintTerm ?? null : null,
                 hintPlatforms: hintsEnabled ? q.hintPlatforms ?? null : null,
             }));
+        }
+
+        // Quiz du CEO : en phase "playing" / "waiting_review" :
+        //   - strip le champ `answer` des questions (anti-spoil devtools).
+        //   - masque les réponses des autres joueurs (chaque joueur ne voit
+        //     que ses propres `answers`).
+        // En phase "review" / "leaderboard", la partie est terminée : on expose tout.
+        const quizGame = (filteredRoom as { quizCeoGame?: {
+            phase?: string;
+            questions?: Array<Record<string, unknown>>;
+            playerStates?: Array<{ playerId: string; answers: unknown; score: number; id: string; gameId: string }>;
+        } | null }).quizCeoGame;
+        if (quizGame) {
+            const phase = quizGame.phase;
+            if (phase === 'playing' || phase === 'waiting_review') {
+                if (Array.isArray(quizGame.questions)) {
+                    quizGame.questions = quizGame.questions.map((q, index) => {
+                        const clone = { ...q };
+                        delete clone.answer;
+                        // Anti-spoil DevTools : pour les questions dont l'imageUrl
+                        // pointe vers un asset local nommé d'après la réponse
+                        // (ex. `/brand-logos/apple.svg`), on réécrit vers une
+                        // URL proxy opaque qui ne révèle rien.
+                        const payload = clone.payload as { imageUrl?: string } | undefined;
+                        const url = payload?.imageUrl;
+                        if (
+                            typeof url === 'string' &&
+                            (url.startsWith('/brand-logos/') ||
+                                url.startsWith('/country-shapes/'))
+                        ) {
+                            clone.payload = {
+                                ...payload,
+                                imageUrl: `/api/games/quiz-ceo/${code}/asset/${index}`,
+                            };
+                        }
+                        return clone;
+                    });
+                }
+                if (Array.isArray(quizGame.playerStates) && currentPlayer) {
+                    quizGame.playerStates = quizGame.playerStates.map((s) => ({
+                        ...s,
+                        answers: s.playerId === currentPlayer.id ? s.answers : [],
+                    }));
+                }
+            }
         }
 
         const responseRoom = {
