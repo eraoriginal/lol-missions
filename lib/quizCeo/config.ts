@@ -5,7 +5,6 @@
  *   - id          : identifiant stable utilisé en DB et dans les payloads
  *   - label       : nom court affiché dans le lobby / les réglages
  *   - description : explication courte pour le créateur
- *   - defaultDifficulty : difficulté par défaut si on devait en créer une nouvelle
  *
  * Les questions stockées en DB peuvent avoir n'importe quelle `difficulty`
  * (indépendamment du type), et le champ `points` suit la règle
@@ -13,11 +12,6 @@
  */
 
 export const QUESTION_TYPES = [
-  {
-    id: 'image-personality',
-    label: 'Image personnalité',
-    description: "Une image d'une personnalité s'affiche, à deviner.",
-  },
   {
     id: 'text-question',
     label: 'Question texte',
@@ -29,24 +23,15 @@ export const QUESTION_TYPES = [
     description: "Une expression avec un mot manquant, à compléter.",
   },
   {
-    id: 'music',
-    label: 'Musique',
-    description: 'Une musique se déclenche, trouver artiste et titre.',
-  },
-  {
     id: 'translation',
     label: 'Traduction',
     description: 'Une phrase en langue étrangère à traduire.',
   },
   {
-    id: 'multiple-choice',
-    label: 'Question à choix',
-    description: '4 propositions, 1 bonne réponse.',
-  },
-  {
-    id: 'odd-one-out',
-    label: 'Question intrus',
-    description: '4 propositions, 3 vraies, trouver la fausse.',
+    id: 'zodiac-mbti',
+    label: 'Zodiaque & MBTI',
+    description:
+      "Une description de personnalité s'affiche, deviner à quel signe astrologique ou type MBTI elle correspond (QCM 4 choix).",
   },
   {
     id: 'lol-player-match',
@@ -70,19 +55,9 @@ export const QUESTION_TYPES = [
     description: "Une loi française difficile à croire : vrai ou faux ?",
   },
   {
-    id: 'price',
-    label: 'Juste prix',
-    description: "Une image s'affiche, deviner le prix.",
-  },
-  {
     id: 'who-said',
     label: 'Qui a dit',
     description: 'Une phrase citée, deviner qui a dit ça.',
-  },
-  {
-    id: 'ranking',
-    label: 'Classement',
-    description: '7 images à classer (drag & drop).',
   },
   {
     id: 'worldle',
@@ -95,6 +70,32 @@ export const QUESTION_TYPES = [
     label: 'LoL',
     description:
       "Devine le champion League of Legends à partir de son splash art (filtre Contours) ou de ses 5 icônes de sorts (Q W E R + Passif). Mode aléatoire à chaque question.",
+  },
+  {
+    id: 'acronyme-sigle',
+    label: 'Acronymes & sigles',
+    description: 'Un sigle ou acronyme à développer (réponse libre).',
+  },
+  {
+    id: 'bouffe-internationale',
+    label: 'Cuisine du monde',
+    description: "Une photo d'un plat à reconnaître — devine le pays d'origine (QCM 4 choix).",
+  },
+  {
+    id: 'panneau-signalisation',
+    label: 'Panneaux de signalisation',
+    description: 'Un panneau routier français — devine sa signification (QCM 4 choix).',
+  },
+  {
+    id: 'slogan-pub',
+    label: 'Slogans de pub',
+    description: 'Un slogan publicitaire français — devine la marque (QCM 4 choix).',
+  },
+  {
+    id: 'know-era',
+    label: 'Connais-tu le CEO',
+    description:
+      "Une question sur les goûts / la personne du CEO de la KAF — devine la bonne réponse (QCM 4 choix).",
   },
 ] as const;
 
@@ -126,34 +127,11 @@ export const TIMER_DEFAULT = 30;
 export const QUESTION_COUNT_MIN = 4;
 export const QUESTION_COUNT_MAX = 40;
 /**
- * Nombre de questions par partie — fixé à 25 et **non modifiable depuis le
+ * Nombre de questions par partie — fixé à 20 et **non modifiable depuis le
  * lobby** (l'UI a été retirée). Le tirage côté serveur (`start/route.ts`)
  * garantit 1 question par type activé puis remplit le reste avec
  * `text-question` (catégorie de fallback de loin la plus fournie : 1500
  * entrées). Conséquence : avec les 16 types tous activés on a 16 uniques +
- * 9 text-question fillers = 25.
+ * 4 text-question fillers = 20.
  */
-export const QUESTION_COUNT_DEFAULT = 25;
-
-/**
- * Pour le type "music", la ventilation des points entre artiste / titre si
- * la question vaut 3 pts est : artiste = 1, titre = 2. Chaque case cochée par
- * le créateur pendant la review ajoute la portion correspondante au score.
- * Les deux cochées = 3 (total). Aucune cochée = 0. Plus général (toute
- * difficulté) : le titre vaut 2/3 des points, l'artiste 1/3 (arrondi entier).
- */
-export function splitMusicPoints(totalPoints: number): {
-  artist: number;
-  title: number;
-} {
-  if (totalPoints <= 1) {
-    return { artist: 0, title: totalPoints };
-  }
-  if (totalPoints === 2) {
-    return { artist: 1, title: 1 };
-  }
-  // 3 (hard) → artist=1, title=2
-  const artist = Math.floor(totalPoints / 3);
-  const title = totalPoints - artist;
-  return { artist, title };
-}
+export const QUESTION_COUNT_DEFAULT = 20;

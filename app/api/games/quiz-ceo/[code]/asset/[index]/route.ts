@@ -7,31 +7,43 @@
  * les devtools et voit la réponse. Avec ce proxy, l'URL devient
  * `/asset/<index>` qui ne contient aucun indice.
  *
- * Catégories couvertes :
+ * Catégories couvertes (assets locaux sous `public/`) :
  *   - `brand-logo`   → `/brand-logos/<slug>.svg`
  *   - `worldle`      → `/country-shapes/<iso2>.svg`
- *   - `lol-champion` mode splash → `/lol-champions/<id>.jpg` (`payload.imageUrl`)
+ *   - `lol-champion` mode splash → `/lol-champions/<id>.jpg`
  *   - `lol-champion` mode spells → `/lol-champion-spells/<id>/<slot>.png`
- *     (`payload.iconUrls[slot]`, requiert `?slot=q|w|e|r|p`)
+ *
+ * Catégories couvertes (URLs externes Wikimedia/Wikipedia) :
+ *   - `bouffe-internationale`     → photo du plat (commons.wikimedia.org)
+ *   - `panneau-signalisation`     → SVG du panneau (commons.wikimedia.org)
+ *   - `affiche-films-sans-titre`  → poster du film (en.wikipedia.org)
  *
  * Sécurité :
- *   - Whitelist stricte de répertoires sources (anti-path-traversal).
- *   - Le path normalisé doit rester sous `public/` après résolution.
+ *   - Whitelist stricte de répertoires sources locaux (anti-path-traversal).
+ *   - Whitelist stricte de hosts pour les URLs externes.
+ *   - Pour le local : le path normalisé doit rester sous `public/`.
  *   - Pas de cache HTTP long : 2 minutes (couvre la durée d'une question
  *     sans déclencher de re-fetch infini sur les re-renders React).
- *   - Aucun header ne révèle le filename d'origine.
+ *   - Aucun header ne révèle le filename / l'URL d'origine.
  */
 
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { prisma } from '@/lib/prisma';
 
-const ALLOWED_PREFIXES = [
+const ALLOWED_LOCAL_PREFIXES = [
   '/brand-logos/',
   '/country-shapes/',
   '/lol-champions/',
   '/lol-champion-spells/',
 ];
+
+const ALLOWED_EXTERNAL_HOSTS = new Set([
+  'commons.wikimedia.org',
+  'upload.wikimedia.org',
+  'en.wikipedia.org',
+  'fr.wikipedia.org',
+]);
 
 const ALLOWED_SLOTS = new Set(['q', 'w', 'e', 'r', 'p']);
 
@@ -81,7 +93,7 @@ export async function GET(
 
     // Résolution du chemin réel selon présence du slot :
     //   - avec slot → on lit `payload.iconUrls[slot]` (cas lol-champion spells)
-    //   - sans slot → on lit `payload.imageUrl` (cas splash / brand / worldle)
+    //   - sans slot → on lit `payload.imageUrl` (cas splash / brand / worldle / food / signs / movies)
     const realPath = slot
       ? q.payload?.iconUrls?.[slot]
       : q.payload?.imageUrl;
@@ -89,11 +101,48 @@ export async function GET(
       return new Response('Not found', { status: 404 });
     }
 
-    if (!ALLOWED_PREFIXES.some((p) => realPath.startsWith(p))) {
+    // Cas externes (Wikimedia/Wikipedia) — on fetch l'upstream et on
+    // re-stream sans laisser le client voir l'URL d'origine.
+    if (/^https?:\/\//i.test(realPath)) {
+      let upstream: URL;
+      try {
+        upstream = new URL(realPath);
+      } catch {
+        return new Response('Bad URL', { status: 400 });
+      }
+      if (!ALLOWED_EXTERNAL_HOSTS.has(upstream.host)) {
+        return new Response('Forbidden', { status: 403 });
+      }
+      try {
+        const res = await fetch(realPath, {
+          // Wikipedia/Wikimedia veut un User-Agent identifiable.
+          headers: { 'User-Agent': 'lol-missions-quiz/1.0 (contact@lol-missions.local)' },
+          // Suit les redirects (Special:FilePath redirect vers upload.wikimedia.org).
+          redirect: 'follow',
+        });
+        if (!res.ok) {
+          return new Response('Upstream error', { status: 502 });
+        }
+        const ct =
+          res.headers.get('content-type') ?? contentTypeForPath(upstream.pathname);
+        const buf = await res.arrayBuffer();
+        return new Response(buf, {
+          headers: {
+            'Content-Type': ct,
+            'Cache-Control': 'private, max-age=600',
+            'X-Content-Type-Options': 'nosniff',
+          },
+        });
+      } catch {
+        return new Response('Upstream fetch failed', { status: 502 });
+      }
+    }
+
+    // Cas locaux sous `public/` — whitelist de préfixes anti-path-traversal.
+    if (!ALLOWED_LOCAL_PREFIXES.some((p) => realPath.startsWith(p))) {
       return new Response('Forbidden', { status: 403 });
     }
 
-    // Résout le path et vérifie qu'il reste bien sous `public/`.
     const publicDir = path.join(process.cwd(), 'public');
     const resolved = path.resolve(publicDir, '.' + realPath);
     if (!resolved.startsWith(publicDir + path.sep)) {

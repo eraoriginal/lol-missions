@@ -379,10 +379,11 @@ model BeatEikichiWeaponEvent {
 }
 
 // Le Quiz du CEO - banque de questions
-// Chaque question a un type parmi 16 (image-personality, gif, text, country-shape,
-// expression, music, translation, multiple-choice, odd-one-out, media-image,
-// country-motto, brand-logo, absurd-law, price, who-said, ranking).
-// `payload` et `answer` sont des JSON dont le schéma dépend de `type`.
+// Chaque question a un type parmi 14 (image-personality, text-question,
+// expression, translation, odd-one-out, lol-player-match, country-motto,
+// brand-logo, absurd-law, who-said, ranking, worldle, lol-champion,
+// zodiac-mbti). `payload` et `answer` sont des JSON dont le schéma dépend
+// de `type` — voir lib/quizCeo/types.ts pour l'union typée.
 model QuizCeoQuestion {
   id         String   @id @default(cuid())
   type       String   // voir lib/quizCeo/config.ts pour la liste
@@ -428,7 +429,7 @@ model QuizCeoPlayerState {
   player   Player      @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   // Array de { position, type, submitted (JSON), validated? : bool,
-  //   validatedArtist? / validatedTitle? pour "music", pointsAwarded? : int }.
+  //   pointsAwarded? : int }.
   answers  Json        @default("[]")
   score    Int         @default(0)
 

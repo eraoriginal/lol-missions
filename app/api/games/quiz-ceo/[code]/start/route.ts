@@ -10,7 +10,6 @@ import {
 } from '@/lib/quizCeo/config';
 import type {
   FullQuestion,
-  RankingPayload,
   WorldleAnswer,
   WorldlePayload,
 } from '@/lib/quizCeo/types';
@@ -26,6 +25,14 @@ import {
   pickRandomMode,
 } from '@/lib/quizCeo/lolChampion';
 import { LOL_PLAYERS } from '@/lib/quizCeo/lolPlayers';
+import {
+  ZODIAC_LABEL,
+  ZODIAC_LABELS_LIST,
+  MBTI_LABELS_LIST,
+  type ZodiacSign,
+} from '@/lib/quizCeo/zodiacMbti';
+import { FRENCH_AD_BRANDS_POOL } from '@/lib/quizCeo/frenchAds';
+import { KNOW_ERA_ANSWER_POOL } from '@/lib/quizCeo/knowEra';
 
 const bodySchema = z.object({
   creatorToken: z.string().min(1),
@@ -44,7 +51,7 @@ function shuffle<T>(arr: T[]): T[] {
  * POST /api/games/quiz-ceo/[code]/start
  *
  * Le créateur lance la partie :
- *   - Tire 25 questions (QUESTION_COUNT_DEFAULT) avec la règle :
+ *   - Tire 20 questions (QUESTION_COUNT_DEFAULT) avec la règle :
  *       1. Une question (random) de chaque type activé (max 16 types).
  *       2. Le reste est rempli avec des `text-question` random.
  *       3. Si `text-question` est désactivé ET qu'il manque des slots,
@@ -56,7 +63,7 @@ function shuffle<T>(arr: T[]): T[] {
  *   - Crée QuizCeoGame + un QuizCeoPlayerState par joueur.
  *   - Pose Room.gameStarted = true.
  *
- * Le nombre de questions est figé à 25 — la modification depuis le lobby
+ * Le nombre de questions est figé à 20 — la modification depuis le lobby
  * a été retirée (cf. CLAUDE.md). `room.quizCeoQuestionCount` n'est plus lu.
  */
 export async function POST(
@@ -179,19 +186,36 @@ export async function POST(
         points: q.points,
         prompt: q.prompt,
       };
-      // Pour le ranking : on shuffle À LA FOIS `items` ET `shuffledOrder`.
-      // Sans le shuffle de `items` un cheater pouvait lire l'ordre canonique
-      // de la réponse directement dans le payload (`payload.items[].id`)
-      // car le seed déclare souvent items dans l'ordre de la solution.
-      if (q.type === 'ranking') {
-        const payload = q.payload as unknown as RankingPayload;
-        const shuffledItems = shuffle(payload.items);
-        const shuffledOrder = shuffle(shuffledItems.map((it) => it.id));
+      // Pour slogan-pub : QCM 4 choix avec distractors random tirés du pool
+      // de marques FRENCH_AD_BRANDS_POOL. Le DB stocke `payload = { text }`
+      // (le slogan) et `answer = { text: brand }`. Au runtime, on tire 3
+      // distractors random parmi le pool (sauf la bonne marque) et on shuffle.
+      if (q.type === 'slogan-pub') {
+        const correctBrand = (q.answer as { text?: string } | null)?.text;
+        if (correctBrand) {
+          const payload = q.payload as { text?: string };
+          const distractorPool = FRENCH_AD_BRANDS_POOL.filter(
+            (b) => b !== correctBrand,
+          );
+          const distractors = shuffle(distractorPool).slice(0, 3);
+          const choices = shuffle([correctBrand, ...distractors]) as [
+            string,
+            string,
+            string,
+            string,
+          ];
+          const correctIndex = choices.indexOf(correctBrand);
+          return {
+            ...base,
+            type: 'slogan-pub',
+            payload: { text: payload.text ?? '', choices },
+            answer: { correctIndex },
+          } as FullQuestion;
+        }
         return {
           ...base,
-          type: 'ranking',
-          payload: { ...payload, items: shuffledItems, shuffledOrder },
-          answer: q.answer as unknown as { order: string[] },
+          payload: q.payload as unknown as object,
+          answer: q.answer as unknown as object,
         } as FullQuestion;
       }
       // Pour Worldle : pays choisi aléatoirement à chaque partie parmi les
@@ -258,6 +282,85 @@ export async function POST(
           type: 'lol-champion',
           payload,
           answer: { text: champ.name },
+        } as FullQuestion;
+      }
+      // Pour zodiac-mbti : QCM 4 choix où l'énoncé est une description et la
+      // réponse est un signe du zodiaque (12 signes) ou un type MBTI (16
+      // types). Le `subject` stocké dans le payload détermine le pool de
+      // distractors. La DB stocke `payload = { subject, text }` et
+      // `answer = { text: <id> }` (ZodiacSign ou MbtiType). On transforme
+      // au runtime en QCM 4 choix : 1 bon label + 3 distractors random pris
+      // dans le pool correspondant. Les choix changent à chaque partie.
+      if (q.type === 'zodiac-mbti') {
+        const payload = q.payload as unknown as {
+          subject: 'zodiac' | 'mbti';
+          text: string;
+        };
+        const rawAnswer = (q.answer as { text?: string } | null)?.text ?? '';
+        const isZodiac = payload.subject === 'zodiac';
+        const correctLabel = isZodiac
+          ? ZODIAC_LABEL[rawAnswer as ZodiacSign] ?? rawAnswer
+          : rawAnswer;
+        const pool = isZodiac ? ZODIAC_LABELS_LIST : MBTI_LABELS_LIST;
+        const distractorPool = pool.filter((l) => l !== correctLabel);
+        const distractors = shuffle(distractorPool).slice(0, 3);
+        const choices = shuffle([correctLabel, ...distractors]) as [
+          string,
+          string,
+          string,
+          string,
+        ];
+        const correctIndex = choices.indexOf(correctLabel);
+        return {
+          ...base,
+          type: 'zodiac-mbti',
+          payload: {
+            subject: payload.subject,
+            text: payload.text,
+            choices,
+          },
+          answer: { correctIndex },
+        } as FullQuestion;
+      }
+      // Pour know-era : QCM 4 choix avec distractors curés (jusqu'à 3) +
+      // complétion runtime depuis le pool global des autres réponses du
+      // catalogue si l'entrée en a moins de 3. La DB stocke
+      // `payload = { text, distractors }` et `answer = { text }`.
+      if (q.type === 'know-era') {
+        const correct = (q.answer as { text?: string } | null)?.text;
+        const payload = q.payload as { text?: string; distractors?: string[] };
+        if (correct) {
+          const provided = (payload.distractors ?? []).filter(
+            (d) => typeof d === 'string' && d.length > 0 && d !== correct,
+          );
+          let chosen = provided.slice();
+          if (chosen.length < 3) {
+            const pool = KNOW_ERA_ANSWER_POOL.filter(
+              (a) => a !== correct && !chosen.includes(a),
+            );
+            const need = 3 - chosen.length;
+            chosen = [...chosen, ...shuffle(pool).slice(0, need)];
+          } else if (chosen.length > 3) {
+            chosen = shuffle(chosen).slice(0, 3);
+          }
+          const choices = shuffle([correct, ...chosen]) as [
+            string,
+            string,
+            string,
+            string,
+          ];
+          const correctIndex = choices.indexOf(correct);
+          return {
+            ...base,
+            type: 'know-era',
+            payload: { text: payload.text ?? '', choices },
+            answer: { correctIndex },
+          } as FullQuestion;
+        }
+        return {
+          ...base,
+          payload: q.payload as unknown as object,
+          answer: q.answer as unknown as object,
         } as FullQuestion;
       }
       // Pour brand-logo : marque choisie aléatoirement à chaque partie parmi

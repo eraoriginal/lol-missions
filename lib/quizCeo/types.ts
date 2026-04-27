@@ -17,38 +17,30 @@ import type { LolMatchCardData } from './lolMatchCard';
 
 export type ImageLikePayload = { imageUrl: string };
 export type TextPayload = { text: string };
-export type AudioPayload = { audioUrl: string };
 
 export type ChoicesPayload = {
   choices: [string, string, string, string];
 };
 export type QuestionTextChoicesPayload = TextPayload & ChoicesPayload;
+export type ImageQuestionChoicesPayload = ImageLikePayload & ChoicesPayload;
 
 export type BooleanQuestionPayload = TextPayload;
-
-export type RankingItem = { id: string; url: string; label: string };
-export type RankingPayload = {
-  // Dans le payload envoyé aux joueurs, l'ordre n'est PAS la solution : on
-  // mélange côté client. L'ordre correct est côté answer.
-  items: RankingItem[];
-  // Ordre aléatoire initial (indices correspondant à items). Tiré au /start.
-  shuffledOrder: string[];
-};
 
 // ------- Answers (jamais envoyé au client en phase "playing") -------
 
 export type StringAnswer = { text: string; aliases?: string[] };
-export type MusicAnswer = {
-  artist: string;
-  title: string;
-  artistAliases?: string[];
-  titleAliases?: string[];
-};
 export type ChoiceIndexAnswer = { correctIndex: number };
-export type OddIndexAnswer = { oddIndex: number };
 export type BooleanAnswer = { value: boolean };
-export type PriceAnswer = { value: number; tolerancePct?: number };
-export type RankingAnswer = { order: string[] }; // ids dans l'ordre correct
+
+// Zodiac & MBTI : QCM 4 choix où le `text` est une description de personnalité
+// et le sujet (`subject`) indique au joueur si la cible est un signe du zodiaque
+// ou un type MBTI. Les `choices` sont les 4 labels (1 correct + 3 distractors)
+// tirés au runtime à `start/route.ts` parmi le pool correspondant au sujet.
+export type ZodiacMbtiPayload = {
+  subject: 'zodiac' | 'mbti';
+  text: string;
+  choices: [string, string, string, string];
+};
 
 // Worldle : la silhouette est le payload, l'identité du pays est l'answer —
 // strippée pendant playing. Pas de lat/lng (champs solo Worldle uniquement).
@@ -71,20 +63,13 @@ export interface BaseQuestion {
 
 export type FullQuestion = BaseQuestion &
   (
-    | { type: 'image-personality'; payload: ImageLikePayload; answer: StringAnswer }
     | { type: 'text-question'; payload: TextPayload; answer: StringAnswer }
     | { type: 'expression'; payload: TextPayload; answer: StringAnswer }
-    | { type: 'music'; payload: AudioPayload; answer: MusicAnswer }
     | { type: 'translation'; payload: TextPayload; answer: StringAnswer }
     | {
-        type: 'multiple-choice';
-        payload: QuestionTextChoicesPayload;
+        type: 'zodiac-mbti';
+        payload: ZodiacMbtiPayload;
         answer: ChoiceIndexAnswer;
-      }
-    | {
-        type: 'odd-one-out';
-        payload: QuestionTextChoicesPayload;
-        answer: OddIndexAnswer;
       }
     | {
         type: 'lol-player-match';
@@ -100,11 +85,30 @@ export type FullQuestion = BaseQuestion &
         payload: BooleanQuestionPayload;
         answer: BooleanAnswer;
       }
-    | { type: 'price'; payload: ImageLikePayload; answer: PriceAnswer }
     | { type: 'who-said'; payload: TextPayload; answer: StringAnswer }
-    | { type: 'ranking'; payload: RankingPayload; answer: RankingAnswer }
     | { type: 'worldle'; payload: WorldlePayload; answer: WorldleAnswer }
     | { type: 'lol-champion'; payload: LolChampionPayload; answer: StringAnswer }
+    | { type: 'acronyme-sigle'; payload: TextPayload; answer: StringAnswer }
+    | {
+        type: 'bouffe-internationale';
+        payload: ImageQuestionChoicesPayload;
+        answer: ChoiceIndexAnswer;
+      }
+    | {
+        type: 'panneau-signalisation';
+        payload: ImageQuestionChoicesPayload;
+        answer: ChoiceIndexAnswer;
+      }
+    | {
+        type: 'slogan-pub';
+        payload: QuestionTextChoicesPayload;
+        answer: ChoiceIndexAnswer;
+      }
+    | {
+        type: 'know-era';
+        payload: QuestionTextChoicesPayload;
+        answer: ChoiceIndexAnswer;
+      }
   );
 
 // ------- Question publique (sans answer) : envoyée aux clients en "playing" -------
@@ -114,19 +118,13 @@ export type PublicQuestion = Omit<FullQuestion, 'answer'>;
 // ------- Submitted answers (ce que le joueur envoie) -------
 
 export type SubmittedText = { kind: 'text'; value: string };
-export type SubmittedMusic = { kind: 'music'; value: string }; // champ unique saisi
 export type SubmittedChoice = { kind: 'choice'; index: number };
 export type SubmittedBoolean = { kind: 'boolean'; value: boolean };
-export type SubmittedPrice = { kind: 'price'; value: number };
-export type SubmittedRanking = { kind: 'ranking'; order: string[] };
 
 export type SubmittedAnswer =
   | SubmittedText
-  | SubmittedMusic
   | SubmittedChoice
   | SubmittedBoolean
-  | SubmittedPrice
-  | SubmittedRanking
   | null;
 // Note : pour la question Worldle, le joueur soumet un `SubmittedText`
 // (le nom du pays) — une seule réponse, validée par le créateur en review.
@@ -139,8 +137,6 @@ export interface PlayerAnswerEntry {
   submitted: SubmittedAnswer;
   // Validation par le créateur pendant la review.
   validated?: boolean;
-  validatedArtist?: boolean; // type "music" uniquement
-  validatedTitle?: boolean; // type "music" uniquement
   pointsAwarded?: number;
   submittedAtMs?: number | null;
 }

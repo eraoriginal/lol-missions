@@ -167,18 +167,12 @@ export interface BeatEikichiGame {
 export type QuizCeoPhase = 'playing' | 'waiting_review' | 'review' | 'leaderboard';
 
 export interface QuizCeoSubmittedText { kind: 'text'; value: string }
-export interface QuizCeoSubmittedMusic { kind: 'music'; value: string }
 export interface QuizCeoSubmittedChoice { kind: 'choice'; index: number }
 export interface QuizCeoSubmittedBoolean { kind: 'boolean'; value: boolean }
-export interface QuizCeoSubmittedPrice { kind: 'price'; value: number }
-export interface QuizCeoSubmittedRanking { kind: 'ranking'; order: string[] }
 export type QuizCeoSubmitted =
     | QuizCeoSubmittedText
-    | QuizCeoSubmittedMusic
     | QuizCeoSubmittedChoice
     | QuizCeoSubmittedBoolean
-    | QuizCeoSubmittedPrice
-    | QuizCeoSubmittedRanking
     | null;
 
 export interface QuizCeoPlayerAnswer {
@@ -186,8 +180,6 @@ export interface QuizCeoPlayerAnswer {
     type: string;
     submitted: QuizCeoSubmitted;
     validated?: boolean;
-    validatedArtist?: boolean;
-    validatedTitle?: boolean;
     pointsAwarded?: number;
     submittedAtMs?: number | null;
 }
@@ -197,12 +189,6 @@ export interface QuizCeoPlayerState {
     playerId: string;
     answers: QuizCeoPlayerAnswer[];
     score: number;
-}
-
-export interface QuizCeoRankingItem {
-    id: string;
-    label: string;
-    url: string;
 }
 
 // Question publique envoyée aux clients — `answer` est strippé pendant "playing".

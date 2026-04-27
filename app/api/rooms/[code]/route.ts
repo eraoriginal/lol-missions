@@ -166,6 +166,10 @@ export async function GET(
                     //   - /country-shapes/<iso2>.svg         (worldle)
                     //   - /lol-champions/<id>.jpg            (lol-champion splash)
                     //   - /lol-champion-spells/<id>/<x>.png  (lol-champion spells)
+                    // Plus les URLs externes Wikipedia/Wikimedia pour :
+                    //   - bouffe-internationale (photos de plats)
+                    //   - panneau-signalisation (SVG de panneaux)
+                    //   - affiche-films-sans-titre (posters de films)
                     // Toutes ces URLs sont remplacées par un proxy opaque
                     // `/api/games/quiz-ceo/<code>/asset/<index>` qui résout
                     // le vrai chemin server-side depuis la DB.
@@ -175,8 +179,24 @@ export async function GET(
                         '/lol-champions/',
                         '/lol-champion-spells/',
                     ];
-                    const isSpoiler = (s: string) =>
-                        SPOIL_PREFIXES.some((p) => s.startsWith(p));
+                    const SPOIL_EXTERNAL_HOSTS = new Set([
+                        'commons.wikimedia.org',
+                        'upload.wikimedia.org',
+                        'en.wikipedia.org',
+                        'fr.wikipedia.org',
+                    ]);
+                    const isSpoiler = (s: string) => {
+                        if (SPOIL_PREFIXES.some((p) => s.startsWith(p))) return true;
+                        if (/^https?:\/\//i.test(s)) {
+                            try {
+                                const u = new URL(s);
+                                return SPOIL_EXTERNAL_HOSTS.has(u.host);
+                            } catch {
+                                return false;
+                            }
+                        }
+                        return false;
+                    };
                     const proxyBase = `/api/games/quiz-ceo/${code}/asset`;
 
                     quizGame.questions = quizGame.questions.map((q, index) => {

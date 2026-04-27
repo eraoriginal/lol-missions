@@ -52,7 +52,7 @@ export function QuizCeoLobby({ room, roomCode }: Props) {
   const isCreator = !!creatorToken;
 
   const timerSeconds = room.quizCeoTimerSeconds ?? 30;
-  // Nombre de questions figé à 25 (cf. lib/quizCeo/config.ts) — le créateur
+  // Nombre de questions figé à 20 (cf. lib/quizCeo/config.ts) — le créateur
   // ne peut plus le modifier depuis le lobby. La valeur sert uniquement à
   // l'affichage informatif.
   const questionCount = QUESTION_COUNT_DEFAULT;

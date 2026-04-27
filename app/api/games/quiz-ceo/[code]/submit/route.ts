@@ -11,10 +11,8 @@ import type {
 // Schéma du payload d'envoi — polymorphe selon le type.
 const submittedSchema = z.union([
   z.object({ kind: z.literal('text'), value: z.string().max(500) }),
-  z.object({ kind: z.literal('music'), value: z.string().max(500) }),
   z.object({ kind: z.literal('choice'), index: z.number().int().min(0).max(3) }),
   z.object({ kind: z.literal('boolean'), value: z.boolean() }),
-  z.object({ kind: z.literal('price'), value: z.number() }),
   z.object({
     kind: z.literal('ranking'),
     order: z.array(z.string()).min(1).max(50),

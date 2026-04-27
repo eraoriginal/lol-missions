@@ -3,17 +3,13 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { pushRoomUpdate } from '@/lib/pusher';
 import { isCreator } from '@/lib/utils';
-import { splitMusicPoints } from '@/lib/quizCeo/config';
 import type { FullQuestion, PlayerAnswerEntry } from '@/lib/quizCeo/types';
 
 const bodySchema = z.object({
   creatorToken: z.string().min(1),
   playerId: z.string().min(1),
   position: z.number().int().min(0),
-  // Pour le type "music" : validation granulaire.
-  validated: z.boolean().optional(),
-  validatedArtist: z.boolean().optional(),
-  validatedTitle: z.boolean().optional(),
+  validated: z.boolean(),
 });
 
 /**
@@ -77,33 +73,13 @@ export async function POST(
       answers.push(existing);
     }
 
-    // Calcul des points selon le type.
-    let pointsAwarded = 0;
-    let updatedEntry: PlayerAnswerEntry;
-    if (q.type === 'music') {
-      const split = splitMusicPoints(q.points);
-      const newArtist =
-        parsed.validatedArtist ?? existing.validatedArtist ?? false;
-      const newTitle =
-        parsed.validatedTitle ?? existing.validatedTitle ?? false;
-      pointsAwarded =
-        (newArtist ? split.artist : 0) + (newTitle ? split.title : 0);
-      updatedEntry = {
-        ...existing,
-        validatedArtist: newArtist,
-        validatedTitle: newTitle,
-        validated: newArtist && newTitle,
-        pointsAwarded,
-      };
-    } else {
-      const newValidated = parsed.validated ?? false;
-      pointsAwarded = newValidated ? q.points : 0;
-      updatedEntry = {
-        ...existing,
-        validated: newValidated,
-        pointsAwarded,
-      };
-    }
+    // Calcul des points selon le verdict du créateur.
+    const pointsAwarded = parsed.validated ? q.points : 0;
+    const updatedEntry: PlayerAnswerEntry = {
+      ...existing,
+      validated: parsed.validated,
+      pointsAwarded,
+    };
 
     const newAnswers = answers.map((a) =>
       a.position === parsed.position ? updatedEntry : a,

@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react';
 import type {
   QuizCeoQuestion,
   QuizCeoSubmitted,
-  QuizCeoRankingItem,
   Room,
 } from '@/app/types/room';
 import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
@@ -26,13 +25,14 @@ import {
 import type { LolChampionPayload } from '@/lib/quizCeo/lolChampion';
 import type { LolMatchCardData } from '@/lib/quizCeo/lolMatchCard';
 import { LolMatchCard } from './LolMatchCard';
-import { QUESTION_TYPE_MAP, splitMusicPoints } from '@/lib/quizCeo/config';
+import { QUESTION_TYPE_MAP } from '@/lib/quizCeo/config';
 
 interface Props {
   room: Room;
   roomCode: string;
   isCreator: boolean;
   creatorToken: string | null;
+  refetch?: () => void;
 }
 
 function colorForPlayer(id: string): string {
@@ -44,11 +44,9 @@ function colorForPlayer(id: string): string {
 
 type Override = {
   validated?: boolean;
-  validatedArtist?: boolean;
-  validatedTitle?: boolean;
 };
 
-export function ReviewView({ room, roomCode, isCreator, creatorToken }: Props) {
+export function ReviewView({ room, roomCode, isCreator, creatorToken, refetch }: Props) {
   const game = room.quizCeoGame!;
   const total = game.questions.length;
   const currentIndex = game.currentIndex;
@@ -102,7 +100,14 @@ export function ReviewView({ room, roomCode, isCreator, creatorToken }: Props) {
   const handleNext = async (direction: 'next' | 'prev' = 'next') => {
     if (!creatorToken) return;
     setBusy(true);
-    const ok = await post('review-next', { creatorToken, direction });
+    // `fromIndex` permet au serveur de no-op si le client est déjà désync
+    // (cf. JSDoc review-next/route.ts) — empêche de skip une question lors
+    // d'un retry après push perdu.
+    const ok = await post('review-next', {
+      creatorToken,
+      direction,
+      fromIndex: currentIndex,
+    });
     if (!ok) {
       // Échec serveur : on déverrouille tout de suite pour permettre une
       // re-tentative manuelle. Sinon la barre resterait bloquée jusqu'à
@@ -110,12 +115,20 @@ export function ReviewView({ room, roomCode, isCreator, creatorToken }: Props) {
       setBusy(false);
       return;
     }
+    // Refetch immédiat — ne pas attendre le push Pusher qui peut être perdu
+    // ou throttlé par useRoom (anti-spam 500ms). Le refetch sync l'état UI
+    // dès que la mutation serveur est confirmée.
+    refetch?.();
     // En cas de succès : on garde `busy=true` jusqu'à ce que `currentIndex`
-    // change (Pusher push reçu) — le reset se fait dans le bloc « derived
-    // state » plus haut. Évite la fenêtre de re-clic prématuré.
-    // Fallback : si Pusher s'est perdu, on déverrouille au bout de 3s pour
-    // ne pas bloquer la UI à vie.
-    setTimeout(() => setBusy(false), 3000);
+    // change — le reset se fait dans le bloc « derived state » plus haut.
+    // Évite la fenêtre de re-clic prématuré.
+    // Fallback : si le refetch n'a pas encore vu la nouvelle valeur, on
+    // re-fetch une seconde fois à 500ms et on déverrouille à 1.5s pour ne
+    // pas bloquer la UI à vie. Ne re-tirer pas review-next côté client : le
+    // serveur est désormais idempotent via fromIndex, mais on évite quand
+    // même de spammer.
+    setTimeout(() => refetch?.(), 500);
+    setTimeout(() => setBusy(false), 1500);
   };
 
   const handleValidate = (playerId: string, validated: boolean) => {
@@ -135,32 +148,6 @@ export function ReviewView({ room, roomCode, isCreator, creatorToken }: Props) {
     });
   };
 
-  const handleValidateMusic = (
-    playerId: string,
-    part: 'artist' | 'title',
-    value: boolean,
-  ) => {
-    if (!creatorToken || !question) return;
-    const key = `${currentIndex}-${playerId}`;
-    setOverrides((prev) => {
-      const next = new Map(prev);
-      const cur = next.get(key) ?? {};
-      next.set(key, {
-        ...cur,
-        [part === 'artist' ? 'validatedArtist' : 'validatedTitle']: value,
-      });
-      return next;
-    });
-    const body: Record<string, unknown> = {
-      creatorToken,
-      playerId,
-      position: currentIndex,
-    };
-    if (part === 'artist') body.validatedArtist = value;
-    else body.validatedTitle = value;
-    void post('review-validate', body);
-  };
-
   // Helper : merge override + entry serveur pour la lecture.
   const mergedEntry = useMemo(
     () => (playerId: string) => {
@@ -171,8 +158,6 @@ export function ReviewView({ room, roomCode, isCreator, creatorToken }: Props) {
       return {
         ...(entry ?? { position: currentIndex, type: question?.type ?? 'text-question', submitted: null }),
         ...(ov.validated !== undefined ? { validated: ov.validated } : {}),
-        ...(ov.validatedArtist !== undefined ? { validatedArtist: ov.validatedArtist } : {}),
-        ...(ov.validatedTitle !== undefined ? { validatedTitle: ov.validatedTitle } : {}),
       };
     },
     [game.playerStates, overrides, currentIndex, question?.type],
@@ -306,14 +291,9 @@ export function ReviewView({ room, roomCode, isCreator, creatorToken }: Props) {
                     answer={answer}
                     submitted={entry?.submitted ?? null}
                     validated={entry?.validated}
-                    validatedArtist={entry?.validatedArtist}
-                    validatedTitle={entry?.validatedTitle}
                     pointsAwarded={entry?.pointsAwarded}
                     isCreator={isCreator}
                     onValidate={(v) => handleValidate(p.id, v)}
-                    onValidateMusic={(part, v) =>
-                      handleValidateMusic(p.id, part, v)
-                    }
                   />
                 );
               })}
@@ -322,17 +302,9 @@ export function ReviewView({ room, roomCode, isCreator, creatorToken }: Props) {
             {isCreator ? (
               (() => {
                 // Le créateur doit avoir noté chaque joueur (Bon ou Faux) avant
-                // d'avancer. Pour les questions music : artiste ET titre doivent
-                // tous deux avoir un verdict.
-                const isMusic = question.type === 'music';
+                // d'avancer.
                 const pendingPlayers = room.players.filter((p) => {
                   const entry = mergedEntry(p.id);
-                  if (isMusic) {
-                    return (
-                      entry?.validatedArtist === undefined ||
-                      entry?.validatedTitle === undefined
-                    );
-                  }
                   return entry?.validated === undefined;
                 });
                 const allRated = pendingPlayers.length === 0;
@@ -404,11 +376,45 @@ export function ReviewView({ room, roomCode, isCreator, creatorToken }: Props) {
 function QuestionDisplay({ question }: { question: QuizCeoQuestion }) {
   const p = question.payload;
   switch (question.type) {
-    case 'image-personality':
     case 'brand-logo':
-    case 'price':
     case 'worldle':
       return <ImageFrame url={String(p.imageUrl ?? '')} />;
+    case 'bouffe-internationale':
+    case 'panneau-signalisation': {
+      const choices = (p.choices as string[]) ?? [];
+      return (
+        <div>
+          <ImageFrame url={String(p.imageUrl ?? '')} />
+          <div className="flex flex-col gap-1.5 mt-3">
+            {choices.map((c, i) => (
+              <div
+                key={i}
+                className="px-3 py-2"
+                style={{
+                  background: 'rgba(240,228,193,0.03)',
+                  border: `1px dashed ${AC.bone2}`,
+                  color: AC.bone,
+                  fontSize: 13,
+                  fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                    color: AC.bone2,
+                    fontSize: 11,
+                    marginRight: 8,
+                  }}
+                >
+                  {String.fromCharCode(65 + i)}.
+                </span>
+                {c}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
     case 'lol-champion': {
       const lp = p as unknown as LolChampionPayload;
       return <LolChampionReviewDisplay payload={lp} />;
@@ -417,24 +423,13 @@ function QuestionDisplay({ question }: { question: QuizCeoQuestion }) {
       const matchData = p as unknown as LolMatchCardData;
       return <LolMatchCard data={matchData} />;
     }
-    case 'music':
-      return (
-        <div
-          className="p-3"
-          style={{
-            background: 'rgba(13,11,8,0.5)',
-            border: `1.5px solid ${AC.bone2}`,
-          }}
-        >
-          <audio controls src={String(p.audioUrl ?? '')} style={{ width: '100%' }} />
-        </div>
-      );
     case 'text-question':
     case 'expression':
     case 'translation':
     case 'country-motto':
     case 'who-said':
     case 'absurd-law':
+    case 'acronyme-sigle':
       return (
         <div
           className="p-4"
@@ -449,8 +444,9 @@ function QuestionDisplay({ question }: { question: QuizCeoQuestion }) {
           {String(p.text ?? '')}
         </div>
       );
-    case 'multiple-choice':
-    case 'odd-one-out': {
+    case 'zodiac-mbti':
+    case 'slogan-pub':
+    case 'know-era': {
       const choices = (p.choices as string[]) ?? [];
       return (
         <div>
@@ -494,62 +490,6 @@ function QuestionDisplay({ question }: { question: QuizCeoQuestion }) {
               </div>
             ))}
           </div>
-        </div>
-      );
-    }
-    case 'ranking': {
-      const items = (p.items as QuizCeoRankingItem[]) ?? [];
-      return (
-        <div
-          className="flex flex-wrap gap-2 p-3"
-          style={{
-            background: 'rgba(13,11,8,0.4)',
-            border: `1.5px dashed ${AC.bone2}`,
-          }}
-        >
-          {items.map((it) => (
-            <div
-              key={it.id}
-              style={{
-                width: 70,
-                textAlign: 'center',
-              }}
-            >
-              <div
-                style={{
-                  width: 70,
-                  height: 50,
-                  background: 'rgba(13,11,8,0.6)',
-                  border: `1px solid ${AC.bone2}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  overflow: 'hidden',
-                }}
-              >
-                <img
-                  src={it.url}
-                  alt={it.label}
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    objectFit: 'contain',
-                  }}
-                />
-              </div>
-              <div
-                style={{
-                  fontFamily:
-                    "'JetBrains Mono', 'Courier New', monospace",
-                  fontSize: 9,
-                  color: AC.bone2,
-                  marginTop: 2,
-                }}
-              >
-                {it.label}
-              </div>
-            </div>
-          ))}
         </div>
       );
     }
@@ -666,7 +606,6 @@ function LolChampionReviewDisplay({ payload }: { payload: LolChampionPayload }) 
 function CanonicalAnswer({ question }: { question: QuizCeoQuestion }) {
   const a = question.answer ?? {};
   switch (question.type) {
-    case 'image-personality':
     case 'text-question':
     case 'expression':
     case 'translation':
@@ -674,6 +613,7 @@ function CanonicalAnswer({ question }: { question: QuizCeoQuestion }) {
     case 'brand-logo':
     case 'who-said':
     case 'lol-champion':
+    case 'acronyme-sigle':
       return (
         <div
           style={{
@@ -689,25 +629,12 @@ function CanonicalAnswer({ question }: { question: QuizCeoQuestion }) {
           {String(a.text ?? '—')}
         </div>
       );
-    case 'music':
-      return (
-        <div>
-          <div
-            style={{
-              fontFamily:
-                "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
-              fontWeight: 800,
-              fontSize: 22,
-              color: AC.chem,
-              textTransform: 'uppercase',
-            }}
-          >
-            {String(a.artist ?? '—')} — {String(a.title ?? '—')}
-          </div>
-        </div>
-      );
-    case 'multiple-choice':
-    case 'lol-player-match': {
+    case 'zodiac-mbti':
+    case 'lol-player-match':
+    case 'bouffe-internationale':
+    case 'panneau-signalisation':
+    case 'slogan-pub':
+    case 'know-era': {
       const idx = Number(a.correctIndex ?? -1);
       const choices = (question.payload.choices as string[]) ?? [];
       return (
@@ -721,35 +648,6 @@ function CanonicalAnswer({ question }: { question: QuizCeoQuestion }) {
           }}
         >
           {String.fromCharCode(65 + idx)}. {choices[idx] ?? '—'}
-        </div>
-      );
-    }
-    case 'odd-one-out': {
-      const idx = Number(a.oddIndex ?? -1);
-      const choices = (question.payload.choices as string[]) ?? [];
-      return (
-        <div
-          style={{
-            fontFamily:
-              "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
-            fontWeight: 800,
-            fontSize: 22,
-            color: AC.chem,
-          }}
-        >
-          {String.fromCharCode(65 + idx)}. {choices[idx] ?? '—'}
-          <div
-            style={{
-              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-              fontSize: 11,
-              color: AC.bone2,
-              marginTop: 4,
-              textTransform: 'none',
-              letterSpacing: '0.15em',
-            }}
-          >
-            {'// intrus (réponse FAUSSE)'}
-          </div>
         </div>
       );
     }
@@ -770,20 +668,6 @@ function CanonicalAnswer({ question }: { question: QuizCeoQuestion }) {
         </div>
       );
     }
-    case 'price':
-      return (
-        <div
-          style={{
-            fontFamily:
-              "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
-            fontWeight: 800,
-            fontSize: 24,
-            color: AC.chem,
-          }}
-        >
-          {Number(a.value ?? 0).toFixed(2)} €
-        </div>
-      );
     case 'worldle':
       return (
         <div
@@ -800,34 +684,6 @@ function CanonicalAnswer({ question }: { question: QuizCeoQuestion }) {
           {String(a.countryName ?? '—')}
         </div>
       );
-    case 'ranking': {
-      const order = (a.order as string[]) ?? [];
-      const items = (question.payload.items as QuizCeoRankingItem[]) ?? [];
-      const byId = new Map(items.map((it) => [it.id, it]));
-      return (
-        <div className="flex flex-col gap-1">
-          {order.map((id, i) => {
-            const it = byId.get(id);
-            return (
-              <div
-                key={id}
-                style={{
-                  fontFamily:
-                    "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
-                  fontWeight: 700,
-                  fontSize: 14,
-                  color: AC.bone,
-                  textTransform: 'uppercase',
-                }}
-              >
-                <span style={{ color: AC.chem, marginRight: 6 }}>#{i + 1}</span>
-                {it?.label ?? id}
-              </div>
-            );
-          })}
-        </div>
-      );
-    }
     default:
       return <span style={{ color: AC.bone2 }}>—</span>;
   }
@@ -840,12 +696,9 @@ function PlayerAnswerRow({
   answer: _answer,
   submitted,
   validated,
-  validatedArtist,
-  validatedTitle,
   pointsAwarded,
   isCreator,
   onValidate,
-  onValidateMusic,
 }: {
   name: string;
   avatarColor: string;
@@ -853,35 +706,18 @@ function PlayerAnswerRow({
   answer: Record<string, unknown>;
   submitted: QuizCeoSubmitted;
   validated?: boolean;
-  validatedArtist?: boolean;
-  validatedTitle?: boolean;
   pointsAwarded?: number;
   isCreator: boolean;
   onValidate: (v: boolean) => void;
-  onValidateMusic: (part: 'artist' | 'title', v: boolean) => void;
 }) {
   void _answer;
   const submittedLabel = formatSubmitted(submitted, question);
-  const isMusic = question.type === 'music';
-  const isFullyValidated = isMusic
-    ? (validatedArtist === true && validatedTitle === true)
-    : validated === true;
-  // Une réponse est marquée FAUSSE si le créateur a explicitement cliqué `validated=false`
-  // (non-music) ou si chaque part music a été touché et au moins une est `false`.
-  const isMarkedWrong = isMusic
-    ? (validatedArtist === false && validatedTitle === false)
-    : validated === false;
-  const isPartialMusic =
-    isMusic &&
-    (validatedArtist === true || validatedTitle === true) &&
-    !(validatedArtist === true && validatedTitle === true);
-  const split = isMusic ? splitMusicPoints(question.points) : null;
+  const isFullyValidated = validated === true;
+  const isMarkedWrong = validated === false;
 
   // Bordure de couleur selon le verdict — feedback visuel pour les joueurs aussi.
   const borderColor = isFullyValidated
     ? AC.chem
-    : isPartialMusic
-    ? AC.gold
     : isMarkedWrong
     ? AC.rust
     : undefined;
@@ -959,77 +795,23 @@ function PlayerAnswerRow({
       >
         {submittedLabel || '// aucune réponse'}
       </div>
-      {isMusic && (validatedArtist !== undefined || validatedTitle !== undefined) && (
-        <div className="flex gap-2 mb-2">
-          <MusicPartBadge label="ARTISTE" status={validatedArtist} />
-          <MusicPartBadge label="TITRE" status={validatedTitle} />
-        </div>
-      )}
       {isCreator && (
         <div className="flex flex-wrap gap-2">
-          {isMusic ? (
-            <>
-              <ValidatePill
-                label={`Artiste (+${split?.artist ?? 0})`}
-                active={validatedArtist === true}
-                color={AC.chem}
-                onClick={() => onValidateMusic('artist', !(validatedArtist === true))}
-              />
-              <ValidatePill
-                label={`Titre (+${split?.title ?? 0})`}
-                active={validatedTitle === true}
-                color={AC.chem}
-                onClick={() => onValidateMusic('title', !(validatedTitle === true))}
-              />
-            </>
-          ) : (
-            <>
-              <ValidatePill
-                label={`Bon (+${question.points})`}
-                active={validated === true}
-                color={AC.chem}
-                onClick={() => onValidate(true)}
-              />
-              <ValidatePill
-                label="Faux (0)"
-                active={validated === false}
-                color={AC.rust}
-                onClick={() => onValidate(false)}
-              />
-            </>
-          )}
+          <ValidatePill
+            label={`Bon (+${question.points})`}
+            active={validated === true}
+            color={AC.chem}
+            onClick={() => onValidate(true)}
+          />
+          <ValidatePill
+            label="Faux (0)"
+            active={validated === false}
+            color={AC.rust}
+            onClick={() => onValidate(false)}
+          />
         </div>
       )}
     </AcCard>
-  );
-}
-
-function MusicPartBadge({
-  label,
-  status,
-}: {
-  label: string;
-  status: boolean | undefined;
-}) {
-  // status === undefined → pas encore jugé ; true → bon ; false → faux.
-  const color =
-    status === true ? AC.chem : status === false ? AC.rust : AC.bone2;
-  const symbol = status === true ? '✓' : status === false ? '✗' : '·';
-  return (
-    <span
-      style={{
-        fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-        fontSize: 10,
-        letterSpacing: '0.18em',
-        color,
-        border: `1.5px solid ${color}`,
-        padding: '2px 7px',
-        fontWeight: 700,
-        textTransform: 'uppercase',
-      }}
-    >
-      {symbol} {label}
-    </span>
   );
 }
 
@@ -1073,7 +855,6 @@ function formatSubmitted(
   if (!s) return '';
   switch (s.kind) {
     case 'text':
-    case 'music':
       return `« ${s.value} »`;
     case 'choice': {
       const choices = (question.payload.choices as string[]) ?? [];
@@ -1081,14 +862,5 @@ function formatSubmitted(
     }
     case 'boolean':
       return s.value ? 'VRAI' : 'FAUX';
-    case 'price':
-      return `${s.value.toFixed(2)} €`;
-    case 'ranking': {
-      const items = (question.payload.items as QuizCeoRankingItem[]) ?? [];
-      const byId = new Map(items.map((it) => [it.id, it]));
-      return s.order
-        .map((id, i) => `#${i + 1} ${byId.get(id)?.label ?? id}`)
-        .join(' · ');
-    }
   }
 }

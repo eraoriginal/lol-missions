@@ -1,11 +1,7 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
-import type {
-  QuizCeoQuestion,
-  QuizCeoSubmitted,
-  QuizCeoRankingItem,
-} from '@/app/types/room';
+import { useMemo, useState } from 'react';
+import type { QuizCeoQuestion, QuizCeoSubmitted } from '@/app/types/room';
 import { AC } from '@/app/components/arcane';
 import { QUESTION_TYPE_MAP } from '@/lib/quizCeo/config';
 import { ALL_COUNTRIES } from '@/lib/quizCeo/allCountries';
@@ -15,11 +11,6 @@ import {
 } from '@/lib/quizCeo/lolChampion';
 import type { LolMatchCardData } from '@/lib/quizCeo/lolMatchCard';
 import { LolMatchCard } from './LolMatchCard';
-import {
-  applyRankingDrop,
-  computeRankingHoverIndex,
-  computeRankingOffset,
-} from '@/lib/quizCeo/rankingDrag';
 
 interface Props {
   question: QuizCeoQuestion;
@@ -102,7 +93,6 @@ function TypedBody({
 }) {
   const payload = question.payload;
   switch (question.type) {
-    case 'image-personality':
     case 'brand-logo':
       return (
         <>
@@ -141,6 +131,7 @@ function TypedBody({
     case 'translation':
     case 'country-motto':
     case 'who-said':
+    case 'acronyme-sigle':
       return (
         <>
           <TextCard text={String(payload.text ?? '')} />
@@ -152,24 +143,25 @@ function TypedBody({
           />
         </>
       );
-    case 'music':
-      return (
-        <>
-          <AudioPlayer url={String(payload.audioUrl ?? '')} />
-          <TextAnswerInput
-            value={value}
-            onChange={onChange}
-            disabled={disabled}
-            placeholder="Ex : Queen - Bohemian Rhapsody"
-            kind="music"
-          />
-        </>
-      );
-    case 'multiple-choice':
-    case 'odd-one-out':
+    case 'zodiac-mbti':
+    case 'slogan-pub':
+    case 'know-era':
       return (
         <>
           <TextCard text={String(payload.text ?? '')} />
+          <ChoicesInput
+            choices={(payload.choices as string[]) ?? []}
+            value={value}
+            onChange={onChange}
+            disabled={disabled}
+          />
+        </>
+      );
+    case 'bouffe-internationale':
+    case 'panneau-signalisation':
+      return (
+        <>
+          <ImageFrame url={String(payload.imageUrl ?? '')} />
           <ChoicesInput
             choices={(payload.choices as string[]) ?? []}
             value={value}
@@ -184,23 +176,6 @@ function TypedBody({
           <TextCard text={String(payload.text ?? '')} />
           <BooleanInput value={value} onChange={onChange} disabled={disabled} />
         </>
-      );
-    case 'price':
-      return (
-        <>
-          <ImageFrame url={String(payload.imageUrl ?? '')} />
-          <PriceInput value={value} onChange={onChange} disabled={disabled} />
-        </>
-      );
-    case 'ranking':
-      return (
-        <RankingInput
-          items={(payload.items as QuizCeoRankingItem[]) ?? []}
-          shuffledOrder={(payload.shuffledOrder as string[]) ?? []}
-          value={value}
-          onChange={onChange}
-          disabled={disabled}
-        />
       );
     case 'worldle':
       return (
@@ -283,21 +258,6 @@ function TextCard({ text }: { text: string }) {
   );
 }
 
-function AudioPlayer({ url }: { url: string }) {
-  if (!url) return null;
-  return (
-    <div
-      className="mb-4 p-4"
-      style={{
-        background: 'rgba(13,11,8,0.5)',
-        border: `2px solid ${AC.bone2}`,
-      }}
-    >
-      <audio controls src={url} style={{ width: '100%' }} />
-    </div>
-  );
-}
-
 function LolChampionDisplay({ payload }: { payload: LolChampionPayload }) {
   if (payload.mode === 'splash') {
     // Splash art 1280×720 + filtre CSS « Contours » (validé visuellement
@@ -375,7 +335,6 @@ function LolChampionDisplay({ payload }: { payload: LolChampionPayload }) {
             height: 72,
           }}
         />
-        {/* Q top-left */}
         <img
           src={iconUrls.q}
           alt="Q"
@@ -383,7 +342,6 @@ function LolChampionDisplay({ payload }: { payload: LolChampionPayload }) {
           height={52}
           style={{ ...iconBorder, position: 'absolute', top: 0, left: 0, width: 52, height: 52 }}
         />
-        {/* W top-right */}
         <img
           src={iconUrls.w}
           alt="W"
@@ -391,7 +349,6 @@ function LolChampionDisplay({ payload }: { payload: LolChampionPayload }) {
           height={52}
           style={{ ...iconBorder, position: 'absolute', top: 0, right: 0, width: 52, height: 52 }}
         />
-        {/* E bottom-left */}
         <img
           src={iconUrls.e}
           alt="E"
@@ -399,7 +356,6 @@ function LolChampionDisplay({ payload }: { payload: LolChampionPayload }) {
           height={52}
           style={{ ...iconBorder, position: 'absolute', bottom: 0, left: 0, width: 52, height: 52 }}
         />
-        {/* R bottom-right */}
         <img
           src={iconUrls.r}
           alt="R"
@@ -419,18 +375,13 @@ function TextAnswerInput({
   onChange,
   disabled,
   placeholder,
-  kind = 'text',
 }: {
   value: QuizCeoSubmitted;
   onChange: (v: QuizCeoSubmitted) => void;
   disabled: boolean;
   placeholder: string;
-  kind?: 'text' | 'music';
 }) {
-  const current =
-    value && (value.kind === 'text' || value.kind === 'music')
-      ? value.value
-      : '';
+  const current = value && value.kind === 'text' ? value.value : '';
   return (
     <input
       type="text"
@@ -439,7 +390,7 @@ function TextAnswerInput({
       placeholder={placeholder}
       onChange={(e) => {
         const v = e.target.value;
-        onChange(v ? { kind, value: v } : null);
+        onChange(v ? { kind: 'text', value: v } : null);
       }}
       className="ac-input"
       style={{
@@ -552,472 +503,6 @@ function BooleanInput({
   );
 }
 
-function PriceInput({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: QuizCeoSubmitted;
-  onChange: (v: QuizCeoSubmitted) => void;
-  disabled: boolean;
-}) {
-  const current =
-    value?.kind === 'price' && Number.isFinite(value.value) ? value.value : '';
-  const numericCurrent = typeof current === 'number' ? current : 0;
-
-  const setValue = (next: number) => {
-    const safe = Math.max(0, next);
-    onChange({ kind: 'price', value: Number(safe.toFixed(2)) });
-  };
-
-  return (
-    <div className="flex items-stretch gap-2">
-      {/* Wrapper input + spinners custom — `appearance: textfield` cache les
-          flèches natives du browser pour qu'on contrôle complètement le style. */}
-      <div className="flex items-stretch flex-1">
-        <input
-          type="number"
-          min={0}
-          step="any"
-          inputMode="decimal"
-          value={current}
-          disabled={disabled}
-          placeholder="0"
-          onChange={(e) => {
-            const n = parseFloat(e.target.value);
-            if (e.target.value === '' || !Number.isFinite(n)) {
-              onChange(null);
-            } else {
-              onChange({ kind: 'price', value: n });
-            }
-          }}
-          className="ac-price-input"
-          style={{
-            flex: 1,
-            padding: '14px 16px',
-            background: 'rgba(240,228,193,0.04)',
-            border: `1.5px solid ${AC.bone}`,
-            borderRight: 'none',
-            outline: 'none',
-            color: AC.gold,
-            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-            fontSize: 22,
-            fontWeight: 700,
-            textAlign: 'right',
-            minWidth: 0,
-          }}
-        />
-        <div
-          className="flex flex-col"
-          style={{ borderLeft: 'none' }}
-        >
-          <PriceSpinner
-            label="+"
-            disabled={disabled}
-            onClick={() => setValue(numericCurrent + 1)}
-            position="top"
-          />
-          <PriceSpinner
-            label="−"
-            disabled={disabled || numericCurrent <= 0}
-            onClick={() => setValue(numericCurrent - 1)}
-            position="bottom"
-          />
-        </div>
-      </div>
-      <span
-        className="flex items-center px-3"
-        style={{
-          fontFamily:
-            "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
-          fontSize: 26,
-          fontWeight: 800,
-          color: AC.gold,
-          background: 'rgba(245,185,18,0.08)',
-          border: `1.5px solid ${AC.gold}`,
-          minWidth: 56,
-          justifyContent: 'center',
-        }}
-      >
-        €
-      </span>
-    </div>
-  );
-}
-
-function PriceSpinner({
-  label,
-  disabled,
-  onClick,
-  position,
-}: {
-  label: string;
-  disabled: boolean;
-  onClick: () => void;
-  position: 'top' | 'bottom';
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      aria-label={label === '+' ? 'Augmenter' : 'Diminuer'}
-      style={{
-        flex: 1,
-        minWidth: 38,
-        padding: '0 12px',
-        background: 'rgba(245,185,18,0.08)',
-        border: `1.5px solid ${AC.bone}`,
-        borderTop: position === 'bottom' ? 'none' : `1.5px solid ${AC.bone}`,
-        color: AC.gold,
-        cursor: disabled ? 'default' : 'pointer',
-        opacity: disabled ? 0.35 : 1,
-        fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-        fontSize: 18,
-        fontWeight: 800,
-        lineHeight: 1,
-        transition: 'background 0.12s',
-      }}
-      onMouseEnter={(e) => {
-        if (!disabled) e.currentTarget.style.background = 'rgba(245,185,18,0.22)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'rgba(245,185,18,0.08)';
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
-// ========== Ranking (drag & drop + fallback up/down arrows) ==========
-
-function RankingInput({
-  items,
-  shuffledOrder,
-  value,
-  onChange,
-  disabled,
-}: {
-  items: QuizCeoRankingItem[];
-  shuffledOrder: string[];
-  value: QuizCeoSubmitted;
-  onChange: (v: QuizCeoSubmitted) => void;
-  disabled: boolean;
-}) {
-  const itemsById = useMemo(() => {
-    const m = new Map<string, QuizCeoRankingItem>();
-    items.forEach((it) => m.set(it.id, it));
-    return m;
-  }, [items]);
-
-  // L'ordre courant : initial = ce que le joueur a posté, sinon l'ordre mélangé.
-  const initialOrder = useMemo(() => {
-    if (value?.kind === 'ranking' && value.order.length === shuffledOrder.length) {
-      return value.order;
-    }
-    return shuffledOrder;
-  }, [value, shuffledOrder]);
-
-  const [order, setOrder] = useState<string[]>(initialOrder);
-  // resync si shuffledOrder change (nouvelle question) — pattern "derived state
-  // from previous render" recommandé par React.
-  const currentSig = shuffledOrder.join(',');
-  const [lastSig, setLastSig] = useState<string>(currentSig);
-  if (lastSig !== currentSig) {
-    setLastSig(currentSig);
-    setOrder(initialOrder);
-  }
-
-  const move = (id: string, dir: -1 | 1) => {
-    const idx = order.indexOf(id);
-    if (idx < 0) return;
-    const newIdx = idx + dir;
-    if (newIdx < 0 || newIdx >= order.length) return;
-    const next = order.slice();
-    [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
-    setOrder(next);
-    onChange({ kind: 'ranking', order: next });
-  };
-
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
-  // Mesure de la hauteur d'une row + le gap (gap-2 Tailwind = 0.5rem = 8px),
-  // pour calculer les `translateY` qui décalent visuellement les autres items
-  // pendant le drag. useState (pas useRef) car lu dans le render body — refs
-  // interdites en render par eslint-plugin-react-hooks strict.
-  const [rowHeight, setRowHeight] = useState<number>(60);
-  // Container ref : on lit `getBoundingClientRect().top` UNIQUEMENT depuis
-  // les event handlers (lint OK). Permet le tracking du hover par cursor Y
-  // au lieu de per-row dragOver — élimine le feedback loop responsable du
-  // tremblement de l'animation (les items shiftent → cursor change de row
-  // logique → setOverId → re-shift → ad nauseam).
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const handleDragStart = (id: string) => (e: React.DragEvent) => {
-    if (disabled) return;
-    setDraggingId(id);
-    e.dataTransfer.effectAllowed = 'move';
-    // setData requis par Firefox sinon le drag ne s'amorce pas.
-    e.dataTransfer.setData('text/plain', id);
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const measured = rect.height + 8;
-    if (Math.abs(measured - rowHeight) > 1) setRowHeight(measured);
-  };
-  const handleDragEnd = () => {
-    setDraggingId(null);
-    setOverId(null);
-  };
-
-  const handleContainerDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (!draggingId) return;
-    const el = containerRef.current;
-    if (!el) return;
-    const idx = computeRankingHoverIndex(
-      e.clientY,
-      el.getBoundingClientRect().top,
-      rowHeight,
-      order.length,
-    );
-    if (idx === null) return;
-    const targetId = order[idx];
-    if (targetId && targetId !== overId) setOverId(targetId);
-  };
-
-  const handleContainerDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    if (!draggingId) {
-      setOverId(null);
-      return;
-    }
-    const el = containerRef.current;
-    if (!el) {
-      setDraggingId(null);
-      setOverId(null);
-      return;
-    }
-    const idx = computeRankingHoverIndex(
-      e.clientY,
-      el.getBoundingClientRect().top,
-      rowHeight,
-      order.length,
-    );
-    const targetId = idx === null ? null : order[idx];
-    if (!targetId || targetId === draggingId) {
-      setDraggingId(null);
-      setOverId(null);
-      return;
-    }
-    const next = applyRankingDrop(order, draggingId, targetId);
-    setOrder(next);
-    onChange({ kind: 'ranking', order: next });
-    setDraggingId(null);
-    setOverId(null);
-  };
-
-  // Voir computeRankingOffset (lib/quizCeo/rankingDrag.ts) pour la logique
-  // pure + les tests unitaires (scripts/test-ranking-drag.ts).
-  const fromIdx = draggingId ? order.indexOf(draggingId) : -1;
-  const overIdx = overId ? order.indexOf(overId) : -1;
-
-  return (
-    <div>
-      <div
-        style={{
-          fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-          fontSize: 10,
-          letterSpacing: '0.22em',
-          color: AC.bone2,
-          marginBottom: 8,
-        }}
-      >
-        {'// glisse par la poignée ⋮⋮ ou utilise les flèches — #1 en haut'}
-      </div>
-      <div
-        ref={containerRef}
-        className="flex flex-col gap-2"
-        onDragOver={handleContainerDragOver}
-        onDrop={handleContainerDrop}
-      >
-        {order.map((id, i) => {
-          const it = itemsById.get(id);
-          if (!it) return null;
-          const isDragging = draggingId === id;
-          const offset = computeRankingOffset(
-            i,
-            fromIdx,
-            overIdx,
-            rowHeight,
-            isDragging,
-          );
-          const cls = [
-            'qc-drag-row',
-            'flex',
-            'items-center',
-            'gap-2.5',
-            disabled ? 'qc-drag-row--disabled' : '',
-            isDragging ? 'qc-drag-row--dragging' : '',
-          ]
-            .filter(Boolean)
-            .join(' ');
-          return (
-            <div
-              key={id}
-              draggable={!disabled}
-              onDragStart={handleDragStart(id)}
-              onDragEnd={handleDragEnd}
-              className={cls}
-              style={{
-                padding: 10,
-                background: 'rgba(240,228,193,0.04)',
-                border: `1.5px dashed ${AC.bone2}`,
-                cursor: disabled ? 'default' : 'grab',
-                // Inline transform / transition pour l'animation « live insertion » :
-                // l'item draggé garde son tilt visuel (.qc-drag-row--dragging
-                // déclare scale + rotate) ; les autres items se décalent pour
-                // laisser la place. La transition est désactivée sur l'item
-                // en cours de drag pour éviter qu'il « rattrape » le ghost.
-                transform: isDragging
-                  ? 'scale(0.97) rotate(-0.6deg)'
-                  : `translateY(${offset}px)`,
-                transition: isDragging
-                  ? 'none'
-                  : 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)',
-                willChange: draggingId ? 'transform' : 'auto',
-              }}
-            >
-              <span
-                aria-hidden="true"
-                className="qc-drag-handle"
-                title="Glisser pour réordonner"
-              >
-                <span /><span /><span />
-              </span>
-              <span
-                style={{
-                  fontFamily:
-                    "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
-                  fontWeight: 900,
-                  fontSize: 20,
-                  color: AC.gold,
-                  minWidth: 28,
-                  textAlign: 'center',
-                }}
-              >
-                #{i + 1}
-              </span>
-              <div
-                style={{
-                  width: 48,
-                  height: 36,
-                  background: 'rgba(13,11,8,0.6)',
-                  border: `1px solid ${AC.bone2}`,
-                  overflow: 'hidden',
-                  flexShrink: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <img
-                  src={it.url}
-                  alt={it.label}
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    objectFit: 'contain',
-                  }}
-                />
-              </div>
-              <span
-                className="flex-1"
-                style={{
-                  fontFamily:
-                    "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
-                  fontWeight: 700,
-                  fontSize: 14,
-                  color: AC.bone,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.02em',
-                }}
-              >
-                {it.label}
-              </span>
-              <div className="flex flex-col" style={{ gap: 0 }}>
-                <RankNudge
-                  label="▲"
-                  ariaLabel="Monter"
-                  disabled={disabled || i === 0}
-                  onClick={() => move(id, -1)}
-                  position="top"
-                />
-                <RankNudge
-                  label="▼"
-                  ariaLabel="Descendre"
-                  disabled={disabled || i === order.length - 1}
-                  onClick={() => move(id, 1)}
-                  position="bottom"
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function RankNudge({
-  label,
-  ariaLabel,
-  disabled,
-  onClick,
-  position,
-}: {
-  label: string;
-  ariaLabel: string;
-  disabled: boolean;
-  onClick: () => void;
-  position: 'top' | 'bottom';
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      aria-label={ariaLabel}
-      style={{
-        padding: '4px 12px',
-        background: 'rgba(245,185,18,0.06)',
-        border: `1.5px solid ${AC.bone2}`,
-        borderTop: position === 'bottom' ? 'none' : `1.5px solid ${AC.bone2}`,
-        color: AC.gold,
-        cursor: disabled ? 'default' : 'pointer',
-        opacity: disabled ? 0.3 : 1,
-        fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-        fontSize: 12,
-        fontWeight: 800,
-        lineHeight: 1,
-        transition: 'background 0.12s, border-color 0.12s',
-      }}
-      onMouseEnter={(e) => {
-        if (!disabled) {
-          e.currentTarget.style.background = 'rgba(245,185,18,0.18)';
-          e.currentTarget.style.borderColor = AC.gold;
-        }
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'rgba(245,185,18,0.06)';
-        e.currentTarget.style.borderColor = AC.bone2;
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
 // ========== Worldle (silhouette + autocomplete pays) ==========
 
 /**
@@ -1104,7 +589,6 @@ function WorldleInput({
         autoComplete="off"
         onChange={(e) => setText(e.target.value)}
         onFocus={() => setFocused(true)}
-        // Délai sur blur pour permettre le clic sur une suggestion.
         onBlur={() => setTimeout(() => setFocused(false), 150)}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown') {

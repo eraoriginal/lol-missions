@@ -84,6 +84,7 @@ export function GameView({ room, roomCode, refetch }: Props) {
         roomCode={roomCode}
         isCreator={isCreator}
         creatorToken={creatorToken}
+        refetch={refetch}
       />
     );
   }
