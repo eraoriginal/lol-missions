@@ -6,6 +6,9 @@ interface ZoomPanImageProps {
   src: string;
   alt: string;
   onLoad?: () => void;
+  /** Appelé si l'image échoue à charger (404 / CORS / URL invalide). Laisse au
+   * parent le soin d'afficher un fallback ou de marquer la question terminée. */
+  onError?: () => void;
   className?: string;
   /** Intensité du flou en pixels appliqué à l'image (mode "blur"). 0 = pas de flou. */
   blurPx?: number;
@@ -27,6 +30,7 @@ export function ZoomPanImage({
   src,
   alt,
   onLoad,
+  onError,
   className,
   blurPx,
   rotating,
@@ -34,6 +38,10 @@ export function ZoomPanImage({
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
+  // Affiche un placeholder si l'image échoue à charger (404 / CORS / URL invalide).
+  // Indispensable car certains GIFs GIPHY peuvent disparaître après le seed, et
+  // ne rien afficher en silence rend la question impossible.
+  const [errored, setErrored] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<{
     startX: number;
@@ -42,12 +50,28 @@ export function ZoomPanImage({
     initOY: number;
   } | null>(null);
 
-  // Reset scale + offset quand l'image change (nouvelle question).
+  // Reset scale + offset + flag erreur quand l'image change (nouvelle question).
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset state on prop change is intentional
     setScale(1);
     setOffset({ x: 0, y: 0 });
+    setErrored(false);
   }, [src]);
+
+  // Filet de sauvetage : si l'image n'a ni `onLoad` ni `onError` au bout de 8s
+  // (cas observé sur certains CDN qui hangent en silence), on bascule en mode
+  // erreur. Sinon le parent garde l'image en `opacity-0` à jamais et la
+  // question paraît cassée.
+  useEffect(() => {
+    if (!src || errored) return;
+    const timeout = setTimeout(() => {
+      setErrored(true);
+      // On notifie aussi `onLoad` pour que le parent désactive son loader CSS.
+      onLoad?.();
+      onError?.();
+    }, 8000);
+    return () => clearTimeout(timeout);
+  }, [src, errored, onLoad, onError]);
 
   const clampOffset = (ox: number, oy: number, s: number) => {
     if (!containerRef.current) return { x: 0, y: 0 };
@@ -161,23 +185,53 @@ export function ZoomPanImage({
       <div
         className={`absolute inset-0 ${rotating ? 'bek-fx-tornado-pull' : ''}`}
       >
-        <img
-          src={src}
-          alt={alt}
-          onLoad={onLoad}
-          onDragStart={(e) => e.preventDefault()}
-          className={`w-full h-full pointer-events-none ${className ?? ''}`}
-          style={{
-            transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-            transformOrigin: 'center center',
-            // Transition courte sur le filter pour que la révélation progressive du
-            // mode "blur" reste fluide entre deux recalculs.
-            transition: dragging
-              ? 'none'
-              : 'transform 0.12s ease-out, filter 0.4s linear',
-            filter: blurPx && blurPx > 0.05 ? `blur(${blurPx}px)` : undefined,
-          }}
-        />
+        {errored ? (
+          <div
+            className="w-full h-full flex flex-col items-center justify-center gap-2"
+            style={{
+              color: '#8A7A5C',
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 12,
+              letterSpacing: '0.15em',
+              textAlign: 'center',
+              padding: '24px',
+            }}
+          >
+            <div style={{ fontSize: 28, color: '#C8441E' }}>⚠</div>
+            <div>{'// image indisponible'}</div>
+            <div style={{ fontSize: 10, color: '#5C5040' }}>
+              {'// l\'asset n\'a pas pu être chargé — la question reste valide'}
+            </div>
+          </div>
+        ) : (
+          <img
+            src={src}
+            alt={alt}
+            onLoad={onLoad}
+            // Sur erreur réseau (404 / CORS / URL invalide), on affiche un
+            // placeholder explicite au lieu de laisser l'image en opacity-0
+            // (le parent garde la transition `imageLoaded`).
+            onError={() => {
+              setErrored(true);
+              // Forcer l'avancée du loader parent : sinon il attend onLoad
+              // qui ne fire jamais sur une 404.
+              onLoad?.();
+              onError?.();
+            }}
+            onDragStart={(e) => e.preventDefault()}
+            className={`w-full h-full pointer-events-none ${className ?? ''}`}
+            style={{
+              transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+              transformOrigin: 'center center',
+              // Transition courte sur le filter pour que la révélation progressive du
+              // mode "blur" reste fluide entre deux recalculs.
+              transition: dragging
+                ? 'none'
+                : 'transform 0.12s ease-out, filter 0.4s linear',
+              filter: blurPx && blurPx > 0.05 ? `blur(${blurPx}px)` : undefined,
+            }}
+          />
+        )}
       </div>
 
       {/* Contrôles zoom en bas à droite */}

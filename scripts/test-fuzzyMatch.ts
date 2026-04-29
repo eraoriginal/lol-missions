@@ -54,9 +54,12 @@ const acceptCases: AcceptCase[] = [
   { label: 'apostrophe', input: "Assassin's Creed", name: 'Assassins Creed', expected: true },
   { label: 'colon', input: 'Metal Gear Solid: V', name: 'Metal Gear Solid 5', expected: true },
 
-  // Aliases
-  { label: 'matches alias', input: 'CoD MW', name: 'Call of Duty: Modern Warfare', aliases: ['CoD MW', 'MW'], expected: true },
-  { label: 'matches alias with accents', input: 'pokemon rouge', name: 'Pokémon Red', aliases: ['Pokémon Rouge'], expected: true },
+  // Aliases — IGNORÉS depuis la refonte fuzzyMatch (CLAUDE.md : « Seul le nom
+  // canonique fait foi »). Ces cas vérifient explicitement qu'un alias seul
+  // ne valide PAS la réponse — bug produit historique : un alias permissif
+  // validait des réponses qui n'étaient pas le bon jeu.
+  { label: 'alias seul rejeté (CoD MW)', input: 'CoD MW', name: 'Call of Duty: Modern Warfare', aliases: ['CoD MW', 'MW'], expected: false },
+  { label: 'alias accentué rejeté (pokemon rouge)', input: 'pokemon rouge', name: 'Pokémon Red', aliases: ['Pokémon Rouge'], expected: false },
 
   // MISMATCHES ATTENDUS
   { label: 'Halo 2 != Halo 3', input: 'Halo 2', name: 'Halo 3', expected: false },
@@ -79,7 +82,11 @@ const acceptCases: AcceptCase[] = [
   { label: '& ↔ and (input and, target &)', input: 'Mount and Blade', name: 'Mount & Blade', expected: true },
   { label: '& ↔ and (input &, target and)', input: 'Mount & Blade', name: 'Mount and Blade', expected: true },
   { label: 'Ratchet and Clank', input: 'Ratchet and Clank', name: 'Ratchet & Clank', expected: true },
-  { label: 'Kane and Lynch 2', input: 'Kane and Lynch 2', name: 'Kane & Lynch 2: Dog Days', aliases: ['Kane & Lynch 2'], expected: true },
+  // Le sous-titre « Dog Days » fait partie du nom canonique → la version sans
+  // sous-titre n'est PAS acceptée (les sous-titres ne sont strippés que pour
+  // les suffixes d'édition reconnus, pas pour les vrais sous-titres).
+  { label: 'Kane and Lynch 2 sans sous-titre rejeté', input: 'Kane and Lynch 2', name: 'Kane & Lynch 2: Dog Days', aliases: ['Kane & Lynch 2'], expected: false },
+  { label: 'Kane and Lynch 2 Dog Days OK', input: 'Kane and Lynch 2 Dog Days', name: 'Kane & Lynch 2: Dog Days', expected: true },
 
   // Lookalikes cyrilliques (RAWG stocke "Observеr" avec е cyrillique U+0435)
   { label: 'Observer latin vs cyrillique е', input: 'Observer', name: 'Observ\u0435r', expected: true },

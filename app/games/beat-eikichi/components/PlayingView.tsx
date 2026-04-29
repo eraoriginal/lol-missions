@@ -254,8 +254,17 @@ export function PlayingView({
     fxNow,
   );
 
-  // Anti-double-trigger côté client pour /next.
-  const nextTriggeredRef = useRef<number | null>(null);
+  // Throttle des appels /next : un retry max toutes les 800 ms tant que la
+  // question courante n'a pas avancé. Ce pattern (porté de Quiz CEO) couvre :
+  //   - le push Pusher perdu (le client retente jusqu'à voir currentIndex bouger)
+  //   - les `skipped: 'timer not elapsed'` du serveur (clock drift) → on retry
+  //   - les `skipped: 'already advanced'` (le push arrive plus tard, refetch
+  //     systématique synchronise immédiatement)
+  // Ne pas remplacer par un one-shot `nextTriggeredRef`-style : si le 1er appel
+  // échoue silencieusement (réseau, cache, race), le client restait coincé sur
+  // la question expirée sans jamais retenter.
+  const nextCalledForIdxRef = useRef<number>(-1);
+  const nextLastCalledAtRef = useRef<number>(0);
   const [imageLoaded, setImageLoaded] = useState(false);
 
   const refetchRef = useRef(refetch);
@@ -266,7 +275,10 @@ export function PlayingView({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on prop change is intentional
     setImageLoaded(false);
-    nextTriggeredRef.current = null;
+    // Reset des refs de throttle à chaque nouvelle question : le retry repart
+    // d'une fenêtre fraîche.
+    nextCalledForIdxRef.current = -1;
+    nextLastCalledAtRef.current = 0;
   }, [currentIndex]);
 
   // Safeguard anti-desync : si le timer est dépassé depuis plus de 3 s sans que
@@ -307,11 +319,16 @@ export function PlayingView({
     return () => clearInterval(id);
   }, [game.mode, game.questionStartedAt, timerSeconds]);
 
-  const handleTimeout = async () => {
-    if (nextTriggeredRef.current === currentIndex) return;
-    nextTriggeredRef.current = currentIndex;
+  const handleTimeout = useCallback(async () => {
+    const now = Date.now();
+    const sameIdx = nextCalledForIdxRef.current === currentIndex;
+    // Throttle : 800 ms entre 2 appels sur le même index. Tant que le serveur
+    // n'a pas confirmé le passage (currentIndex change), on retente.
+    if (sameIdx && now - nextLastCalledAtRef.current < 800) return;
+    nextCalledForIdxRef.current = currentIndex;
+    nextLastCalledAtRef.current = now;
     try {
-      const res = await fetch(`/api/games/beat-eikichi/${roomCode}/next`, {
+      await fetch(`/api/games/beat-eikichi/${roomCode}/next`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -319,26 +336,13 @@ export function PlayingView({
           expectedIndex: currentIndex,
         }),
       });
-      const data: { ok?: boolean; skipped?: string } = await res
-        .json()
-        .catch(() => ({}));
-
-      if (data.skipped === 'already advanced') {
-        refetchRef.current?.();
-        return;
-      }
-
-      if (!res.ok || data.skipped === 'timer not elapsed') {
-        setTimeout(() => {
-          if (nextTriggeredRef.current === currentIndex) {
-            nextTriggeredRef.current = null;
-          }
-        }, 1000);
-      }
     } catch {
-      nextTriggeredRef.current = null;
+      /* ignore : on retente au tick suivant tant que currentIndex ne bouge pas */
     }
-  };
+    // Refetch SYSTÉMATIQUE après chaque tentative : si le push Pusher est
+    // perdu, c'est ce refetch qui synchronise le client à l'état serveur.
+    refetchRef.current?.();
+  }, [currentIndex, roomCode, playerToken]);
 
   // Tick pour calculer le pct du timer bar. 500ms = ~2 updates/sec, assez
   // fluide pour une barre de progression sans déclencher un re-render toutes
@@ -529,6 +533,7 @@ export function PlayingView({
                 catalog={catalog}
                 alreadyFound={alreadyFound}
                 questionKey={currentIndex}
+                currentIndex={currentIndex}
                 foundAtSeconds={foundAtSeconds}
               />
             </div>

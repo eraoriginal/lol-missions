@@ -146,13 +146,23 @@ function generateVariants(game: CatalogEntry): Variant[] {
     }
   }
 
-  // Alias — chacun doit matcher
+  // Alias — IGNORÉS depuis la refonte fuzzyMatch (CLAUDE.md : « Seul le nom
+  // canonique fait foi »). On vérifie EXPLICITEMENT qu'un alias seul ne valide
+  // PAS la réponse — sauf si l'alias est structurellement équivalent au nom
+  // canonique après normalisation officielle (romains↔arabes, accents, &↔and,
+  // etc.) — auquel cas il continue à matcher VIA NORMALISATION (pas via la
+  // logique aliases) et c'est correct. On utilise le `normalize` officiel
+  // pour ne pas dupliquer les règles ici.
   for (const alias of game.aliases) {
     if (alias && alias.trim() && alias !== name) {
+      // Skip si l'alias est déjà accepté par les règles structurelles (norm,
+      // romains↔arabes, suffixe d'édition strippé) : c'est un match légitime
+      // via le nom canonique, pas via la logique aliases.
+      if (isAcceptedAnswer(alias, name)) continue;
       variants.push({
         label: `alias:«${alias.slice(0, 30)}»`,
         input: alias,
-        expected: true,
+        expected: false,
       });
     }
   }
@@ -840,6 +850,50 @@ function Sandbox({ catalog }: { catalog: CatalogEntry[] }) {
           <div>
             {'// '}Active un effet d&apos;arme : l&apos;overlay se monte par-dessus
             l&apos;image sans bloquer la saisie.
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: 10,
+            border: '1.5px solid #FF3D8B',
+            fontSize: 11,
+            color: '#F0E4C1',
+            lineHeight: 1.55,
+            background: 'rgba(255,61,139,0.05)',
+          }}
+        >
+          <div style={{ color: '#FF3D8B', fontWeight: 700, marginBottom: 6 }}>
+            {'// '}SCENARIOS DE NON-RÉGRESSION (à passer après toute modif AutocompleteInput)
+          </div>
+          <div>
+            <strong style={{ color: '#12D6A8' }}>S1 — Souris ne vole pas la sélection clavier :</strong>
+            <br />
+            1. Tape <code>halo</code> · 2. ↓↓ (highlighted=2) · 3. bouge la
+            souris sur l&apos;item 4 SANS cliquer · 4. Entrée → doit soumettre
+            l&apos;item 2 (sélection clavier).
+          </div>
+          <div>
+            <strong style={{ color: '#12D6A8' }}>S2 — Mouse mode après mousemove explicite :</strong>
+            <br />
+            1. Tape <code>halo</code> · 2. déplace la souris (vrai mousemove)
+            sur l&apos;item 4 · 3. Entrée → doit soumettre la saisie littérale
+            <code> halo</code> (userNavigated=false). Pour soumettre l&apos;item,
+            il faut cliquer.
+          </div>
+          <div>
+            <strong style={{ color: '#12D6A8' }}>S3 — Saisie pendant nav clavier :</strong>
+            <br />
+            1. Tape <code>halo</code> · 2. ↓↓↓↓↓ (h=5) · 3. ajoute
+            <code> 2</code> à la saisie (suggestions filtrées) · 4. Entrée → doit
+            soumettre <code>halo 2</code> littéral (highlighted reset à 0,
+            userNavigated=false).
+          </div>
+          <div>
+            <strong style={{ color: '#12D6A8' }}>S4 — Pas de crash hors bornes :</strong>
+            <br />
+            Forcer une situation où highlighted &gt; suggestions.length-1 ne
+            doit jamais crasher (garde-fou explicite dans le handler Enter).
           </div>
         </div>
       </div>

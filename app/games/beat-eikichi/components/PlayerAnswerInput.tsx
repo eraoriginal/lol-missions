@@ -19,6 +19,10 @@ interface PlayerAnswerInputProps {
   alreadyFound: boolean;
   /** Reset le champ quand la question change (nouvelle `questionKey`). */
   questionKey: string | number;
+  /** Index de la question affichée. Envoyé au serveur avec /submit pour qu'il
+   * puisse rejeter (`late: true`) une soumission qui arriverait trop tard
+   * (race avec un /next concurrent qui a déjà fait avancer la question). */
+  currentIndex: number;
   /** Temps écoulé depuis le début de la question (en secondes) au moment où
    * le joueur a trouvé — utilisé pour l'affichage « en X.Xs ». */
   foundAtSeconds?: number | null;
@@ -32,6 +36,7 @@ export function PlayerAnswerInput({
   catalog,
   alreadyFound,
   questionKey,
+  currentIndex,
   foundAtSeconds,
 }: PlayerAnswerInputProps) {
   const [value, setValue] = useState('');
@@ -95,15 +100,22 @@ export function PlayerAnswerInput({
       const res = await fetch(`/api/games/beat-eikichi/${roomCode}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerToken, text: trimmed }),
+        body: JSON.stringify({ playerToken, text: trimmed, expectedIndex: currentIndex }),
       });
-      const data: { correct?: boolean; closeness?: Closeness } = await res
+      const data: { correct?: boolean; closeness?: Closeness; late?: boolean } = await res
         .json()
         .catch(() => ({}));
       if (res.ok && data.correct) {
         // succès : on laisse le serveur pousser la mise à jour ;
         // le parent verra `alreadyFound=true` et verrouillera.
         setValue(trimmed);
+        setFeedback(null);
+      } else if (res.ok && data.late) {
+        // La question a avancé pendant que le submit voyageait : on n'affiche
+        // PAS de mauvaise réponse (la saisie était valide pour la question
+        // précédente). On reset juste le champ silencieusement — le push
+        // Pusher va arriver et `questionKey` va changer, déclenchant le reset.
+        setValue('');
         setFeedback(null);
       } else {
         // mauvaise réponse : shake + reset du champ + feedback de proximité

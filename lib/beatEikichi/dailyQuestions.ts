@@ -49,21 +49,30 @@ export async function generateQuestionSet(): Promise<BeatEikichiQuestion[]> {
     },
   });
 
-  if (allGames.length < BEAT_EIKICHI_CONFIG.QUESTIONS_PER_GAME) {
+  // Filtre amont : un jeu doit avoir AU MOINS une source d'image utilisable
+  // selon la config (GIFs ou images). Sans ce filtre, le tirage pouvait
+  // produire des questions avec `imageUrl=''` → image impossible à charger,
+  // l'utilisateur restait bloqué sur un placeholder.
+  const eligibleGames = allGames.filter((g) => {
+    if (BEAT_EIKICHI_CONFIG.USE_GIFS && g.gifs.length > 0) return true;
+    return g.images.length > 0;
+  });
+
+  if (eligibleGames.length < BEAT_EIKICHI_CONFIG.QUESTIONS_PER_GAME) {
     throw new Error(
-      `Pas assez de jeux dans le catalogue (${allGames.length}). Exécute le seed : npm run seed:beat-eikichi`,
+      `Pas assez de jeux exploitables (${eligibleGames.length}/${allGames.length} ont des images). Relance le seed : npm run seed:beat-eikichi`,
     );
   }
 
-  const picked = sample(allGames, BEAT_EIKICHI_CONFIG.QUESTIONS_PER_GAME);
+  const picked = sample(eligibleGames, BEAT_EIKICHI_CONFIG.QUESTIONS_PER_GAME);
 
   return picked.map((game, index) => {
     // Si USE_GIFS est off, on ignore les GIFs et on pioche dans les images.
     // Sinon, on prend un GIF si dispo, sinon on retombe sur les images.
     const preferGifs = BEAT_EIKICHI_CONFIG.USE_GIFS && game.gifs.length > 0;
     const pool = preferGifs ? game.gifs : game.images;
-    const candidates = pool.length > 0 ? pool : [''];
-    const imageUrl = candidates[Math.floor(Math.random() * candidates.length)] ?? '';
+    // Invariant garanti par le filtre `eligibleGames` : pool.length > 0.
+    const imageUrl = pool[Math.floor(Math.random() * pool.length)];
     return {
       position: index,
       gameId: game.id,

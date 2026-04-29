@@ -68,6 +68,15 @@ export function AutocompleteInput({
   // (cas typique : mauvaise réponse → input disable pendant la fetch → browser blur,
   // puis le shake effect refocus. Sans annulation, le blur retardé gagnait la course).
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Dernier mode d'interaction utilisé pour piloter `highlighted`. Indispensable
+  // pour ne pas que la souris vole l'index sélectionné au clavier : si l'utilisateur
+  // navigue avec ↑↓ jusqu'à la suggestion #2, puis bouge le pointeur par accident
+  // sur la #5 (zone du dropdown sous le curseur), `onMouseEnter` mettait avant
+  // `highlighted=5` → Enter soumettait la mauvaise suggestion. Désormais le
+  // mouseEnter est ignoré tant qu'on est en mode 'keyboard'. Bascule en 'mouse'
+  // uniquement sur un mousemove explicite. ref (pas useState) car lu uniquement
+  // depuis les handlers, jamais depuis le render body.
+  const interactionModeRef = useRef<'keyboard' | 'mouse' | 'idle'>('idle');
 
   const suggestions = useMemo(() => {
     const n = normalize(value);
@@ -115,6 +124,7 @@ export function AutocompleteInput({
     setHighlighted(0);
     setUserNavigated(false);
     setDismissed(false);
+    interactionModeRef.current = 'idle';
   }, [resetKey]);
 
   // Reset highlight + navigation + dismiss dès que la saisie change : taper rouvre
@@ -124,6 +134,7 @@ export function AutocompleteInput({
     setHighlighted(0);
     setUserNavigated(false);
     setDismissed(false);
+    interactionModeRef.current = 'idle';
   }, [value]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -165,12 +176,14 @@ export function AutocompleteInput({
       e.preventDefault();
       setDismissed(false);
       if (suggestions.length === 0) return;
+      interactionModeRef.current = 'keyboard';
       setUserNavigated(true);
       setHighlighted((h) => Math.min(h + 1, suggestions.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setDismissed(false);
       if (suggestions.length === 0) return;
+      interactionModeRef.current = 'keyboard';
       setUserNavigated(true);
       setHighlighted((h) => Math.max(h - 1, 0));
     } else if (e.key === 'Enter') {
@@ -178,8 +191,17 @@ export function AutocompleteInput({
       // Priorité à la saisie littérale : on ne soumet une suggestion que si
       // l'utilisateur l'a choisie explicitement via les flèches. Sinon il tape
       // "Street Fighter II" en entier et Enter soumet bien ça, pas la 1re suggestion.
-      if (userNavigated && suggestions.length > 0 && highlighted >= 0) {
-        onSubmit(suggestions[highlighted].name);
+      // Garde-fou bornes : si highlighted dépasse suggestions.length (ex. la liste
+      // s'est resserrée juste avant Enter, race avec useEffect[value] qui n'a pas
+      // encore reset), on tombe sur la saisie littérale plutôt que de crasher.
+      const safeIdx = highlighted;
+      if (
+        userNavigated &&
+        suggestions.length > 0 &&
+        safeIdx >= 0 &&
+        safeIdx < suggestions.length
+      ) {
+        onSubmit(suggestions[safeIdx].name);
       } else if (value.trim().length > 0) {
         onSubmit(value);
       }
@@ -300,6 +322,17 @@ export function AutocompleteInput({
           // hors d'un <li> (ex : la scrollbar). Sinon la liste se ferme dès qu'on
           // essaie de scroller manuellement.
           onMouseDown={(e) => e.preventDefault()}
+          // Bascule en mode `mouse` UNIQUEMENT sur un mousemove explicite : tant
+          // que la souris n'a pas été activement déplacée par l'utilisateur après
+          // qu'il ait commencé à naviguer au clavier, mouseEnter est neutralisé.
+          // Sans ça la souris pouvait survoler une suggestion par hasard pendant
+          // la nav clavier et changer `highlighted` (→ Enter soumettait la mauvaise
+          // suggestion).
+          onMouseMove={() => {
+            if (interactionModeRef.current !== 'mouse') {
+              interactionModeRef.current = 'mouse';
+            }
+          }}
         >
           <div
             style={{
@@ -337,7 +370,14 @@ export function AutocompleteInput({
                   // Sécurité : refocus explicite après le submit au cas où.
                   inputRef.current?.focus();
                 }}
-                onMouseEnter={() => setHighlighted(i)}
+                onMouseEnter={() => {
+                  // Ignore le hover passif quand l'utilisateur navigue au clavier :
+                  // sinon la souris peut survoler une suggestion par hasard et
+                  // voler l'index → Enter soumet la mauvaise réponse. Le mode
+                  // bascule en 'mouse' uniquement via onMouseMove (cf. plus haut).
+                  if (interactionModeRef.current === 'keyboard') return;
+                  setHighlighted(i);
+                }}
                 style={{
                   padding: '8px 14px',
                   background: i === highlighted ? AC.shimmer : 'transparent',

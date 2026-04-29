@@ -5,13 +5,19 @@ import { pushRoomUpdate, pushBeatEikichiSound } from '@/lib/pusher';
 import { isAcceptedAnswer, computeCloseness } from '@/lib/beatEikichi/fuzzyMatch';
 import type { BeatEikichiQuestion } from '@/lib/beatEikichi/dailyQuestions';
 import {
-  advanceQuestion,
+  advanceQuestionIfMatches,
   allPlayersHaveFoundAnswer,
 } from '@/lib/beatEikichi/advanceQuestion';
 
 const bodySchema = z.object({
   playerToken: z.string().min(1),
   text: z.string().min(1).max(200),
+  // Index de la question vue par le client au moment où il a soumis. Permet
+  // de détecter qu'une race a fait avancer la question entre l'envoi et le
+  // traitement (ex. /next d'un autre client a gagné juste avant). Sans ce
+  // garde-fou, le serveur évaluerait la réponse contre la question SUIVANTE
+  // → faux negatif où une bonne réponse est marquée incorrecte.
+  expectedIndex: z.number().int().min(0).optional(),
 });
 
 interface PlayerAnswer {
@@ -43,7 +49,7 @@ export async function POST(
   try {
     const { code } = await params;
     const body = await request.json();
-    const { playerToken, text } = bodySchema.parse(body);
+    const { playerToken, text, expectedIndex } = bodySchema.parse(body);
 
     const room = await prisma.room.findUnique({
       where: { code },
@@ -75,6 +81,22 @@ export async function POST(
     const currentQuestion = questions[game.currentIndex];
     if (!currentQuestion) {
       return Response.json({ error: 'No current question' }, { status: 400 });
+    }
+
+    // Anti-race : si le client soumet pour la question N mais que le serveur
+    // est déjà passé à N+1 (ex. /next d'un autre client a gagné le gate
+    // pendant que le submit voyageait), on retourne `late: true` SANS évaluer
+    // contre la mauvaise question. Le client peut afficher un message neutre
+    // (« la question a déjà avancé ») au lieu d'un « mauvaise réponse » faux.
+    if (
+      expectedIndex !== undefined &&
+      expectedIndex !== game.currentIndex
+    ) {
+      return Response.json({
+        correct: false,
+        late: true,
+        actualIndex: game.currentIndex,
+      });
     }
 
     const answers = (state.answers as unknown as PlayerAnswer[]) ?? [];
@@ -120,14 +142,24 @@ export async function POST(
     // Règles d'avancement automatique :
     // 1. Si le joueur est Eikichi → avance immédiatement pour tous.
     // 2. Sinon, si tous les joueurs ont maintenant trouvé → avance aussi.
+    //
+    // L'avancement passe par `advanceQuestionIfMatches` qui est ATOMIQUE sur
+    // currentIndex. Si une autre requête concurrente avait déjà avancé pendant
+    // que ce handler tournait (ex. /next d'un autre client au timeout), le
+    // gate retourne `false` et on n'avance pas une 2e fois → pas de skip de
+    // question (bug racine du "passé de 8 à 10").
     let advanced = false;
     const isEikichi = game.eikichiPlayerId === player.id;
+    const indexAtSubmit = game.currentIndex;
 
     if (isEikichi) {
-      // L'Eikichi a trouvé → son spécifique joué pour tous les joueurs.
-      await pushBeatEikichiSound(code, 'eikichi-found');
-      await advanceQuestion(game.id);
-      advanced = true;
+      // L'Eikichi a trouvé → on tente d'avancer atomiquement.
+      // Le son ne se joue QUE si on a réussi à gagner le gate (sinon on
+      // notifie inutilement les autres clients sur une question déjà passée).
+      advanced = await advanceQuestionIfMatches(game.id, indexAtSubmit);
+      if (advanced) {
+        await pushBeatEikichiSound(code, 'eikichi-found');
+      }
     } else {
       // Simule l'état post-insertion pour la vérification "tous trouvé".
       const updatedStates = game.playerStates.map((s) =>
@@ -135,9 +167,8 @@ export async function POST(
           ? { ...s, answers: [...answers, newAnswer] }
           : s,
       );
-      if (allPlayersHaveFoundAnswer(updatedStates, game.currentIndex)) {
-        await advanceQuestion(game.id);
-        advanced = true;
+      if (allPlayersHaveFoundAnswer(updatedStates, indexAtSubmit)) {
+        advanced = await advanceQuestionIfMatches(game.id, indexAtSubmit);
       }
     }
 

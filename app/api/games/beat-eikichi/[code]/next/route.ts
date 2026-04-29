@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { pushRoomUpdate } from '@/lib/pusher';
-import { advanceQuestion } from '@/lib/beatEikichi/advanceQuestion';
+import { advanceQuestionIfMatches } from '@/lib/beatEikichi/advanceQuestion';
 
 const bodySchema = z.object({
   playerToken: z.string().min(1),
@@ -45,13 +45,17 @@ export async function POST(
 
     const game = room.beatEikichiGame;
 
-    // No-op idempotent : si on n'est pas en playing, ou si la question a déjà avancé.
+    // Pré-check soft : retourne tôt si l'état lu est manifestement avancé.
+    // Le gate ATOMIQUE est dans `advanceQuestionIfMatches` — c'est lui qui
+    // garantit qu'aucune question ne saute en cas de race. Ce pré-check sert
+    // juste à économiser une requête DB dans les cas faciles (push perdu,
+    // F5, etc.).
     if (game.phase !== 'playing' || game.currentIndex !== expectedIndex) {
       return Response.json({ ok: true, skipped: 'already advanced' });
     }
 
-    // Anti-race : le timer doit être raisonnablement écoulé.
-    // Tolérance large (5s) pour absorber décalage d'horloge client/serveur + bundle désaligné.
+    // Anti-triche : le timer doit être raisonnablement écoulé.
+    // Tolérance large (5 s) pour absorber décalage d'horloge client/serveur.
     const TIMER_TOLERANCE_MS = 5000;
     const timerMs = game.timerSeconds * 1000;
     if (game.questionStartedAt) {
@@ -61,7 +65,14 @@ export async function POST(
       }
     }
 
-    await advanceQuestion(game.id);
+    // Gate atomique : si une autre requête (Eikichi qui trouve, autre client
+    // /next, all-found) a avancé pendant qu'on était en train de checker,
+    // `advanced` sera `false` et on ne pousse PAS de double-update. C'est le
+    // fix racine du bug "passé de la question 8 à 10 sans voir la 9".
+    const advanced = await advanceQuestionIfMatches(game.id, expectedIndex);
+    if (!advanced) {
+      return Response.json({ ok: true, skipped: 'already advanced' });
+    }
     await pushRoomUpdate(code);
 
     return Response.json({ ok: true });
