@@ -13,7 +13,6 @@ import { AC, AC_CLIP } from '@/app/components/arcane';
 export interface CatalogEntry {
   id: string;
   name: string;
-  aliases: string[];
 }
 
 interface AutocompleteInputProps {
@@ -188,20 +187,32 @@ export function AutocompleteInput({
       setHighlighted((h) => Math.max(h - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      // Priorité à la saisie littérale : on ne soumet une suggestion que si
-      // l'utilisateur l'a choisie explicitement via les flèches. Sinon il tape
-      // "Street Fighter II" en entier et Enter soumet bien ça, pas la 1re suggestion.
-      // Garde-fou bornes : si highlighted dépasse suggestions.length (ex. la liste
-      // s'est resserrée juste avant Enter, race avec useEffect[value] qui n'a pas
-      // encore reset), on tombe sur la saisie littérale plutôt que de crasher.
-      const safeIdx = highlighted;
-      if (
-        userNavigated &&
-        suggestions.length > 0 &&
-        safeIdx >= 0 &&
-        safeIdx < suggestions.length
-      ) {
-        onSubmit(suggestions[safeIdx].name);
+      // Logique d'Enter :
+      //   1. Si l'utilisateur a navigué au clavier → soumettre la suggestion
+      //      mise en surbrillance (`highlighted`).
+      //   2. Sinon, si la saisie littérale matche déjà la 1re suggestion via
+      //      les règles de normalisation (casse/accents/romains/&-and/...),
+      //      on soumet directement la saisie littérale — équivalent.
+      //   3. Sinon, on soumet la 1re suggestion par défaut. C'est le bon
+      //      compromis UX : le joueur voit une seule entrée, Enter la prend.
+      //      Si la liste contient plusieurs items et que le joueur a tapé un
+      //      nom partiel sans naviguer, le 1er match est la meilleure option.
+      //   4. Fallback (catalogue vide, 0 suggestion) : on soumet la saisie
+      //      littérale (qui sera de toute façon refusée par le serveur si
+      //      ce n'est pas le bon jeu — mais évite de bloquer le joueur).
+      // Garde-fou bornes : highlighted clamped à [0, suggestions.length-1].
+      const safeIdx = Math.min(Math.max(0, highlighted), suggestions.length - 1);
+      if (suggestions.length > 0 && safeIdx >= 0) {
+        if (userNavigated) {
+          onSubmit(suggestions[safeIdx].name);
+        } else {
+          // Pas de navigation clavier : on prend la 1re suggestion (la mieux
+          // matchée) plutôt que la saisie littérale. Évite le cas où le
+          // joueur tape "halo 2" en minuscules, voit "Halo 2" suggéré, et
+          // que Enter soumet "halo 2" littéralement (qui passe via norm
+          // mais peut échouer si le nom canonique a un suffixe particulier).
+          onSubmit(suggestions[0].name);
+        }
       } else if (value.trim().length > 0) {
         onSubmit(value);
       }

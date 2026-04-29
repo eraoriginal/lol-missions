@@ -66,9 +66,8 @@ model Room {
   victoryBonusPoints  Int       @default(0)              // points bonus attribués à l'équipe gagnante
   selectedCategories  String[]  @default([])             // catégories sélectionnées pour Codename
   beatEikichiEikichiId String?                           // joueur désigné comme "Je suis Eikichi" (Beat Eikichi) - setté depuis le lobby, visible par tous
-  beatEikichiHintsEnabled Boolean @default(false)        // indices activés par le créateur (Beat Eikichi)
   beatEikichiTimerSeconds Int     @default(30)           // durée d'une question (Beat Eikichi) - réglable par le créateur
-  beatEikichiMode         String  @default("standard")   // mode de jeu (Beat Eikichi) : "standard" ou "blur"
+  beatEikichiMode         String  @default("standard")   // mode de jeu (Beat Eikichi) : "standard" ou "all-vs-eikichi"
   quizCeoTimerSeconds     Int     @default(30)           // durée d'une question (Quiz du CEO) - 10..300
   quizCeoQuestionCount    Int     @default(16)           // nombre de questions par partie (Quiz du CEO)
   quizCeoDisabledTypes    String[] @default([])          // types de questions désactivés par le créateur (Quiz du CEO)
@@ -290,24 +289,52 @@ model CardInterest {
   @@index([cardId])
 }
 
-// Beat Eikichi - catalogue de jeux vidéo (seedé depuis RAWG API + GIPHY pour les GIFs)
+// Beat Eikichi - catalogue de jeux vidéo (seedé depuis IGDB)
+//
+// Refonte 2026-04 : on quitte RAWG pour IGDB. Le schéma est nativement
+// IGDB-shape :
+//   - igdbId : la PK chez IGDB (int unique, sert de dédup)
+//   - slug : "the-witcher-3-wild-hunt" — utile pour debug et liens externes
+//   - releaseDate : permet de filtrer par époque (et alimenter Quiz CEO si besoin)
+//   - genre : 1er genre IGDB (string), utilisé tel quel comme hintGenre
+//   - screenshots : table séparée 1-N (cf. ScreenshotImage), 3-4 par jeu
+//
+// Les GIFs (GIPHY) ont été retirés ; IGDB ne fournit que des screenshots et
+// le retour produit après les essais GIPHY est qu'ils sont souvent hors-sujet.
 model VideoGame {
-  id        String   @id @default(cuid())
-  rawgId    Int      @unique
-  name      String          // nom canonique pour l'affichage en review
-  aliases   String[] @default([])  // alternative_names RAWG + variantes générées
-  images    String[] @default([])  // 5 URLs de screenshots (fallback si pas de GIFs)
-  gifs      String[] @default([])  // 5 URLs de GIFs (GIPHY) — prioritaires à l'affichage (désactivables via config)
-
-  // Indices donnés au joueur si le créateur de la room les active.
-  // 3 indices, révélés au cours du timer (début, mi-temps, -10 s).
-  hintGenre     String?   // ex: "FPS", "RPG", "Platformer"
-  hintTerm      String?   // ex: "Master Chief", "Rapture", "Lambda" — terme distinctif du jeu
-  hintPlatforms String?   // ex: "PC, PlayStation, Xbox"
+  id          String   @id @default(cuid())
+  igdbId      Int      @unique
+  slug        String
+  name        String          // nom canonique pour l'affichage en review (seule source de vérité)
+  releaseDate DateTime?       // first_release_date (timestamp Unix → DateTime)
+  coverImageId String?        // image_id IGDB pour la jaquette (optionnel)
 
   createdAt DateTime @default(now())
 
+  screenshots ScreenshotImage[]
+
   @@index([name])
+  @@index([slug])
+}
+
+// Beat Eikichi - screenshots IGDB d'un jeu
+//
+// Plusieurs par jeu (3-4 typiquement). L'URL est calculée à la volée par le
+// helper côté lib/beatEikichi : `https://images.igdb.com/igdb/image/upload/
+// t_screenshot_huge/<imageId>.jpg`. Stocker l'imageId (pas l'URL complète)
+// permet de switcher de taille (`t_screenshot_big`, `t_1080p`, etc.) sans
+// re-seeder.
+model ScreenshotImage {
+  id        String    @id @default(cuid())
+  videoGame VideoGame @relation(fields: [videoGameId], references: [id], onDelete: Cascade)
+  videoGameId String
+  imageId   String    // image_id IGDB (ex: "co1r7d") — sert à construire l'URL
+  width     Int?
+  height    Int?
+  createdAt DateTime  @default(now())
+
+  @@unique([videoGameId, imageId])
+  @@index([videoGameId])
 }
 
 // Beat Eikichi - état de la partie pour une room
@@ -349,12 +376,23 @@ model BeatEikichiPlayerState {
   answers       Json     @default("[]")     // Array<{ position, submittedText, correct, answeredAtMs }>
   score         Int      @default(0)
 
-  // Arme snapshotée depuis Player.beatEikichiWeaponId au /start.
+  // Arme snapshotée depuis Player.beatEikichiWeaponId au /start (mode standard).
+  // En mode "all-vs-eikichi", `weaponId` reste `null` pour les non-Eikichi (ils
+  // n'ont QUE des boucliers) et `null` pour le Eikichi aussi (ses 12 stacks
+  // sont stockés dans `weaponStacks` à la place).
   weaponId              String?
-  weaponUsesLeft        Int    @default(3)  // 3 utilisations par partie
+  weaponUsesLeft        Int    @default(3)  // 3 utilisations par partie (mode standard)
   lastUsedQuestionIndex Int    @default(-1) // (obsolète depuis le passage en "effet différé")
-  // Bouclier (défensif) : disponible pour tous les joueurs en plus de leur arme.
+  // Bouclier (défensif) : disponible pour tous les joueurs en mode standard.
+  // En mode "all-vs-eikichi", seuls les NON-Eikichi ont un bouclier (Eikichi en
+  // est privé, c'est lui l'attaquant exclusif).
   shieldUsesLeft        Int    @default(3)  // 3 boucliers par partie
+
+  // Stacks d'armes pour le Eikichi en mode "all-vs-eikichi" UNIQUEMENT.
+  // Map { weaponId: usesLeft } — initialisée au /start avec 12 entrées × 3.
+  // Null pour tous les autres états (mode standard, non-Eikichi). Décrémenté
+  // à chaque /fire-weapon ; remis à null en sortie du mode.
+  weaponStacks          Json?
 
   @@unique([gameId, playerId])
   @@index([gameId])
@@ -376,6 +414,15 @@ model BeatEikichiWeaponEvent {
   data            Json?
 
   @@index([gameId, questionIndex])
+  // Contrainte d'unicité : un même tireur ne peut viser deux fois le même
+  // joueur pour la même question (mode all-vs-eikichi : 1 cible/question
+  // peu importe l'arme). En mode standard, chaque tireur n'a qu'une arme
+  // et tire 1× par question dans la pratique — la contrainte ne gêne pas.
+  // Côté `/fire-weapon` on catch P2002 pour retourner 400 "Target already
+  // hit". Les boucliers (firedByPlayerId = targetPlayerId) sont protégés
+  // par cette contrainte aussi (1 bouclier max par question, ce qui est
+  // déjà l'intention).
+  @@unique([gameId, firedByPlayerId, targetPlayerId, questionIndex])
 }
 
 // Le Quiz du CEO - banque de questions

@@ -4,6 +4,19 @@ import { prisma } from '@/lib/prisma';
 import { pushRoomUpdate } from '@/lib/pusher';
 import { isCreator } from '@/lib/utils';
 import { generateQuestionSet } from '@/lib/beatEikichi/dailyQuestions';
+import { WEAPON_IDS } from '@/lib/beatEikichi/weapons';
+
+/**
+ * Construit le `weaponStacks` initial du Eikichi en mode "all-vs-eikichi".
+ * 12 armes × 3 utilisations chacune. Stocké comme map { id: usesLeft } pour
+ * permettre des décréments atomiques type `weaponStacks.smoke -= 1` simulés
+ * en JSON côté serveur.
+ */
+function initialWeaponStacks(): Record<string, number> {
+  const stacks: Record<string, number> = {};
+  for (const id of WEAPON_IDS) stacks[id] = 3;
+  return stacks;
+}
 
 const bodySchema = z.object({
   creatorToken: z.string().min(1),
@@ -67,7 +80,15 @@ export async function POST(
     }
 
     // Création de la partie + un état par joueur.
+    // Mode "all-vs-eikichi" : Eikichi a 12 armes × 3 stacks (`weaponStacks`),
+    // PAS de bouclier (shieldUsesLeft=0). Les autres joueurs n'ont AUCUNE
+    // arme (weaponId=null, weaponUsesLeft=0) mais conservent 3 boucliers.
+    // Mode "standard" : comportement historique (1 arme choisie au lobby +
+    // 3 boucliers pour tous).
     const now = new Date();
+    const isAllVsEikichi = room.beatEikichiMode === 'all-vs-eikichi';
+    const eikichiStacks = initialWeaponStacks();
+
     await prisma.beatEikichiGame.create({
       data: {
         roomId: room.id,
@@ -80,13 +101,36 @@ export async function POST(
         timerSeconds: room.beatEikichiTimerSeconds,
         mode: room.beatEikichiMode,
         playerStates: {
-          create: room.players.map((p) => ({
-            playerId: p.id,
-            // Snapshot de l'arme choisie dans le lobby.
-            weaponId: p.beatEikichiWeaponId,
-            weaponUsesLeft: p.beatEikichiWeaponId ? 3 : 0,
-            lastUsedQuestionIndex: -1,
-          })),
+          create: room.players.map((p) => {
+            const isEikichi = validatedEikichiId === p.id;
+            if (isAllVsEikichi) {
+              if (isEikichi) {
+                return {
+                  playerId: p.id,
+                  weaponId: null,
+                  weaponUsesLeft: 0,
+                  lastUsedQuestionIndex: -1,
+                  shieldUsesLeft: 0, // pas de bouclier pour l'attaquant
+                  weaponStacks: eikichiStacks as unknown as object,
+                };
+              }
+              // Non-Eikichi en all-vs-eikichi : que des boucliers.
+              return {
+                playerId: p.id,
+                weaponId: null,
+                weaponUsesLeft: 0,
+                lastUsedQuestionIndex: -1,
+                shieldUsesLeft: 3,
+              };
+            }
+            // Mode standard.
+            return {
+              playerId: p.id,
+              weaponId: p.beatEikichiWeaponId,
+              weaponUsesLeft: p.beatEikichiWeaponId ? 3 : 0,
+              lastUsedQuestionIndex: -1,
+            };
+          }),
         },
       },
     });

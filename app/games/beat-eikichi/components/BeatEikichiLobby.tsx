@@ -64,9 +64,13 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
 
   const eikichiPlayerId = room.beatEikichiEikichiId ?? null;
   const eikichiPlayer = room.players.find((p) => p.id === eikichiPlayerId);
-  const hintsEnabled = room.beatEikichiHintsEnabled ?? false;
   const timerSeconds = room.beatEikichiTimerSeconds ?? 30;
-  const mode: 'standard' | 'blur' = room.beatEikichiMode ?? 'standard';
+  const mode: 'standard' | 'all-vs-eikichi' = room.beatEikichiMode ?? 'standard';
+  const isAllVsEikichi = mode === 'all-vs-eikichi';
+  // En mode all-vs-eikichi : Eikichi a accès à toutes les armes (initialisé au
+  // /start), les autres n'en ont aucune. Donc on cache totalement le
+  // WeaponPicker dans ce mode pour tout le monde.
+  const showWeaponPicker = !isAllVsEikichi;
 
   const [timerInput, setTimerInput] = useState(String(timerSeconds));
   useEffect(() => {
@@ -89,10 +93,8 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
     const clamped = Math.max(10, Math.min(300, Math.round(value)));
     post('set-timer', { creatorToken, timerSeconds: clamped });
   };
-  const handleSetMode = (newMode: 'standard' | 'blur') =>
+  const handleSetMode = (newMode: 'standard' | 'all-vs-eikichi') =>
     post('set-mode', { creatorToken, mode: newMode });
-  const handleToggleHints = (enabled: boolean) =>
-    post('set-hints-enabled', { creatorToken, enabled });
   const handleSetEikichi = (newId: string | null) =>
     post('set-eikichi', { creatorToken, eikichiPlayerId: newId });
   const handleSetWeapon = (weaponId: string | null) => {
@@ -382,7 +384,10 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
               </AcCard>
             </div>
 
-            {/* Mon arme — bloc dédié */}
+            {/* Mon arme — bloc dédié. Caché en mode all-vs-eikichi (les armes
+                sont distribuées au /start : 12 pour le Eikichi, 0 pour les
+                autres). */}
+            {showWeaponPicker && (
             <div>
               <div className="flex items-center gap-2.5 mb-3">
                 <AcSectionNum n={2} />
@@ -482,6 +487,7 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
                 </div>
               </AcCard>
             </div>
+            )}
           </div>
 
           {/* Colonne réglages */}
@@ -615,7 +621,7 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
 
               <AcDashed style={{ margin: '0 0 20px' }} />
 
-              {/* Mode */}
+              {/* Mode de jeu */}
               <div className="mb-5">
                 <div
                   style={{
@@ -627,7 +633,7 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
                     textTransform: 'uppercase',
                   }}
                 >
-                  {'> MODE VISUEL'}
+                  {'> MODE DE JEU'}
                 </div>
                 <div className="grid grid-cols-2 gap-2.5">
                   {(
@@ -635,14 +641,14 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
                       {
                         key: 'standard' as const,
                         label: 'STANDARD',
-                        desc: 'image nette',
-                        icon: 'image' as const,
+                        desc: 'chacun pour soi',
+                        icon: 'flame' as const,
                       },
                       {
-                        key: 'blur' as const,
-                        label: 'BLUR',
-                        desc: 'floutée, se défloute',
-                        icon: 'blur' as const,
+                        key: 'all-vs-eikichi' as const,
+                        label: 'TOUS VS EIKICHI',
+                        desc: 'le camp s\'unit',
+                        icon: 'target' as const,
                       },
                     ]
                   ).map((m) => {
@@ -701,78 +707,24 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
                     );
                   })}
                 </div>
-              </div>
-
-              <AcDashed style={{ margin: '0 0 20px' }} />
-
-              {/* Indices */}
-              <div className="mb-5 flex items-center justify-between gap-3">
-                <div>
+                {isAllVsEikichi && (
                   <div
                     style={{
+                      marginTop: 10,
+                      padding: '8px 10px',
+                      border: `1.5px dashed ${AC.shimmer}`,
+                      background: 'rgba(255,61,139,0.06)',
                       fontFamily: "'JetBrains Mono', 'Courier New', monospace",
                       fontSize: 10,
-                      letterSpacing: '0.25em',
-                      color: AC.chem,
-                      marginBottom: 4,
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    {'> INDICES'}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-                      fontSize: 11,
+                      lineHeight: 1.55,
                       color: AC.bone2,
                     }}
                   >
-                    {'// 3 indices révélés pendant le timer'}
+                    {'// l\'Eikichi reçoit les 12 armes (×3) — pas de bouclier'}
+                    <br />
+                    {'// les autres joueurs : seulement boucliers, scores cumulés'}
                   </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => isCreator && handleToggleHints(!hintsEnabled)}
-                  disabled={!isCreator}
-                  aria-pressed={hintsEnabled}
-                  className="relative"
-                  style={{
-                    width: 68,
-                    height: 32,
-                    background: hintsEnabled ? AC.chem : AC.ink2,
-                    boxShadow: `inset 0 0 0 2px ${AC.ink}`,
-                    cursor: isCreator ? 'pointer' : 'default',
-                    border: 'none',
-                  }}
-                >
-                  <span
-                    style={{
-                      position: 'absolute',
-                      top: 2,
-                      left: hintsEnabled ? 38 : 4,
-                      width: 26,
-                      height: 26,
-                      background: AC.ink,
-                      border: `2px solid ${AC.bone}`,
-                      transition: 'left 0.15s',
-                    }}
-                  />
-                  <span
-                    style={{
-                      position: 'absolute',
-                      left: hintsEnabled ? 8 : 30,
-                      top: 8,
-                      fontFamily:
-                        "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
-                      fontSize: 10,
-                      fontWeight: 700,
-                      color: hintsEnabled ? AC.ink : AC.bone2,
-                      letterSpacing: '0.1em',
-                    }}
-                  >
-                    {hintsEnabled ? 'ON' : 'OFF'}
-                  </span>
-                </button>
+                )}
               </div>
 
               <AcDashed style={{ margin: '0 0 20px' }} />
@@ -953,12 +905,14 @@ export function BeatEikichiLobby({ room, roomCode }: BeatEikichiLobbyProps) {
         </div>
       </div>
 
-      <WeaponPickerModal
-        open={weaponModalOpen}
-        onClose={() => setWeaponModalOpen(false)}
-        onPick={handleSetWeapon}
-        currentWeaponId={myWeaponId}
-      />
+      {showWeaponPicker && (
+        <WeaponPickerModal
+          open={weaponModalOpen}
+          onClose={() => setWeaponModalOpen(false)}
+          onPick={handleSetWeapon}
+          currentWeaponId={myWeaponId}
+        />
+      )}
     </AcScreen>
   );
 }

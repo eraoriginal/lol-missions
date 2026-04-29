@@ -146,26 +146,8 @@ function generateVariants(game: CatalogEntry): Variant[] {
     }
   }
 
-  // Alias — IGNORÉS depuis la refonte fuzzyMatch (CLAUDE.md : « Seul le nom
-  // canonique fait foi »). On vérifie EXPLICITEMENT qu'un alias seul ne valide
-  // PAS la réponse — sauf si l'alias est structurellement équivalent au nom
-  // canonique après normalisation officielle (romains↔arabes, accents, &↔and,
-  // etc.) — auquel cas il continue à matcher VIA NORMALISATION (pas via la
-  // logique aliases) et c'est correct. On utilise le `normalize` officiel
-  // pour ne pas dupliquer les règles ici.
-  for (const alias of game.aliases) {
-    if (alias && alias.trim() && alias !== name) {
-      // Skip si l'alias est déjà accepté par les règles structurelles (norm,
-      // romains↔arabes, suffixe d'édition strippé) : c'est un match légitime
-      // via le nom canonique, pas via la logique aliases.
-      if (isAcceptedAnswer(alias, name)) continue;
-      variants.push({
-        label: `alias:«${alias.slice(0, 30)}»`,
-        input: alias,
-        expected: false,
-      });
-    }
-  }
+  // Aliases : retirés du catalogue depuis la refonte IGDB (CLAUDE.md : « Seul
+  // le nom canonique fait foi »). Plus de tests d'aliases ici.
 
   // Typo — doit échouer (Levenshtein strict côté validation).
   // On drop un caractère *alphanumérique* (pas un espace/ponctuation, sinon
@@ -215,7 +197,7 @@ function runBulkTests(catalog: CatalogEntry[]): BulkResult {
     const variants = generateVariants(game);
     for (const v of variants) {
       totalTests++;
-      const actual = isAcceptedAnswer(v.input, game.name, game.aliases);
+      const actual = isAcceptedAnswer(v.input, game.name);
       if (actual === v.expected) {
         passed++;
       } else {
@@ -573,17 +555,9 @@ function Sandbox({ catalog }: { catalog: CatalogEntry[] }) {
   const handleSubmit = useCallback(
     (text: string) => {
       if (!targetGame) return;
-      const correct = isAcceptedAnswer(
-        text,
-        targetGame.name,
-        targetGame.aliases,
-      );
+      const correct = isAcceptedAnswer(text, targetGame.name);
       if (!correct) {
-        const closeness = computeCloseness(
-          text,
-          targetGame.name,
-          targetGame.aliases,
-        );
+        const closeness = computeCloseness(text, targetGame.name);
         setShakeKey((k) => k + 1);
         setError(true);
         setLastResult({ text, correct, closeness, ts: Date.now() });
@@ -641,19 +615,6 @@ function Sandbox({ catalog }: { catalog: CatalogEntry[] }) {
             ))}
           </select>
         </label>
-
-        {targetGame && targetGame.aliases.length > 0 && (
-          <details style={{ color: '#8A7A5C', fontSize: 11 }}>
-            <summary style={{ cursor: 'pointer' }}>
-              {targetGame.aliases.length} alias
-            </summary>
-            <ul style={{ margin: '6px 0 0 16px', padding: 0 }}>
-              {targetGame.aliases.map((a, i) => (
-                <li key={i}>{a}</li>
-              ))}
-            </ul>
-          </details>
-        )}
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button

@@ -10,8 +10,14 @@ interface PlayerScoreListProps {
   currentIndex: number;
   creatorPlayerId: string | null;
   eikichiPlayerId: string | null;
+  /** Mode de jeu — pilote l'agrégation "Le Camp" en all-vs-eikichi. */
+  mode?: string;
   targetingMode?: boolean;
   selfPlayerId?: string | null;
+  /** IDs des joueurs déjà ciblés par le tireur courant pour la question N+1
+   * (mode all-vs-eikichi : 1 cible max par question pour le Eikichi). Utilisé
+   * pour griser les avatars correspondants pendant le ciblage. */
+  alreadyTargetedIds?: Set<string>;
   onTargetPlayer?: (playerId: string) => void;
 }
 
@@ -34,11 +40,14 @@ export function PlayerScoreList({
   currentIndex,
   creatorPlayerId,
   eikichiPlayerId,
+  mode,
   targetingMode,
   selfPlayerId,
+  alreadyTargetedIds,
   onTargetPlayer,
 }: PlayerScoreListProps) {
   const stateByPlayer = new Map(playerStates.map((s) => [s.playerId, s]));
+  const isAllVsEikichi = mode === 'all-vs-eikichi' && eikichiPlayerId != null;
   const prevFoundRef = useRef<Set<string>>(new Set());
   const [justFound, setJustFound] = useState<Set<string>>(new Set());
 
@@ -71,24 +80,33 @@ export function PlayerScoreList({
   return (
     <div
       style={{
-        padding: 10,
+        padding: 6,
         border: `1.5px dashed ${AC.bone2}`,
       }}
     >
-      <div
-        style={{
-          fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-          fontSize: 10,
-          letterSpacing: '0.25em',
-          color: AC.chem,
-          marginBottom: 8,
-          textTransform: 'uppercase',
-        }}
-      >
-        {'// JOUEURS · '}
-        {players.length}
-      </div>
-      <div className="flex flex-wrap gap-2.5">
+      {/* Header label inline avec la summary en mode all-vs-eikichi pour
+          gagner de la verticale (compact mode). En standard, juste le label. */}
+      {isAllVsEikichi ? (
+        <CampVsEikichiSummary
+          players={players}
+          playerStates={playerStates}
+          eikichiPlayerId={eikichiPlayerId}
+        />
+      ) : (
+        <div
+          style={{
+            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontSize: 9,
+            letterSpacing: '0.2em',
+            color: AC.chem,
+            textTransform: 'uppercase',
+          }}
+        >
+          {'// JOUEURS · '}
+          {players.length}
+        </div>
+      )}
+      <div className="flex flex-wrap gap-1.5" style={{ marginTop: 6 }}>
         {players.map((p) => {
           const state = stateByPlayer.get(p.id);
           const found =
@@ -98,8 +116,9 @@ export function PlayerScoreList({
           const isEikichi = p.id === eikichiPlayerId;
           const isSelf = p.id === selfPlayerId;
           const isCreator = p.id === creatorPlayerId;
-          const isTargetable = !!targetingMode && !isSelf;
-          const isFadedSelf = !!targetingMode && isSelf;
+          const isAlreadyTargeted = !!alreadyTargetedIds?.has(p.id);
+          const isTargetable = !!targetingMode && !isSelf && !isAlreadyTargeted;
+          const isFadedSelf = !!targetingMode && (isSelf || isAlreadyTargeted);
           return (
             <button
               key={p.id}
@@ -112,15 +131,13 @@ export function PlayerScoreList({
               style={{
                 position: 'relative',
                 display: 'flex',
-                flexDirection: 'column',
                 alignItems: 'center',
-                gap: 4,
-                padding: 8,
-                minWidth: 70,
+                gap: 5,
+                padding: '3px 6px',
                 cursor: isTargetable ? 'crosshair' : 'default',
                 border: isTargetable
-                  ? `2px solid ${AC.rust}`
-                  : `1.5px dashed ${AC.bone2}`,
+                  ? `1.5px solid ${AC.rust}`
+                  : `1px dashed ${AC.bone2}`,
                 background: isTargetable
                   ? 'rgba(200,68,30,0.10)'
                   : 'transparent',
@@ -132,30 +149,29 @@ export function PlayerScoreList({
               <AcAvatar
                 name={p.name}
                 color={colorForPlayer(p.id)}
-                size={34}
+                size={20}
                 halo={isEikichi ? AC.shimmer : undefined}
               />
-              <div
-                className="flex items-center gap-1"
+              <span
                 style={{
                   fontFamily:
                     "'Barlow Condensed', 'Bebas Neue', 'Helvetica Neue', sans-serif",
                   fontWeight: 700,
-                  fontSize: 10,
-                  letterSpacing: '0.04em',
+                  fontSize: 11,
+                  letterSpacing: '0.03em',
                   textTransform: 'uppercase',
                 }}
               >
                 {p.name}
-                {isCreator && <span style={{ color: AC.gold }}>★</span>}
-              </div>
+                {isCreator && <span style={{ color: AC.gold, marginLeft: 2 }}>★</span>}
+              </span>
               {found ? (
-                <AcGlyph kind="check" color={AC.chem} size={14} stroke={2.5} />
+                <AcGlyph kind="check" color={AC.chem} size={12} stroke={2.5} />
               ) : (
                 <span
                   style={{
                     fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-                    fontSize: 10,
+                    fontSize: 9,
                     color: AC.bone2,
                   }}
                 >
@@ -166,22 +182,122 @@ export function PlayerScoreList({
                 <span
                   style={{
                     position: 'absolute',
-                    top: -8,
-                    left: -4,
+                    top: -6,
+                    left: -3,
                     fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-                    fontSize: 8,
+                    fontSize: 7,
                     color: AC.shimmer,
-                    letterSpacing: '0.2em',
+                    letterSpacing: '0.15em',
                     background: AC.ink,
-                    padding: '1px 4px',
+                    padding: '1px 3px',
                   }}
                 >
-                  {'// E'}
+                  E
                 </span>
               )}
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Bannière d'agrégation compacte pour le mode "Tous contre Eikichi".
+ * Affiche EIKICHI vs LE CAMP **sans le score** (le score est révélé au
+ * leaderboard de fin de partie pour ne pas spoiler le suspense).
+ */
+function CampVsEikichiSummary({
+  players,
+  eikichiPlayerId,
+}: {
+  players: Player[];
+  playerStates: BeatEikichiPlayerState[];
+  eikichiPlayerId: string;
+}) {
+  const eikichi = players.find((p) => p.id === eikichiPlayerId);
+  const campCount = players.filter((p) => p.id !== eikichiPlayerId).length;
+
+  return (
+    <div
+      className="flex items-center gap-2"
+      style={{ marginTop: 0 }}
+    >
+      <div
+        className="flex-1 flex items-center gap-2"
+        style={{
+          padding: '4px 8px',
+          border: `1.5px solid ${AC.shimmer}`,
+          background: 'rgba(255,61,139,0.08)',
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontSize: 8,
+            letterSpacing: '0.2em',
+            color: AC.shimmer,
+            textTransform: 'uppercase',
+          }}
+        >
+          {'// EIKICHI'}
+        </span>
+        <strong
+          style={{
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontSize: 13,
+            fontWeight: 800,
+            color: AC.bone,
+            textTransform: 'uppercase',
+          }}
+        >
+          {eikichi?.name ?? '—'}
+        </strong>
+      </div>
+
+      <span
+        style={{
+          fontFamily: "'Barlow Condensed', sans-serif",
+          fontSize: 14,
+          fontWeight: 900,
+          color: AC.gold,
+          letterSpacing: '0.1em',
+        }}
+      >
+        VS
+      </span>
+
+      <div
+        className="flex-1 flex items-center gap-2"
+        style={{
+          padding: '4px 8px',
+          border: `1.5px solid ${AC.chem}`,
+          background: 'rgba(18,214,168,0.08)',
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontSize: 8,
+            letterSpacing: '0.2em',
+            color: AC.chem,
+            textTransform: 'uppercase',
+          }}
+        >
+          {'// LE CAMP'}
+        </span>
+        <strong
+          style={{
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontSize: 13,
+            fontWeight: 800,
+            color: AC.bone,
+            textTransform: 'uppercase',
+          }}
+        >
+          {campCount} JOUEUR{campCount > 1 ? 'S' : ''}
+        </strong>
       </div>
     </div>
   );

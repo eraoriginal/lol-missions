@@ -30,17 +30,18 @@ Si le shell atterrit dans un worktree, bascule immédiatement sur le repo princi
 | `npx prisma db push` | Appliquer le schéma à la DB (**préférer** à `migrate dev` — schema drift fréquent) |
 | `npx prisma studio` | UI DB |
 | `npm run prisma:seed` | Missions + events ARAM |
-| `npm run seed:beat-eikichi` | Catalogue Beat Eikichi (1000 jeux RAWG, ~5 min, idempotent) |
-| `npm run seed:beat-eikichi-gifs` | Enrichit le catalogue avec 5 GIFs/jeu (GIPHY, ~10 min) |
-| `npx tsx prisma/seeds/cleanup_beat_eikichi_non_latin.ts` | Supprime jeux/aliases dont le nom contient des lettres non-latines (idempotent) |
+| `npx tsx prisma/seeds/seed_beat_eikichi_igdb.ts` | Catalogue Beat Eikichi : ~500 jeux + ~1700 screenshots depuis IGDB, ~1 min, idempotent (upsert par igdbId). Requires `IGDB_CLIENT_ID` + `IGDB_CLIENT_SECRET` dans `.env`. |
 | `npx tsx prisma/seeds/seed_quiz_ceo.ts` | Seed Quiz du CEO (1 question par type × 14 types, idempotent) |
 | `npx tsx scripts/download-lol-champions.ts` | DL splash arts LoL depuis Community Dragon (~172 JPG, ~15 MB, idempotent) |
 | `npx tsx scripts/download-lol-champion-spells.ts` | DL icônes Q/W/E/R/Passif des champions LoL depuis Data Dragon (~860 PNG, ~3 MB, idempotent) |
 | `npx tsx scripts/download-lol-match-assets.ts` | DL items + summoner spells + perk styles + portraits champion depuis Data Dragon (~890 PNG, ~50 MB, idempotent) |
 | `npx tsx scripts/download-lol-match-history.ts` | DL historique matches via Riot Match v5 API (12 joueurs × 50 matches, ~15 min, idempotent via cache `.cache/riot/`). Requires `RIOT_API_KEY` dans `.env`. Options : `--player <riotId>`, `--limit <N>`, `--force` |
-| `npx tsx scripts/test-fuzzyMatch.ts` | Tests unitaires fuzzy match (54 cas) |
+| `npx tsx scripts/test-fuzzyMatch.ts` | Tests unitaires fuzzy match (55 cas) |
+| `npx tsx scripts/test-advance-question.ts` | Test concurrence atomique du gate `advanceQuestionIfMatches` (4 scénarios contre la vraie DB) |
 
-QA validation : ouvrir `/test/beat-eikichi` → section **Bulk** lance `isAcceptedAnswer` sur toutes les variantes d'écriture (~9/jeu) de tout le catalogue en ~25 ms, liste les ratés ; section **Sandbox** expose `AutocompleteInput` réel + contrôles pour simuler resetKey / shake / Eikichi / overlay d'arme / timer Acide. Indispensable après toute modif de `fuzzyMatch.ts` ou de `WeaponEffectOverlay.tsx`.
+QA validation Beat Eikichi :
+- `/test/beat-eikichi` → **Bulk** lance `isAcceptedAnswer` sur toutes les variantes d'écriture (~9/jeu) de tout le catalogue en ~25 ms, liste les ratés ; **Sandbox** expose `AutocompleteInput` réel + contrôles pour simuler resetKey / shake / Eikichi / overlay d'arme / timer Acide. Indispensable après toute modif de `fuzzyMatch.ts` ou de `WeaponEffectOverlay.tsx`.
+- `/test/beat-eikichi-sim` → **simulation multi-joueurs server-side** (18 scénarios) : crée des rooms jetables avec 7 joueurs (1 Eikichi + 6), lance des conditions de course extrêmes via Promise.all sur les vraies routes, vérifie qu'aucune question ne saute. À lancer après toute modif de `advanceQuestion.ts`, des routes `/next` ou `/submit`, ou de `PlayingView`.
 
 `npx prisma generate` échoue (EPERM sur `.dll.node`) si le dev server tourne : tuer le serveur avant, ou utiliser directement `db push`.
 
@@ -95,11 +96,13 @@ lib/
   ...                            — balancedMissionAssignment, filterPrivateMissions, eventScheduling
 prisma/
   schema.prisma                  — `preferred: prisma db push` (multi uniquement ; solo = 0 table)
-  seeds/                         — seed.ts, codename-words.ts, seed_beat_eikichi_*.ts, seed_quiz_ceo.ts, cleanup_beat_eikichi_non_latin.ts
+  seeds/                         — seed.ts, codename-words.ts, seed_beat_eikichi_igdb.ts, seed_quiz_ceo.ts
 maquettes/                       — Snapshots Claude Design (source de vérité visuelle, NON compilé)
 design-system/                   — arcane-design-system.md + arcane-tokens.css (brief original)
-scripts/test-fuzzyMatch.ts       — 54 cas de regression fuzzy match
+scripts/test-fuzzyMatch.ts       — 55 cas de regression fuzzy match
+scripts/test-advance-question.ts — 4 scénarios concurrence atomique (vraie DB)
 app/test/beat-eikichi/page.tsx   — Harnais QA validation (bulk tests + sandbox interactif)
+app/test/beat-eikichi-sim/page.tsx — Harnais simulation multi-joueurs (18 scénarios)
 ```
 
 ## Design system Arcane.kit
@@ -215,13 +218,26 @@ Cf. `PlayingView.tsx` Quiz CEO. **Le `secondsLeft` doit pouvoir aller en négati
 ## Beat Eikichi (spécifique)
 
 ### Gameplay
-- Devine le jeu vidéo à partir d'une image/GIF. 20 questions tirées au hasard par partie (rejouable).
+- Devine le jeu vidéo à partir d'une image. 20 questions tirées au hasard par partie (rejouable).
 - Timer configurable 10–300s (défaut 30s).
-- **Rôle Eikichi** (optionnel) : un joueur désigné ; s'il trouve, la question passe immédiatement pour tous.
-- **Armes** (1 par joueur, 3 utilisations max) — **12 armes** : smoke, c4, blade, freeze, zoomghost, tornado, puzzle, speed, tag, glitch, acid, strobe. Effet visuel à la question N+1 de la cible. Cf. `lib/beatEikichi/weapons.ts` + `WeaponEffectOverlay.tsx` + `app/games/beat-eikichi/weaponVisuals.ts` (mapping vers `AcGlyph`).
-- **Bouclier** : indépendant des armes, 3 charges/partie. Annule toute attaque à la prochaine question.
-- **Indices** (opt-in créateur) : genre révélé à t=0, terme à t=timer/2, plateformes à t=timer-10.
-- **Mode blur** : image floutée au début, nette à timer-10.
+- **Rôle Eikichi** (optionnel) : un joueur désigné. Effet selon le mode (cf. ci-dessous).
+- **Armes — 12 armes** : smoke, c4, blade, freeze, zoomghost, tornado, puzzle, speed, tag, glitch, acid, strobe. Effet visuel à la question N+1 de la cible. Cf. [`lib/beatEikichi/weapons.ts`](lib/beatEikichi/weapons.ts) + [`WeaponEffectOverlay.tsx`](app/games/beat-eikichi/components/WeaponEffectOverlay.tsx) + [`weaponVisuals.ts`](app/games/beat-eikichi/weaponVisuals.ts) (mapping vers `AcGlyph`).
+- **Bouclier** : 3 charges/partie. Annule toute attaque à la prochaine question.
+
+### Modes de jeu
+Choisis dans le lobby par le créateur (`Room.beatEikichiMode` : `"standard" | "all-vs-eikichi"`) :
+
+#### Standard (défaut)
+- Chacun pour soi : score individuel, podium top 3 en fin de partie.
+- Chaque joueur choisit **1 arme** au lobby (3 utilisations max) + dispose de 3 boucliers.
+- Si l'Eikichi trouve la bonne réponse, la question avance immédiatement pour tous.
+
+#### Tous vs Eikichi (`all-vs-eikichi`)
+- L'Eikichi joue **seul contre tous les autres joueurs**, dont les scores se cumulent en "Le Camp".
+- L'Eikichi reçoit les **12 armes × 3 utilisations** (snapshotées dans `BeatEikichiPlayerState.weaponStacks: Json` au /start). **Pas de bouclier** : il est attaquant exclusif.
+- Les autres joueurs n'ont **aucune arme** (le `WeaponPickerModal` est caché du lobby) et **3 boucliers** uniquement.
+- L'Eikichi peut tirer **plusieurs armes différentes vers plusieurs cibles différentes** dans la même question, mais **pas re-cibler le même joueur** dans la même transition. Garanti par la contrainte unique `@@unique([gameId, firedByPlayerId, targetPlayerId, questionIndex])` sur `BeatEikichiWeaponEvent` côté schema (cf. plus bas).
+- Leaderboard : duel "Eikichi vs Le Camp" + détail des contributions individuelles.
 
 ### Armes FX — spec
 Les 12 animations sont portées des maquettes `maquettes/Armes FX.html` (source de vérité visuelle). Chaque arme = variation « retenue » parmi 3 explorées :
@@ -247,40 +263,73 @@ Les 12 animations sont portées des maquettes `maquettes/Armes FX.html` (source 
 
 **Props dynamiques** : `WeaponEffectOverlay` reçoit `questionStartedAt` + `timerSeconds` (câblés depuis `game.questionStartedAt` / `game.timerSeconds`) → nécessaires pour Acide qui calcule sa progression.
 
-### Catalogue jeux — filtre alphabet latin
-`lib/beatEikichi/isLatinOnly(s)` teste qu'une chaîne s'écrit uniquement en lettres latines (via `\p{Script=Latin}`), tolérant ponctuation/chiffres/espaces/apostrophes typographiques. Utilisé à 2 endroits :
-1. **Seed catalogue** (`seed_beat_eikichi_catalog.ts`) : skip les jeux au nom non-latin + filtre les aliases non-latins avant insert.
-2. **Cleanup ponctuel** (`cleanup_beat_eikichi_non_latin.ts`) : supprime les jeux/aliases non-latins déjà en DB. À lancer après tout seed antérieur au filtre.
+### Catalogue jeux — sourcing IGDB
+Le catalogue est sourcé depuis [IGDB](https://www.igdb.com/) (Twitch) via le seed [`seed_beat_eikichi_igdb.ts`](prisma/seeds/seed_beat_eikichi_igdb.ts). Pipeline complet :
 
-Raison : le `tokenize()` de `fuzzyMatch.ts` split sur `[^a-z0-9]+` et stripe donc tout caractère non-latin → les aliases japonais/chinois/cyrilliques se normalisent à la chaîne vide et sont invalidables. Plutôt que supporter l'Unicode dans `tokenize` (risque de régression), on expurge le catalogue.
+1. **Auth Twitch OAuth2** (`client_credentials`) → `access_token` valide ~60 j.
+2. **Fetch ~1500 jeux** (3 pages × 500), triés `total_rating_count desc` (popularité) + filtres serveur-side :
+   - `total_rating_count >= 20` : seuil de notoriété
+   - `screenshots != null` : doit avoir au moins un screenshot
+   - `game_type = 0` : main games uniquement (exclut DLC, expansions, remasters, bundles, ports). **NB** : IGDB a renommé `category` → `game_type` en 2024, et les champs `version_parent` / `parent_game` ne sont pas peuplés sur les main games — donc inutile (et dangereux) de les filtrer en plus avec `!= null`.
+3. **Filtre regex client-side** (sécurité) : ré-écarte les noms qui contiennent un mot d'édition que IGDB n'aurait pas chopé (`GOTY|Game of the Year|Special Edition|Definitive Edition|Director's Cut|Anniversary Edition|Complete Edition|Ultimate Edition|Deluxe Edition|Enhanced Edition|Remastered|HD Collection|Trilogy|Collection|Bundle|Pack`).
+4. **Top 500** après filtres.
+5. **Fetch screenshots** par batches de 50 game IDs avec **pagination interne** (IGDB limite à 500 screenshots **par requête** au total, pas par jeu — la pagination `offset` couvre l'overflow).
+6. **3-4 screenshots aléatoires par jeu**, warning si <3.
+7. **Upsert idempotent** par `igdbId` (refresh des screenshots à chaque run pour avoir un nouveau random).
+
+**URL des screenshots** : pas stockée en DB — seulement l'`image_id` IGDB. L'helper [`igdbImageUrl(id, size)`](lib/beatEikichi/igdbImage.ts) construit l'URL à la volée (`https://images.igdb.com/igdb/image/upload/t_screenshot_huge/<imageId>.jpg`). Permet de switcher de taille (mobile, full-screen) sans re-seeder. Tailles dispos : `screenshot_huge` (1280×720, défaut), `screenshot_big` (889×500), `t_1080p` (1920×1080).
+
+**Schéma** : `VideoGame` (1) → `ScreenshotImage` (N), avec `@@unique([videoGameId, imageId])` côté Screenshot. Pas de champ `aliases` (la validation ne lit que le nom canonique, cf. ci-dessous).
 
 ### Validation fuzzy — IMPORTANT
 `lib/beatEikichi/fuzzyMatch.ts::isAcceptedAnswer(input, name)` :
-- **Seul le nom canonique fait foi.** Les aliases sont **ignorés** par `isAcceptedAnswer` et `computeCloseness` (décision produit après faux positifs : un alias trop permissif validait des réponses qui n'étaient pas le bon jeu). Le param `aliases` est conservé dans la signature pour rétrocompatibilité mais ne sert plus à rien. **Conséquence côté autocomplete** : les suggestions sont aussi filtrées uniquement par `g.name` (sinon l'utilisateur pouvait cliquer un jeu apparu via alias et se voir refuser).
+- **Seul le nom canonique fait foi.** Pas d'aliases dans le catalogue (depuis la refonte IGDB 2026-04). Le param `_aliases` est conservé dans la signature pour rétrocompatibilité de la signature mais **ignoré** ; ne pas s'en servir dans du nouveau code.
 - Normalisation : lowercase, strip accents (NFD + combining), strip `the ` prefix, chiffres romains → arabes (i→1, ii→2, … xx→20)
 - **`&` ↔ `and`** : « Mount & Blade » ≡ « Mount and Blade »
 - **Lookalikes cyrilliques → latin** (23 chars) : « Observ**е**r » (U+0435) équivaut à « Observer » (U+0065)
-- **Suffixes d'édition optionnels** : « Maximum Edition », « Definitive Edition », « Remastered », « HD Remaster », etc. strippés du nom canonique pour permettre « Crysis 2 » d'accepter « Crysis 2 - Maximum Edition ». Ne touche PAS aux subtitles non-édition (« Tomb Raider: Anniversary » reste distinct).
+- **Suffixes d'édition optionnels** : « Maximum Edition », « Definitive Edition », « Remastered », « HD Remaster », etc. strippés du nom canonique pour permettre « Crysis 2 » d'accepter « Crysis 2 - Maximum Edition ». Ne touche PAS aux subtitles non-édition (« Tomb Raider: Anniversary » reste distinct). NB : avec le filtre IGDB `game_type = 0` + regex post-filter, ces suffixes sont rares dans le catalogue actuel.
 - **Pas de tolérance typo** : « Halo 2 » ≠ « Halo 3 » (Levenshtein n'est utilisé que pour `computeCloseness` → feedback chaud/tiède/froid, jamais pour la validation).
-- Toute modif de `fuzzyMatch.ts` → relancer `npx tsx scripts/test-fuzzyMatch.ts` (les cas qui exercent les aliases échoueront désormais — c'est attendu).
+- Toute modif de `fuzzyMatch.ts` → relancer `npx tsx scripts/test-fuzzyMatch.ts` (55 cas).
 
 ### AutocompleteInput — bugs critiques à préserver
-`app/games/beat-eikichi/components/AutocompleteInput.tsx` contient **5 correctifs** de perception UI qui ne doivent pas régresser :
+`app/games/beat-eikichi/components/AutocompleteInput.tsx` contient **6 correctifs** de perception UI qui ne doivent pas régresser :
 1. **Blur forcé par `disabled`** : onBlur vérifie `disabled` (closure sur prop) pour ignorer le blur déclenché par le passage `disabled=true` pendant un submit. Sinon `focused=false` se bloque et la dropdown ne réapparaît jamais (répro iOS Safari + desktop slow network).
 2. **Shake refocus explicite** : `useEffect[shakeKey]` annule `blurTimeoutRef`, appelle `el.focus()` ET force `setFocused(true)` (iOS Safari ne fire pas `onFocus` après async).
 3. **Enter sur saisie littérale** : si `userNavigated=false` (pas d'arrow key utilisée), Enter soumet `value` tel quel, pas la 1re suggestion. Évite que « Street Fighter II » soumette « Street Fighter ».
 4. **Click sur scrollbar dropdown** : `onMouseDown preventDefault` sur le `<ul>` empêche le blur quand on scroll la liste.
 5. **Escape** : `dismissed=true` ferme la liste SANS blur (focus préservé, reprise à la frappe).
+6. **`interactionModeRef` clavier vs souris** : tracking du dernier mode d'interaction. Tant que l'utilisateur navigue au clavier, `onMouseEnter` est ignoré (la souris ne peut pas voler la sélection). Bascule en `mouse` uniquement sur un vrai `onMouseMove`. **Indispensable** : sans ce garde-fou, la souris pouvait survoler une autre suggestion par accident pendant une nav clavier et Enter soumettait la mauvaise. Garde-fou bornes ajouté côté Enter aussi : `safeIdx < suggestions.length` avant accès.
+
+### Concurrence multi-joueurs — gate atomique sur `currentIndex`
+**Bug racine historique** : sous race (Eikichi qui /submit + d'autres clients qui /next au timeout, ou tous les /submit d'un all-found en parallèle), deux processus pouvaient lire `game.currentIndex=N`, passer leur check d'idempotence, et incrémenter en parallèle → **la 2e lisait `N+1` après le commit de la 1re et écrivait `N+2` → la question N+1 était sautée** (l'utilisateur passait de la Q8 à la Q10 sans voir la Q9).
+
+Fix : [`advanceQuestionIfMatches(gameId, expectedIndex)`](lib/beatEikichi/advanceQuestion.ts) fait un `prisma.beatEikichiGame.updateMany({ where: { id, phase: 'playing', currentIndex: expectedIndex }, data: { currentIndex: expectedIndex + 1, ... } })`. PostgreSQL garantit l'atomicité du WHERE+UPDATE : si `count === 0`, un autre processus a déjà avancé, on retourne `false` et le caller traite ça comme `skipped`. **Plus aucune fenêtre TOC/TOU possible.** Toutes les insertions de side-effects (missed answers, reset currentTyping) sont faites APRÈS le gate gagnant, donc une seule fois par transition.
+
+**`/submit` accepte un `expectedIndex`** : si la question a avancé entre l'envoi du submit et son traitement (ex. /next d'un autre client a gagné le gate juste avant), le serveur retourne `{ correct: false, late: true, actualIndex: N+1 }` au lieu d'évaluer contre la nouvelle question (ce qui aurait produit un faux negatif où une bonne réponse pour Q0 serait marquée "incorrecte" car comparée à Q1). Le client traite `late` en silence (pas de shake, pas de feedback froid) et le push Pusher arrive dans la foulée pour passer à la nouvelle question.
+
+**Décrément atomique des armes (mode `all-vs-eikichi`)** : le Eikichi a 12 armes × 3 stacks stockés en JSON dans `BeatEikichiPlayerState.weaponStacks`. Sans précautions, 3 tirs concurrents (ex. 3 cibles différentes pour la même question) lisent tous le même état JSON, calculent leur version décrémentée et l'écrivent — la dernière transaction écrase les décréments des autres. Fix : [`/fire-weapon`](app/api/games/beat-eikichi/[code]/fire-weapon/route.ts) utilise un `prisma.$executeRaw` sur un `UPDATE … SET weaponStacks = jsonb_set(...) WHERE … AND ((weaponStacks->>weaponId)::int > 0)` — atomique au niveau ligne PostgreSQL. Si `count === 0`, le stock est épuisé.
+
+**Contrainte unique anti-double-tir** : `@@unique([gameId, firedByPlayerId, targetPlayerId, questionIndex])` sur `BeatEikichiWeaponEvent`. Permet de garantir 1 cible max par tireur par question (mode all-vs-eikichi : règle produit ; mode standard : invariant trivial mais utile pour empêcher les doubles-tirs en cas de race). [`/fire-weapon`](app/api/games/beat-eikichi/[code]/fire-weapon/route.ts) catch P2002 et **restitue le stock décrémenté** avant de retourner 400 "Target already hit". Idem côté [`/fire-shield`](app/api/games/beat-eikichi/[code]/fire-shield/route.ts) (le double-shield pour la même question est silencieusement idempotent : `{ ok: true, alreadyArmed: true }`).
 
 ### Synchro timer (Beat Eikichi + Quiz CEO)
-Chaque client appelle `/next` au timeout local, route idempotente côté serveur (check `questionStartedAt + TIMER_MS`).
+Chaque client appelle `/next` au timeout local, route idempotente côté serveur (check `questionStartedAt + TIMER_MS` + gate atomique).
 
-**Quiz CEO** ([`PlayingView.tsx`](app/games/quiz-ceo/components/PlayingView.tsx)) :
-- `secondsLeft` peut aller en **négatif** (clamp à 0 uniquement à l'affichage via `Math.max(0, …)`) — sans ça l'effet de retry ne re-fire pas.
-- Retry agressif : re-call `/next` toutes les **800 ms** tant que `currentIndex` n'a pas avancé. Couvre les cas `skipped: 'too-early'` (clock drift) et perte de push Pusher.
-- `refetch?.()` systématique post-`/next` : si push perdu, on rattrape la nouvelle phase au tick suivant.
+**Beat Eikichi** [`PlayingView.tsx`](app/games/beat-eikichi/components/PlayingView.tsx) :
+- `handleTimeout` (passé à `BeatEikichiTimer.onTimeout`) avec **throttle 800 ms** entre appels `/next` sur le même `currentIndex`. Tant que l'index n'a pas bougé côté client, on retente — couvre push Pusher perdu, `skipped: 'timer not elapsed'` (clock drift), et autres glitchs réseau.
+- `refetchRef.current?.()` SYSTÉMATIQUE après chaque tentative `/next` : filet en cas de push perdu.
+- Reset de `nextCalledForIdxRef` / `nextLastCalledAtRef` dans `useEffect[currentIndex]` quand l'index avance.
 
-**Beat Eikichi** : safeguard plus simple (force refetch toutes les 2s si timer dépassé +3s sans changement d'index).
+**Quiz CEO** [`PlayingView.tsx`](app/games/quiz-ceo/components/PlayingView.tsx) : pattern similaire (modèle d'origine porté à Beat Eikichi).
+
+### Tests automatisés à passer après toute modif
+
+| Test | Commande / URL | Couvre |
+|---|---|---|
+| Fuzzy match | `npx tsx scripts/test-fuzzyMatch.ts` | 55 cas — normalisation, romains, suffixes édition, lookalikes cyrilliques |
+| Concurrence DB | `npx tsx scripts/test-advance-question.ts` | 4 scénarios — 2/8 appels parallèles à `advanceQuestionIfMatches`, expectedIndex stale, fin de partie |
+| Bulk variantes | `/test/beat-eikichi` (Bulk) | ~8000 tests — `isAcceptedAnswer` sur ~9 variantes de chaque jeu du catalogue |
+| Sandbox interactif | `/test/beat-eikichi` (Sandbox) | 4 scénarios manuels (S1-S4) clavier/souris/erreurs |
+| Simulation multi-joueurs | `/test/beat-eikichi-sim` | 18 scénarios — race classique, Eikichi vs /next, all-found, F5, spam, late submit, etc. |
 
 ### Flow « quitter la room » (créateur)
 Créateur clique `<LeaveRoomButton>` → ConfirmDialog (variant `destructive`) → POST `/api/rooms/[code]/leave` → `prisma.room.delete` cascade + `pushRoomUpdate` → les autres clients reçoivent le push, fetch retourne 404, `useRoom` redirige vers `/` avec toast. **Ne jamais** implémenter un QUITTER custom qui ne fait que `localStorage.clear() + router.push('/')` → la room reste fantôme côté DB.
@@ -472,8 +521,7 @@ Les catalogues solo (mots, pays, wikis, puzzles) sont **server-only** : impossib
 - `DATABASE_URL` — PostgreSQL Neon
 - `PUSHER_APP_ID`, `PUSHER_APP_KEY`, `PUSHER_APP_SECRET`, `PUSHER_APP_CLUSTER`
 - `NEXT_PUBLIC_PUSHER_APP_KEY`, `NEXT_PUBLIC_PUSHER_APP_CLUSTER`
-- `RAWG_API_KEY` — uniquement pour `seed:beat-eikichi` (runtime n'en a pas besoin, URLs persistées)
-- `GIPHY_API_KEY` — uniquement pour `seed:beat-eikichi-gifs`
+- `IGDB_CLIENT_ID`, `IGDB_CLIENT_SECRET` — uniquement pour `seed_beat_eikichi_igdb.ts` (Twitch OAuth2 client credentials, gratuit). Runtime n'en a pas besoin (les `image_id` sont persistés et l'URL CDN est publique).
 - `RIOT_API_KEY` — uniquement pour `download-lol-match-history.ts` (Dev key Riot, gratuite). Cache local `.cache/riot/` évite les re-fetch.
 
 ## Statut visuel par jeu

@@ -1,8 +1,15 @@
 import { prisma } from '@/lib/prisma';
 import { BEAT_EIKICHI_CONFIG } from './config';
+import { igdbImageUrl } from './igdbImage';
 
 /**
  * Une question d'une partie Beat Eikichi.
+ *
+ * `aliases` est conservé pour compat des snapshots persistés en DB (parties
+ * en cours avant la migration). Côté nouveau pipeline IGDB on insère toujours
+ * un tableau vide — la validation `isAcceptedAnswer` ne lit jamais les
+ * aliases (CLAUDE.md). Les anciens champs `hint*` ont été supprimés en
+ * 2026-04 avec le mode "blur".
  */
 export interface BeatEikichiQuestion {
   position: number; // 0..19
@@ -10,10 +17,6 @@ export interface BeatEikichiQuestion {
   name: string;
   aliases: string[];
   imageUrl: string;
-  /** Indices optionnels (du catalogue VideoGame). */
-  hintGenre: string | null;
-  hintTerm: string | null;
-  hintPlatforms: string | null;
 }
 
 /**
@@ -36,52 +39,39 @@ function sample<T>(arr: T[], count: number): T[] {
  * ce qui garantit la rejouabilité.
  */
 export async function generateQuestionSet(): Promise<BeatEikichiQuestion[]> {
+  // Pipeline IGDB : screenshots = relation 1-N (table ScreenshotImage).
+  // On ne charge que les jeux qui ont AU MOINS un screenshot — ceux sans
+  // image ne peuvent pas être joués, les exclure ici évite tout fallback
+  // vers une URL vide côté client.
   const allGames = await prisma.videoGame.findMany({
+    where: { screenshots: { some: {} } },
     select: {
       id: true,
       name: true,
-      aliases: true,
-      images: true,
-      gifs: true,
-      hintGenre: true,
-      hintTerm: true,
-      hintPlatforms: true,
+      screenshots: { select: { imageId: true } },
     },
   });
 
-  // Filtre amont : un jeu doit avoir AU MOINS une source d'image utilisable
-  // selon la config (GIFs ou images). Sans ce filtre, le tirage pouvait
-  // produire des questions avec `imageUrl=''` → image impossible à charger,
-  // l'utilisateur restait bloqué sur un placeholder.
-  const eligibleGames = allGames.filter((g) => {
-    if (BEAT_EIKICHI_CONFIG.USE_GIFS && g.gifs.length > 0) return true;
-    return g.images.length > 0;
-  });
-
-  if (eligibleGames.length < BEAT_EIKICHI_CONFIG.QUESTIONS_PER_GAME) {
+  if (allGames.length < BEAT_EIKICHI_CONFIG.QUESTIONS_PER_GAME) {
     throw new Error(
-      `Pas assez de jeux exploitables (${eligibleGames.length}/${allGames.length} ont des images). Relance le seed : npm run seed:beat-eikichi`,
+      `Pas assez de jeux exploitables (${allGames.length} avec screenshots). Lance le seed : npx tsx prisma/seeds/seed_beat_eikichi_igdb.ts`,
     );
   }
 
-  const picked = sample(eligibleGames, BEAT_EIKICHI_CONFIG.QUESTIONS_PER_GAME);
+  const picked = sample(allGames, BEAT_EIKICHI_CONFIG.QUESTIONS_PER_GAME);
 
   return picked.map((game, index) => {
-    // Si USE_GIFS est off, on ignore les GIFs et on pioche dans les images.
-    // Sinon, on prend un GIF si dispo, sinon on retombe sur les images.
-    const preferGifs = BEAT_EIKICHI_CONFIG.USE_GIFS && game.gifs.length > 0;
-    const pool = preferGifs ? game.gifs : game.images;
-    // Invariant garanti par le filtre `eligibleGames` : pool.length > 0.
-    const imageUrl = pool[Math.floor(Math.random() * pool.length)];
+    // pick aléatoire d'un screenshot (la relation garantit length >= 1).
+    const shot = game.screenshots[Math.floor(Math.random() * game.screenshots.length)];
+    const imageUrl = igdbImageUrl(shot.imageId);
     return {
       position: index,
       gameId: game.id,
       name: game.name,
-      aliases: game.aliases,
+      // Aliases inutilisés côté validation (cf. CLAUDE.md) — on snapshot
+      // un tableau vide pour rester compat avec le type de question.
+      aliases: [],
       imageUrl,
-      hintGenre: game.hintGenre,
-      hintTerm: game.hintTerm,
-      hintPlatforms: game.hintPlatforms,
     };
   });
 }

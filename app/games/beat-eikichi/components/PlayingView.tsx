@@ -9,9 +9,9 @@ import type { CatalogEntry } from './AutocompleteInput';
 import { BEAT_EIKICHI_CONFIG } from '@/lib/beatEikichi/config';
 import { LeaveRoomButton } from '@/app/components/LeaveRoomButton';
 import { BackToLobbyButton } from './BackToLobbyButton';
-import { HintsPanel } from './HintsPanel';
 import { ZoomPanImage } from './ZoomPanImage';
 import { WeaponBlock } from './WeaponBlock';
+import { WeaponGrid } from './WeaponGrid';
 import { ShieldBlock } from './ShieldBlock';
 import {
   WeaponEffectOverlay,
@@ -82,21 +82,39 @@ export function PlayingView({
   const myWeaponId = state?.weaponId ?? null;
   const myUsesLeft = state?.weaponUsesLeft ?? 0;
   const myShieldUsesLeft = state?.shieldUsesLeft ?? 0;
+  const myWeaponStacks = (state?.weaponStacks as Record<string, number> | null) ?? null;
 
+  const isAllVsEikichi = game.mode === 'all-vs-eikichi';
+  const isMeEikichi = game.eikichiPlayerId != null && game.eikichiPlayerId === player?.id;
+
+  // En mode standard : un seul flag "targeting" (l'arme est unique).
+  // En mode all-vs-eikichi : `armingWeaponId` indique quelle arme est armée.
   const [targeting, setTargeting] = useState(false);
+  const [armingWeaponId, setArmingWeaponId] = useState<string | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on prop change is intentional
     setTargeting(false);
+    setArmingWeaponId(null);
   }, [currentIndex]);
 
   const handleFireWeapon = async (targetPlayerId: string) => {
+    // En all-vs-eikichi : on a besoin de l'arme armée. Sinon (mode standard),
+    // l'arme est déterminée par le serveur (state.weaponId snapshoté).
+    const weaponIdToFire = isAllVsEikichi ? armingWeaponId : null;
+    if (isAllVsEikichi && !weaponIdToFire) return;
+
     setTargeting(false);
+    setArmingWeaponId(null);
     try {
       await fetch(`/api/games/beat-eikichi/${roomCode}/fire-weapon`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerToken, targetPlayerId }),
+        body: JSON.stringify({
+          playerToken,
+          targetPlayerId,
+          ...(weaponIdToFire ? { weaponId: weaponIdToFire } : {}),
+        }),
       });
     } catch {
       /* pushRoomUpdate finira par rattraper, ou pas */
@@ -134,6 +152,22 @@ export function PlayingView({
       e.targetPlayerId === player?.id &&
       e.questionIndex === currentIndex + 1,
   );
+
+  // En mode all-vs-eikichi : liste des joueurs déjà ciblés par le Eikichi pour
+  // la question N+1. Sert à griser les avatars dans PlayerScoreList (le Eikichi
+  // ne peut pas re-cibler le même joueur dans la même transition).
+  const alreadyTargetedIds = isAllVsEikichi && isMeEikichi
+    ? new Set(
+        (game.weaponEvents ?? [])
+          .filter(
+            (e) =>
+              e.firedByPlayerId === player?.id &&
+              e.questionIndex === currentIndex + 1 &&
+              e.weaponId !== 'shield',
+          )
+          .map((e) => e.targetPlayerId),
+      )
+    : undefined;
 
   // Toasts : notifs d'attaque/blocage, affichées à la question où l'effet atterrit.
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -296,29 +330,6 @@ export function PlayingView({
     return () => clearInterval(id);
   }, [game.questionStartedAt, currentIndex, timerSeconds]);
 
-  // Mode blur : intensité du flou qui diminue linéairement jusqu'à (timerSeconds - 10).
-  const MAX_BLUR_PX = 20;
-  const [blurPx, setBlurPx] = useState(() =>
-    game.mode === 'blur' ? MAX_BLUR_PX : 0,
-  );
-  useEffect(() => {
-    if (game.mode !== 'blur' || !game.questionStartedAt) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on mode/prop change
-      setBlurPx(0);
-      return;
-    }
-    const startMs = new Date(game.questionStartedAt).getTime();
-    const fadeMs = Math.max(1000, (timerSeconds - 10) * 1000);
-    const tick = () => {
-      const elapsedMs = Date.now() - startMs;
-      const ratio = Math.max(0, Math.min(1, elapsedMs / fadeMs));
-      setBlurPx(MAX_BLUR_PX * (1 - ratio));
-    };
-    tick();
-    const id = setInterval(tick, 300);
-    return () => clearInterval(id);
-  }, [game.mode, game.questionStartedAt, timerSeconds]);
-
   const handleTimeout = useCallback(async () => {
     const now = Date.now();
     const sameIdx = nextCalledForIdxRef.current === currentIndex;
@@ -389,168 +400,155 @@ export function PlayingView({
           Garder les filtres SVG au strict nécessaire pour que les clicks
           restent réactifs. La déco se concentre sur homepage / lobby / review. */}
       <div
-        className="relative mx-auto px-4 sm:px-8 py-5 sm:py-7"
+        className="relative mx-auto px-3 sm:px-6 py-3"
         style={{ maxWidth: 1240 }}
       >
-        {/* TOP STRIP : Question X/Y · Timer + bar · Lobby/Quitter */}
-        <div className="grid gap-3.5 sm:grid-cols-[1fr_1.2fr_1fr] items-center mb-4">
-          <div className="flex items-center gap-2.5 flex-wrap">
+        {/* TOP STRIP : Question X/Y · Timer + bar · Lobby/Quitter — compact */}
+        <div className="grid gap-2 sm:grid-cols-[auto_1fr_auto] items-center mb-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <AcSectionNum n={currentIndex + 1} />
             <span
               style={{
                 fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-                fontSize: 12,
-                letterSpacing: '0.2em',
+                fontSize: 10,
+                letterSpacing: '0.15em',
                 color: AC.bone2,
               }}
             >
-              QUESTION {String(currentIndex + 1).padStart(2, '0')} /{' '}
-              {String(total).padStart(2, '0')}
+              {String(currentIndex + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
             </span>
           </div>
-          <div className="flex items-center gap-3.5 sm:justify-center">
+          <div className="flex items-center gap-2.5 sm:justify-center">
             <BeatEikichiTimer
               questionStartedAt={game.questionStartedAt}
               timerSeconds={timerSeconds}
               onTimeout={handleTimeout}
+              compact
             />
-            <div className="flex-1 min-w-[140px]">
+            <div className="flex-1 min-w-[120px]">
               <AcPaintedBar
                 value={timerPct}
                 color={urgent ? AC.rust : AC.chem}
               />
-              <div
-                style={{
-                  fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-                  fontSize: 9,
-                  letterSpacing: '0.2em',
-                  color: AC.bone2,
-                  marginTop: 4,
-                }}
-              >
-                {'// '}
-                {Math.round(timerPct * timerSeconds)}s / {timerSeconds}s
-              </div>
             </div>
           </div>
-          <div className="flex gap-2 sm:justify-end flex-wrap">
+          <div className="flex gap-1.5 sm:justify-end flex-wrap">
             <BackToLobbyButton roomCode={roomCode} />
             <LeaveRoomButton roomCode={roomCode} />
           </div>
         </div>
 
-        <AcDashed style={{ marginBottom: 16 }} />
+        {/* Arme + Bouclier — affichage selon mode/rôle */}
+        {isAllVsEikichi && isMeEikichi && myWeaponStacks ? (
+          <div className="mb-2">
+            <WeaponGrid
+              stacks={myWeaponStacks}
+              armingWeaponId={armingWeaponId}
+              onStartTargeting={(wid) => setArmingWeaponId(wid)}
+              onCancelTargeting={() => setArmingWeaponId(null)}
+            />
+          </div>
+        ) : isAllVsEikichi ? (
+          <div className="mb-2">
+            <ShieldBlock
+              usesLeft={myShieldUsesLeft}
+              armed={shieldArmed}
+              onFire={handleFireShield}
+            />
+          </div>
+        ) : (
+          <div className="grid gap-2 md:grid-cols-2 mb-2">
+            <WeaponBlock
+              weaponId={myWeaponId}
+              usesLeft={myUsesLeft}
+              targeting={targeting}
+              onStartTargeting={() => setTargeting(true)}
+              onCancelTargeting={() => setTargeting(false)}
+            />
+            <ShieldBlock
+              usesLeft={myShieldUsesLeft}
+              armed={shieldArmed}
+              onFire={handleFireShield}
+            />
+          </div>
+        )}
 
-        {/* Arme + Bouclier */}
-        <div className="grid gap-3.5 md:grid-cols-2 mb-3.5">
-          <WeaponBlock
-            weaponId={myWeaponId}
-            usesLeft={myUsesLeft}
-            targeting={targeting}
-            onStartTargeting={() => setTargeting(true)}
-            onCancelTargeting={() => setTargeting(false)}
-          />
-          <ShieldBlock
-            usesLeft={myShieldUsesLeft}
-            armed={shieldArmed}
-            onFire={handleFireShield}
-          />
-        </div>
-
-        {/* Joueurs — pleine largeur pour accueillir jusqu'à 12 joueurs */}
-        <div className="mb-5">
+        {/* Joueurs — pleine largeur */}
+        <div className="mb-2">
           <PlayerScoreList
             players={room.players}
             playerStates={game.playerStates}
             currentIndex={currentIndex}
             creatorPlayerId={creatorPlayerId}
             eikichiPlayerId={game.eikichiPlayerId}
-            targetingMode={targeting}
+            mode={game.mode}
+            targetingMode={targeting || armingWeaponId !== null}
             selfPlayerId={player?.id ?? null}
+            alreadyTargetedIds={alreadyTargetedIds}
             onTargetPlayer={handleFireWeapon}
           />
         </div>
 
-        {/* Image + optionnel panneau indices */}
-        <div
-          className="grid gap-4 items-start"
-          style={{
-            gridTemplateColumns:
-              room.beatEikichiHintsEnabled ? 'minmax(0,1fr) 240px' : 'minmax(0,1fr)',
-          }}
-        >
-          <div>
-            <div
-              className="relative overflow-hidden"
-              style={{
-                aspectRatio: '16 / 10',
-                background: 'rgba(0,0,0,0.55)',
-                clipPath: AC_IMAGE_FRAME_CLIP,
-                boxShadow: `inset 0 0 0 2px ${AC.bone}`,
-              }}
-            >
-              {question.imageUrl ? (
-                <ZoomPanImage
-                  src={question.imageUrl}
-                  alt="Devine le jeu"
-                  onLoad={() => setImageLoaded(true)}
-                  className={`object-contain transition-opacity duration-300 ${
-                    imageLoaded ? 'opacity-100' : 'opacity-0'
-                  }`}
-                  blurPx={blurPx}
-                  rotating={tornadoActive}
-                />
-              ) : (
-                <div
-                  className="w-full h-full flex items-center justify-center"
-                  style={{
-                    color: AC.bone2,
-                    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
-                  }}
-                >
-                  {'// image indisponible'}
-                </div>
-              )}
-              {question.imageUrl &&
-                player &&
-                (game.weaponEvents?.length ?? 0) > 0 && (
-                  <WeaponEffectOverlay
-                    events={game.weaponEvents ?? []}
-                    myPlayerId={player.id}
-                    currentQuestionIndex={currentIndex}
-                    imageUrl={question.imageUrl}
-                    questionStartedAt={game.questionStartedAt ?? null}
-                    timerSeconds={timerSeconds}
-                  />
-                )}
-            </div>
-
-            {/* Input + feedback ribbon / found banner */}
-            <div className="mt-5">
-              <PlayerAnswerInput
-                roomCode={roomCode}
-                playerToken={playerToken}
-                catalog={catalog}
-                alreadyFound={alreadyFound}
-                questionKey={currentIndex}
-                currentIndex={currentIndex}
-                foundAtSeconds={foundAtSeconds}
+        {/* Image + Input — image compactée pour tenir dans la fold sans
+            scroll (max-height contraint, aspect-ratio plus large). */}
+        <div>
+          <div
+            className="relative overflow-hidden"
+            style={{
+              aspectRatio: '16 / 9',
+              maxHeight: '46vh',
+              background: 'rgba(0,0,0,0.55)',
+              clipPath: AC_IMAGE_FRAME_CLIP,
+              boxShadow: `inset 0 0 0 2px ${AC.bone}`,
+            }}
+          >
+            {question.imageUrl ? (
+              <ZoomPanImage
+                src={question.imageUrl}
+                alt="Devine le jeu"
+                onLoad={() => setImageLoaded(true)}
+                className={`object-contain transition-opacity duration-300 ${
+                  imageLoaded ? 'opacity-100' : 'opacity-0'
+                }`}
+                rotating={tornadoActive}
               />
-            </div>
+            ) : (
+              <div
+                className="w-full h-full flex items-center justify-center"
+                style={{
+                  color: AC.bone2,
+                  fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+                }}
+              >
+                {'// image indisponible'}
+              </div>
+            )}
+            {question.imageUrl &&
+              player &&
+              (game.weaponEvents?.length ?? 0) > 0 && (
+                <WeaponEffectOverlay
+                  events={game.weaponEvents ?? []}
+                  myPlayerId={player.id}
+                  currentQuestionIndex={currentIndex}
+                  imageUrl={question.imageUrl}
+                  questionStartedAt={game.questionStartedAt ?? null}
+                  timerSeconds={timerSeconds}
+                />
+              )}
           </div>
 
-          {/* Hints panel (desktop only) */}
-          {room.beatEikichiHintsEnabled && (
-            <div className="hidden md:block">
-              <HintsPanel
-                questionStartedAt={game.questionStartedAt}
-                timerSeconds={timerSeconds}
-                hintGenre={question.hintGenre ?? null}
-                hintTerm={question.hintTerm ?? null}
-                hintPlatforms={question.hintPlatforms ?? null}
-              />
-            </div>
-          )}
+          {/* Input + feedback ribbon / found banner */}
+          <div className="mt-2">
+            <PlayerAnswerInput
+              roomCode={roomCode}
+              playerToken={playerToken}
+              catalog={catalog}
+              alreadyFound={alreadyFound}
+              questionKey={currentIndex}
+              currentIndex={currentIndex}
+              foundAtSeconds={foundAtSeconds}
+            />
+          </div>
         </div>
       </div>
 

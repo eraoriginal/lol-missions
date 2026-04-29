@@ -220,7 +220,7 @@ export default function BeatEikichiSimPage() {
             }}
           >
             <div style={{ color: '#12D6A8', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              {'// '}13 scénarios à exécuter
+              {'// '}31 scénarios à exécuter — couverture symétrique standard + all-vs-eikichi
             </div>
             <ul style={{ margin: 0, paddingLeft: 20 }}>
               <li>S1 — 7 joueurs /next en parallèle (race classique)</li>
@@ -236,6 +236,25 @@ export default function BeatEikichiSimPage() {
               <li>S11 — Contrat fuzzyMatch (variantes acceptées/rejetées)</li>
               <li>S12 — Tous mauvaises réponses → pas d&apos;avance</li>
               <li>S13 — Submit late : bonne réponse ne devient jamais faux negatif</li>
+              <li>S14 — [AvE] Eikichi tire 3 armes parallèles vers 3 cibles</li>
+              <li>S15 — [AvE] 1 cible max par question pour le Eikichi</li>
+              <li>S16 — [AvE] Non-Eikichi ne peut pas tirer (403)</li>
+              <li>S17 — [AvE] Eikichi ne peut pas utiliser de bouclier (403)</li>
+              <li>S18 — [AvE] Stack épuisé après 3 tirs même arme</li>
+              <li>S-AVS-NEXT — [AvE] 7 /next parallèles → 1 advance</li>
+              <li>S-AVS-EVN — [AvE] Eikichi /submit + 6 /next : pas de faux negatif</li>
+              <li>S-AVS-ALL — [AvE] 7 /submit corrects (all-found)</li>
+              <li>S-AVS-SEQ — [AvE] 4 transitions consécutives sans skip</li>
+              <li>S-AVS-LATE — [AvE] Submit late : pas de faux negatif</li>
+              <li>S-SHLD — Race 4× /fire-shield → 1 event, idempotent sur les autres</li>
+              <li>S-12W — [AvE] 6 armes parallèles vers 6 cibles, stacks à 2</li>
+              <li>S-SW3 — [AvE] 3 tirs même arme parallèles → stack atomique</li>
+              <li>S-STDW — [AvE] 5 armes parallèles même cible → 1 ok, 4 restitués</li>
+              <li>S-STD-STK — [STD] weaponStacks=null + weaponId snapshoté</li>
+              <li>S-AVE-INIT — [AvE] Init PlayerStates au /start</li>
+              <li>S-AVE-MW — [AvE] Tir sans weaponId rejeté</li>
+              <li>S-STD-FW — [STD] Tir d&apos;arme classique fonctionne</li>
+              <li>S-STD-SH — [STD] Tir + bouclier coexistent pour la même Q</li>
             </ul>
             <div style={{ marginTop: 14, color: '#5C5040', fontSize: 11 }}>
               ⚠ Chaque run crée et supprime des rooms en DB. Lance UNIQUEMENT en local / staging.

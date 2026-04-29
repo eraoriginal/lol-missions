@@ -187,37 +187,45 @@ export function LeaderboardView({
 
         {allRevealed && (
           <>
-            {/* Podium + stats */}
+            {/* En mode all-vs-eikichi : duel agrégé Eikichi vs Le Camp.
+                En mode standard : podium top 3 classique. */}
             <div className="grid gap-7 lg:grid-cols-[2fr_1fr] mb-10">
-              <div className="flex items-end gap-3.5 justify-center py-5">
-                {top3[1] && (
-                  <PodiumStep
-                    place={2}
-                    row={top3[1]}
-                    h={180}
-                    color={AC.bone2}
-                    eikichiPlayerId={game.eikichiPlayerId}
-                  />
-                )}
-                {top3[0] && (
-                  <PodiumStep
-                    place={1}
-                    row={top3[0]}
-                    h={240}
-                    color={AC.gold}
-                    eikichiPlayerId={game.eikichiPlayerId}
-                  />
-                )}
-                {top3[2] && (
-                  <PodiumStep
-                    place={3}
-                    row={top3[2]}
-                    h={140}
-                    color={AC.rust}
-                    eikichiPlayerId={game.eikichiPlayerId}
-                  />
-                )}
-              </div>
+              {game.mode === 'all-vs-eikichi' && game.eikichiPlayerId ? (
+                <CampVsEikichiPodium
+                  rows={rows}
+                  eikichiPlayerId={game.eikichiPlayerId}
+                />
+              ) : (
+                <div className="flex items-end gap-3.5 justify-center py-5">
+                  {top3[1] && (
+                    <PodiumStep
+                      place={2}
+                      row={top3[1]}
+                      h={180}
+                      color={AC.bone2}
+                      eikichiPlayerId={game.eikichiPlayerId}
+                    />
+                  )}
+                  {top3[0] && (
+                    <PodiumStep
+                      place={1}
+                      row={top3[0]}
+                      h={240}
+                      color={AC.gold}
+                      eikichiPlayerId={game.eikichiPlayerId}
+                    />
+                  )}
+                  {top3[2] && (
+                    <PodiumStep
+                      place={3}
+                      row={top3[2]}
+                      h={140}
+                      color={AC.rust}
+                      eikichiPlayerId={game.eikichiPlayerId}
+                    />
+                  )}
+                </div>
+              )}
 
               <div>
                 <div className="flex items-center gap-2.5 mb-3">
@@ -374,6 +382,198 @@ const PODIUM_CLIPS: Record<number, string> = {
   2: 'polygon(6% 12%, 48% 4%, 94% 14%, 96% 92%, 88% 100%, 12% 100%, 4% 94%)',
   3: 'polygon(8% 16%, 50% 8%, 92% 20%, 94% 90%, 86% 100%, 14% 100%, 6% 92%)',
 };
+
+/**
+ * Podium "Tous contre Eikichi" : duel visuel entre l'Eikichi et le camp
+ * agrégé. Affiche les deux scores en gros + le détail des joueurs du camp
+ * (chaque ligne montre nom + score individuel, avec total en bas).
+ */
+function CampVsEikichiPodium({
+  rows,
+  eikichiPlayerId,
+}: {
+  rows: LeaderboardRow[];
+  eikichiPlayerId: string;
+}) {
+  const eikichi = rows.find((r) => r.playerId === eikichiPlayerId);
+  const camp = rows.filter((r) => r.playerId !== eikichiPlayerId);
+  const campScore = camp.reduce((sum, r) => sum + r.score, 0);
+  const eikichiScore = eikichi?.score ?? 0;
+  const eikichiWins = eikichiScore > campScore;
+  const draw = eikichiScore === campScore;
+
+  return (
+    <div className="grid gap-4" style={{ gridTemplateColumns: '1fr auto 1fr' }}>
+      {/* Eikichi */}
+      <div
+        style={{
+          padding: 18,
+          background: 'rgba(13,11,8,0.7)',
+          boxShadow: `inset 0 0 0 2px ${eikichiWins ? AC.shimmer : AC.bone2}`,
+          textAlign: 'center',
+          opacity: !eikichiWins && !draw ? 0.7 : 1,
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontSize: 10,
+            letterSpacing: '0.25em',
+            color: AC.shimmer,
+            marginBottom: 6,
+          }}
+        >
+          {'// EIKICHI'}
+        </div>
+        <AcAvatar
+          name={eikichi?.name ?? '—'}
+          color={colorForPlayer(eikichiPlayerId)}
+          size={64}
+          halo={AC.shimmer}
+        />
+        <div
+          style={{
+            marginTop: 8,
+            fontFamily: "'Barlow Condensed', 'Bebas Neue', sans-serif",
+            fontWeight: 800,
+            fontSize: 22,
+            textTransform: 'uppercase',
+            color: AC.bone,
+          }}
+        >
+          {eikichi?.name ?? '—'}
+        </div>
+        <div
+          style={{
+            marginTop: 8,
+            fontFamily: "'Barlow Condensed', 'Bebas Neue', sans-serif",
+            fontWeight: 900,
+            fontSize: 64,
+            color: eikichiWins ? AC.shimmer : AC.bone,
+            lineHeight: 1,
+          }}
+        >
+          {eikichiScore}
+        </div>
+        <div style={{ fontSize: 11, color: AC.bone2, marginTop: 2 }}>
+          {eikichi?.correct ?? 0}/{(eikichi?.correct ?? 0) + (eikichi?.wrong ?? 0)} trouvé
+        </div>
+        {eikichiWins && (
+          <div className="mt-3">
+            <AcStamp color={AC.shimmer} rotate={-3}>
+              VAINQUEUR
+            </AcStamp>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col items-center justify-center">
+        <div
+          style={{
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontWeight: 900,
+            fontSize: 36,
+            color: AC.gold,
+            letterSpacing: '0.15em',
+          }}
+        >
+          VS
+        </div>
+        {draw && (
+          <div
+            style={{
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 9,
+              color: AC.gold,
+              letterSpacing: '0.2em',
+              marginTop: 4,
+            }}
+          >
+            {'// ÉGALITÉ'}
+          </div>
+        )}
+      </div>
+
+      {/* Le Camp */}
+      <div
+        style={{
+          padding: 18,
+          background: 'rgba(13,11,8,0.7)',
+          boxShadow: `inset 0 0 0 2px ${!eikichiWins && !draw ? AC.chem : AC.bone2}`,
+          textAlign: 'center',
+          opacity: eikichiWins ? 0.7 : 1,
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontSize: 10,
+            letterSpacing: '0.25em',
+            color: AC.chem,
+            marginBottom: 6,
+          }}
+        >
+          {'// LE CAMP'}
+        </div>
+        <div
+          style={{
+            fontFamily: "'Barlow Condensed', 'Bebas Neue', sans-serif",
+            fontWeight: 800,
+            fontSize: 22,
+            textTransform: 'uppercase',
+            color: AC.bone,
+          }}
+        >
+          {camp.length} JOUEUR{camp.length > 1 ? 'S' : ''}
+        </div>
+        <div
+          style={{
+            marginTop: 8,
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontWeight: 900,
+            fontSize: 64,
+            color: !eikichiWins && !draw ? AC.chem : AC.bone,
+            lineHeight: 1,
+          }}
+        >
+          {campScore}
+        </div>
+        <div
+          style={{
+            marginTop: 12,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4,
+            textAlign: 'left',
+            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontSize: 10,
+          }}
+        >
+          {camp
+            .slice()
+            .sort((a, b) => b.score - a.score)
+            .map((r) => (
+              <div
+                key={r.playerId}
+                className="flex justify-between"
+                style={{ color: AC.bone2 }}
+              >
+                <span style={{ color: AC.bone }}>{r.name}</span>
+                <span style={{ color: AC.bone2 }}>+{r.score}</span>
+              </div>
+            ))}
+        </div>
+        {!eikichiWins && !draw && (
+          <div className="mt-3">
+            <AcStamp color={AC.chem} rotate={-3}>
+              VAINQUEURS
+            </AcStamp>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function PodiumStep({
   place,

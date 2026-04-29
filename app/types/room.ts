@@ -131,6 +131,10 @@ export interface BeatEikichiPlayerState {
     weaponUsesLeft: number;
     lastUsedQuestionIndex: number;
     shieldUsesLeft: number;
+    /** Mode "all-vs-eikichi" UNIQUEMENT, et UNIQUEMENT pour le Eikichi.
+     * Map { weaponId: usesLeft } — initialisée à 12 entrées × 3 au /start.
+     * `null` ailleurs (mode standard ou non-Eikichi). */
+    weaponStacks?: Record<string, number> | null;
 }
 
 export interface BeatEikichiWeaponEvent {
@@ -157,7 +161,7 @@ export interface BeatEikichiGame {
     questionStartedAt: string | null;
     eikichiPlayerId: string | null;
     timerSeconds: number;
-    mode: 'standard' | 'blur';
+    mode: 'standard' | 'all-vs-eikichi';
     playerStates: BeatEikichiPlayerState[];
     weaponEvents?: BeatEikichiWeaponEvent[];
 }
@@ -237,7 +241,7 @@ export interface Room {
     beatEikichiEikichiId?: string | null;
     beatEikichiHintsEnabled?: boolean;
     beatEikichiTimerSeconds?: number;
-    beatEikichiMode?: 'standard' | 'blur';
+    beatEikichiMode?: 'standard' | 'all-vs-eikichi';
     quizCeoTimerSeconds?: number;
     quizCeoQuestionCount?: number;
     quizCeoDisabledTypes?: string[];

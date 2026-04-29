@@ -10,8 +10,6 @@ interface ZoomPanImageProps {
    * parent le soin d'afficher un fallback ou de marquer la question terminée. */
   onError?: () => void;
   className?: string;
-  /** Intensité du flou en pixels appliqué à l'image (mode "blur"). 0 = pas de flou. */
-  blurPx?: number;
   /** Si true, applique une animation de rotation continue sur l'image (arme Tornade). */
   rotating?: boolean;
 }
@@ -32,16 +30,21 @@ export function ZoomPanImage({
   onLoad,
   onError,
   className,
-  blurPx,
   rotating,
 }: ZoomPanImageProps) {
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   // Affiche un placeholder si l'image échoue à charger (404 / CORS / URL invalide).
-  // Indispensable car certains GIFs GIPHY peuvent disparaître après le seed, et
-  // ne rien afficher en silence rend la question impossible.
+  // Indispensable car certains assets CDN peuvent disparaître, et ne rien afficher
+  // en silence rend la question impossible.
   const [errored, setErrored] = useState(false);
+  // True dès que `onLoad` ou `onError` du <img> a fired. Sert à arrêter le
+  // timeout watchdog pour ne pas qu'il bascule l'image en "indisponible" 8s
+  // APRÈS un chargement réussi (bug Firefox : le timeout sans clear faisait
+  // disparaître l'image en cours de partie quand le Eikichi tirait une arme,
+  // car le re-render n'arrivait pas avant le timeout).
+  const [loaded, setLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<{
     startX: number;
@@ -50,28 +53,30 @@ export function ZoomPanImage({
     initOY: number;
   } | null>(null);
 
-  // Reset scale + offset + flag erreur quand l'image change (nouvelle question).
+  // Reset scale + offset + flag erreur + loaded quand l'image change (nouvelle question).
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset state on prop change is intentional
     setScale(1);
     setOffset({ x: 0, y: 0 });
     setErrored(false);
+    setLoaded(false);
   }, [src]);
 
   // Filet de sauvetage : si l'image n'a ni `onLoad` ni `onError` au bout de 8s
   // (cas observé sur certains CDN qui hangent en silence), on bascule en mode
   // erreur. Sinon le parent garde l'image en `opacity-0` à jamais et la
   // question paraît cassée.
+  // ⚠ Garde-fou crucial : on ne pose le timeout QUE si l'image n'a pas
+  // encore fired son onLoad/onError. Sinon le timeout finissait par fire
+  // 8s APRÈS un chargement réussi et basculait l'image en "indisponible".
   useEffect(() => {
-    if (!src || errored) return;
+    if (!src || errored || loaded) return;
     const timeout = setTimeout(() => {
       setErrored(true);
-      // On notifie aussi `onLoad` pour que le parent désactive son loader CSS.
-      onLoad?.();
       onError?.();
     }, 8000);
     return () => clearTimeout(timeout);
-  }, [src, errored, onLoad, onError]);
+  }, [src, errored, loaded, onError]);
 
   const clampOffset = (ox: number, oy: number, s: number) => {
     if (!containerRef.current) return { x: 0, y: 0 };
@@ -207,14 +212,28 @@ export function ZoomPanImage({
           <img
             src={src}
             alt={alt}
-            onLoad={onLoad}
+            onLoad={() => {
+              // Marque l'image comme chargée → le watchdog 8s ne fire plus.
+              setLoaded(true);
+              onLoad?.();
+            }}
             // Sur erreur réseau (404 / CORS / URL invalide), on affiche un
             // placeholder explicite au lieu de laisser l'image en opacity-0
             // (le parent garde la transition `imageLoaded`).
+            //
+            // ⚠ Garde-fou Firefox : on ignore les `onError` tardifs émis
+            // APRÈS un `onLoad` réussi. Reproduit en mode all-vs-eikichi
+            // côté Firefox : quand une arme s'affiche en overlay (ex.
+            // Puzzle/Freeze/Glitch qui re-fetchent l'URL en
+            // `background-image`), Firefox émettait parfois un onError
+            // fantôme sur l'<img> principale → bascule en "image
+            // indisponible" alors que l'image était déjà à l'écran
+            // depuis plusieurs secondes. Si `loaded=true`, on garde
+            // l'image affichée et on ne change rien.
             onError={() => {
+              if (loaded) return;
               setErrored(true);
-              // Forcer l'avancée du loader parent : sinon il attend onLoad
-              // qui ne fire jamais sur une 404.
+              setLoaded(true);
               onLoad?.();
               onError?.();
             }}
@@ -223,12 +242,7 @@ export function ZoomPanImage({
             style={{
               transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
               transformOrigin: 'center center',
-              // Transition courte sur le filter pour que la révélation progressive du
-              // mode "blur" reste fluide entre deux recalculs.
-              transition: dragging
-                ? 'none'
-                : 'transform 0.12s ease-out, filter 0.4s linear',
-              filter: blurPx && blurPx > 0.05 ? `blur(${blurPx}px)` : undefined,
+              transition: dragging ? 'none' : 'transform 0.12s ease-out',
             }}
           />
         )}
