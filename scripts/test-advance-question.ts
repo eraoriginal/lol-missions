@@ -24,7 +24,6 @@ import { prisma } from '../lib/prisma';
 import { advanceQuestionIfMatches } from '../lib/beatEikichi/advanceQuestion';
 
 const ROOM_PREFIX = 'TESTBR'; // Beat Race
-const PARALLEL_CALLS = 8;
 
 function color(s: string, code: number): string {
   return `\x1b[${code}m${s}\x1b[0m`;

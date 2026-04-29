@@ -73,9 +73,9 @@ async function cleanOne(file: string): Promise<Result> {
     if (!FORCE && !hasColored && !hasBlack) {
       return { file, status: 'skipped' };
     }
-    let { svg, removed } = stripColoredElements(original, COLORED_FILLS);
+    const { svg: rawSvg, removed } = stripColoredElements(original, COLORED_FILLS);
     // Bascule black → white pour visibilité sur fond sombre.
-    svg = svg.replace(/fill="black"/g, 'fill="white"');
+    const svg = rawSvg.replace(/fill="black"/g, 'fill="white"');
     if (svg === original) {
       return { file, status: 'skipped' };
     }

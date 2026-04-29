@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { generateRoomCode, generatePlayerToken } from '@/lib/utils';
-import { advanceQuestionIfMatches } from '@/lib/beatEikichi/advanceQuestion';
 import { isAcceptedAnswer } from '@/lib/beatEikichi/fuzzyMatch';
 
 /**
@@ -504,7 +503,7 @@ async function s10_f5Simulation(origin: string): Promise<ScenarioResult> {
  * rejetées (mauvaise réponse), et "RealAnswer0" / "realanswer0" / "Real
  * Answer 0" / " RealAnswer0 " doivent être acceptées.
  */
-async function s11_fuzzyContract(origin: string): Promise<ScenarioResult> {
+async function s11_fuzzyContract(_origin: string): Promise<ScenarioResult> {
   const details: string[] = [];
   const sim = await setupRoom('s11');
   try {
