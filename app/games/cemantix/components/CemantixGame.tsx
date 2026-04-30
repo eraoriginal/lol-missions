@@ -60,10 +60,27 @@ function normalizeForDedup(s: string): string {
     .replace(/[^a-z0-9 -]/g, '');
 }
 
-/** Convertit similarity → "heat" en [0, 1] pour le sizing/couleurs. */
+/**
+ * Convertit similarity → "heat" en [0, 1] pour le sizing/couleurs de la
+ * barre. Les similarities négatives (mots sémantiquement opposés à la cible)
+ * sont clampées à 0 — la barre reste vide. Pour distinguer « inconnu » d'une
+ * « température négative explicite », utiliser `isFreezing(sim)`.
+ */
 function similarityToHeat(sim: number | null): number {
   if (sim === null || !Number.isFinite(sim)) return 0;
   return Math.max(0, Math.min(1, sim));
+}
+
+/** Vrai si la similarity est négative (mot sémantiquement opposé). */
+function isFreezing(sim: number | null): boolean {
+  return sim !== null && Number.isFinite(sim) && sim < 0;
+}
+
+/** Formate la similarity en degré affiché (peut être négatif). */
+function formatTemp(sim: number | null): string {
+  if (sim === null || !Number.isFinite(sim)) return '—';
+  const pct = sim * 100;
+  return `${pct >= 0 ? '' : '−'}${Math.abs(pct).toFixed(1)}°`;
 }
 
 /** Tier sémantique fin (7 paliers visuels) — synchro avec les maquettes V02. */
@@ -212,10 +229,16 @@ export function CemantixGame() {
   }, [submitting, won, attempts.length]);
 
   // Liste triée par proximité (similarity / heat décroissante).
-  const sorted = useMemo(
-    () => [...attempts].sort((a, b) => similarityToHeat(b.similarity) - similarityToHeat(a.similarity)),
-    [attempts],
-  );
+  // Sort par similarité décroissante. Les valeurs négatives (mots opposés)
+  // apparaissent tout en bas — on n'utilise pas `similarityToHeat` qui
+  // clampe à 0 et écraserait l'ordre des mots négatifs.
+  const sorted = useMemo(() => {
+    const simOf = (s: number | null) =>
+      s === null || !Number.isFinite(s) ? -Infinity : s;
+    return [...attempts].sort(
+      (a, b) => simOf(b.similarity) - simOf(a.similarity),
+    );
+  }, [attempts]);
 
   const latestAttempt = attempts.length > 0 ? attempts[attempts.length - 1] : null;
   const bestHeat = sorted.length > 0 ? similarityToHeat(sorted[0].similarity) : 0;
@@ -485,8 +508,13 @@ const CmxInput = function CmxInput({
 
 function CmxLatestFeedback({ attempt }: { attempt: Attempt }) {
   const heat = similarityToHeat(attempt.similarity);
-  const tier = cmxTier(heat);
-  const color = cmxHeatColor(heat);
+  const freezing = isFreezing(attempt.similarity);
+  // Pour les températures négatives, on force la couleur en cyan glacial
+  // (pas de violet/shimmer interpolé qui n'aurait aucun sens).
+  const color = freezing ? '#7CC9F2' : cmxHeatColor(heat);
+  const tier = freezing
+    ? { key: 'glace', label: 'GLACÉ', color, accent: AC.bone2, icon: '❅' }
+    : cmxTier(heat);
   const wPct = heat * 100;
   // Durée de l'animation : ralentissement final lisible (le easeOutQuart
   // condense ~70% de l'avancée sur les 30 premiers % du temps).
@@ -499,7 +527,8 @@ function CmxLatestFeedback({ attempt }: { attempt: Attempt }) {
         // CSS var consommée par les keyframes `cmx-feedback-cursor` et la
         // largeur `width` du conteneur de fill — garantit que le curseur
         // s'arrête EXACTEMENT à la position de la chaleur, en synchro avec
-        // la peinture qui se remplit.
+        // la peinture qui se remplit. Pour les valeurs négatives (freezing),
+        // on garde 0% : le curseur reste planqué à gauche, la barre vide.
         ['--cmx-final-pct' as string]: `${wPct}%`,
         position: 'relative',
         display: 'grid',
@@ -514,6 +543,8 @@ function CmxLatestFeedback({ attempt }: { attempt: Attempt }) {
         boxShadow:
           heat >= 0.85
             ? `0 0 28px ${color}33, inset 0 0 0 1px rgba(245,185,18,0.12)`
+            : freezing
+            ? `0 0 20px rgba(124,201,242,0.18)`
             : 'none',
       }}
     >
@@ -672,8 +703,7 @@ function CmxLatestFeedback({ attempt }: { attempt: Attempt }) {
             animation: `cmx-feedback-verdict ${animDur} ease-out forwards`,
           }}
         >
-          {wPct.toFixed(1)}
-          <span style={{ fontSize: '0.65em' }}>°</span>
+          {formatTemp(attempt.similarity)}
         </div>
         <div
           className="cmx-feedback-verdict"
@@ -729,8 +759,12 @@ function PaintedRow({
   dimmed: boolean;
 }) {
   const heat = similarityToHeat(attempt.similarity);
-  const tier = cmxTier(heat);
-  const color = cmxHeatColor(heat);
+  const freezing = isFreezing(attempt.similarity);
+  // Pour les températures négatives, force cyan glacial.
+  const color = freezing ? '#7CC9F2' : cmxHeatColor(heat);
+  const tier = freezing
+    ? { key: 'glace', label: 'GLACÉ', color, accent: AC.bone2, icon: '❅' }
+    : cmxTier(heat);
   const wPct = heat * 100;
   const isTarget = attempt.rank === 0;
 
@@ -845,7 +879,7 @@ function PaintedRow({
         </svg>
       </div>
 
-      {/* % similarité */}
+      {/* % similarité (peut être négatif pour les mots opposés) */}
       <span
         style={{
           fontFamily: "'JetBrains Mono', 'Courier New', monospace",
@@ -856,7 +890,7 @@ function PaintedRow({
           textAlign: 'right',
         }}
       >
-        {(wPct).toFixed(1)}°
+        {formatTemp(attempt.similarity)}
       </span>
 
       {/* Rang dans le top 1000 (ou —) */}

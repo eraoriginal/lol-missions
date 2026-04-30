@@ -36,8 +36,8 @@ Si le shell atterrit dans un worktree, bascule immédiatement sur le repo princi
 | `npx tsx scripts/download-lol-champion-spells.ts` | DL icônes Q/W/E/R/Passif des champions LoL depuis Data Dragon (~860 PNG, ~3 MB, idempotent) |
 | `npx tsx scripts/download-lol-match-assets.ts` | DL items + summoner spells + perk styles + portraits champion depuis Data Dragon (~890 PNG, ~50 MB, idempotent) |
 | `npx tsx scripts/download-lol-match-history.ts` | DL historique matches via Riot Match v5 API (12 joueurs × 50 matches, ~15 min, idempotent via cache `.cache/riot/`). Requires `RIOT_API_KEY` dans `.env`. Options : `--player <riotId>`, `--limit <N>`, `--force` |
-| `npx tsx scripts/download-cemantix-model.ts` | DL un modèle d'embeddings français (défaut fastText `cc.fr.300.vec.gz`, ~3 GB compressé). Cache `.cache/cemantix/`. Reprise via HTTP Range. Override : `MODEL_URL=...`. |
-| `npx tsx scripts/seed-cemantix-vocab.ts` | Parse le `.vec.gz` téléchargé, filtre top 70k mots français propres, insère dans `CemantixWord` (~84 MB en DB). Idempotent (truncate + insert). Var : `VOCAB_SIZE` (défaut 70000). |
+| `npx tsx scripts/download-cemantix-model.ts` | DL un modèle d'embeddings français (défaut Word2Vec FrWac binaire `frWac_no_postag_no_phrase_500_skip_cut100.bin`, ~240 MB). Cache `.cache/cemantix/`. Reprise via HTTP Range. Override : `MODEL_URL=...`. |
+| `npx tsx scripts/seed-cemantix-vocab.ts` | Parse le modèle téléchargé (auto-détection `.bin` Word2Vec ou `.vec[.gz]` fastText), filtre top 70k mots français propres, insère dans `CemantixWord` (~140 MB en DB pour 500d). Idempotent (truncate + insert). Var : `VOCAB_SIZE` (défaut 70000). |
 | `npx tsx scripts/build-cemantix-puzzles.ts` | Construit la cible quotidienne + top 1000 voisins pré-calculés. Options : `--days N` (N jours à venir), `--date YYYY-MM-DD`, `--rebuild` (force re-calcul). Idempotent. |
 | `npx tsx scripts/test-fuzzyMatch.ts` | Tests unitaires fuzzy match (55 cas) |
 | `npx tsx scripts/test-advance-question.ts` | Test concurrence atomique du gate `advanceQuestionIfMatches` (4 scénarios contre la vraie DB) |
@@ -545,7 +545,27 @@ Les catalogues solo (mots, pays, wikis, puzzles) sont **server-only** : impossib
 Limitation Word2Vec : un mot = un vecteur (avocat-juriste et avocat-fruit collapsent). Mitigation : la liste curée `CEMANTIX_TARGETS` peut spécifier un `sense` qui s'affiche au joueur (« sens : fruit »). À terme, si on veut une vraie désambiguïsation, l'option « LLM-as-judge avec cache » documentée dans le brainstorm devient le bon move.
 
 #### Choix de modèle
-Default : **fastText `cc.fr.300.vec.gz`** (Common Crawl, 300d). Standard moderne, public sur le CDN Facebook AI, format texte `.vec.gz` (mots triés par fréquence → on stream-lit les premiers ~80k lignes). Alternative possible via `MODEL_URL` : Word2Vec FrWac binaire de Fauconnier (la « vraie » méthode du Cemantix original) — mais le parsing binaire n'est pas implémenté côté script (à ajouter si besoin).
+Default : **Word2Vec FrWac** de Fauconnier (`frWac_no_postag_no_phrase_500_skip_cut100.bin`, ~240 MB, 500d, ~120k mots). Le seed le filtre à 70k mots français propres. C'est le modèle utilisé historiquement par le « vrai » Cemantix.
+
+Alternative supportée : fastText `cc.fr.300.vec.gz` (Common Crawl, 300d, ~3 GB compressé). Format auto-détecté par extension :
+- `.bin` → parser binaire Word2Vec (`parseBinaryModel`)
+- `.vec.gz` / `.vec` → parser texte fastText (`parseTextModel`)
+
+Override via `MODEL_URL=...` puis `npx tsx scripts/download-cemantix-model.ts`.
+
+#### Affichage de la similarité — rank-based + cosine on-the-fly
+Les modèles Word2Vec FR ont des distributions cosines très variables d'une cible à l'autre (top-1 à 0.5 sur certains mots, 0.8 sur d'autres) : si on affiche le cosine brut, le joueur a l'impression que « certains jours sont durs et d'autres faciles » alors que c'est juste de la statistique.
+
+**Solution** : la similarité affichée vient de **deux sources distinctes** selon la position du mot :
+
+1. **Top 1000 voisins** (hot path) → `rankToDisplaySim(rank)` mappe le rank vers une valeur cosmétique consistante. Anchor-based piecewise linéaire calé sur le vrai Cemantix (cf. maquette `cemantix.jsx`) :
+   - rank 1 → 0.99 · rank 3 → 0.97 · rank 10 → 0.93 · rank 25 → 0.91
+   - rank 100 → 0.85 · rank 250 → 0.78 · rank 500 → 0.70 · rank 1000 → 0.62
+   - Le top-25 est toujours en zone incandescent/brûlant, le top-100 en gold, le top-1000 reste en tiède. UX cohérente entre puzzles.
+
+2. **Hors top 1000** (cold path) → on calcule la **cosine similarity à la volée** entre le vecteur du guess et celui de la cible (deux lookups parallèles `CemantixWord` + 1 calcul vectoriel ~0.5 ms). Le résultat peut être **négatif** pour les mots sémantiquement opposés (ex. tape « rouge » quand la cible est « pacifisme ») — affiché comme `−0.32°` dans l'UI, en cyan glacial avec un glow froid sur le bord de la carte feedback.
+
+Le rank et le cosine brut restent en DB (truth source) ; seul l'affichage côté client diffère. La transformation est **monotone** sur les rangs et **non-monotone** sur les cosines bruts (deux mots ayant le même rank affichent la même valeur même si leurs cosines diffèrent).
 
 ## Env vars requises
 - `DATABASE_URL` — PostgreSQL Neon

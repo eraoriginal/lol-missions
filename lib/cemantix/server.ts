@@ -58,27 +58,64 @@ export function rankToTier(rank: number): CemantixTier {
 }
 
 /**
- * Boost UX du cosine brut.
+ * Convertit un rank dans le top 1000 en « température » (0..1) affichée
+ * au joueur, dans l'esprit du vrai Cemantix.
  *
- * fastText `cc.fr.300` (notre modèle par défaut) retourne des cosines plus
- * serrés que le Cemantix officiel : pour un même target, le top-1 plafonne
- * souvent à 0.7-0.78 alors que dans le vrai Cemantix on attend 0.85-0.95.
- * C'est une propriété du training avec subword n-grams (FastText) vs
- * Word2Vec pur (FrWac) — pas un bug.
+ * **Pourquoi rank-based plutôt que cosine-based** : les modèles Word2Vec
+ * FR ont des distributions cosines très variables d'un mot à l'autre.
+ * Pour certaines cibles (cheval), le top-1 est naturellement à 0.82 ;
+ * pour d'autres (manteau, hibou), le top-1 plafonne à 0.5. Cette
+ * variabilité crée des UX incohérentes — le joueur a l'impression que
+ * « certains jours sont durs et d'autres faciles » alors que c'est juste
+ * la statistique du modèle.
  *
- * Pour un feeling plus « Cemantix-style », on applique une power curve
- * `x^0.7` qui boost les valeurs hautes plus que les basses, **sans changer
- * l'ordre des rangs** (transformation monotone). Exemples :
- *   0.78 → 0.84  | 0.66 → 0.75  | 0.55 → 0.66  | 0.40 → 0.52  | 0.20 → 0.32
+ * En dérivant la température directement du rank, on garantit que le
+ * top-1 affichera toujours ~0.99, le top-10 ~0.93, le top-100 ~0.85,
+ * etc., **indépendamment de la cible**. Le rank reste la métrique
+ * objective stockée en DB ; le cosine brut (`CemantixDailyNeighbor.similarity`)
+ * est conservé en truth source mais n'est pas exposé au client.
  *
- * Le rank stocké en DB ne bouge pas — seule la valeur affichée au joueur
- * change. Si tu veux la valeur brute, lis `CemantixDailyNeighbor.similarity`
- * directement.
+ * **Calibration anchor-based**, ajustée pour matcher les valeurs réelles
+ * du Cemantix officiel (cf. exemple maquette `cemantix.jsx`) :
+ *   rank 3   → 0.97   (incandescent rust)
+ *   rank 7   → 0.95   (incandescent)
+ *   rank 24  → 0.92   (brûlant gold)
+ *   rank 89  → 0.86   (brûlant)
+ *   rank 214 → 0.79   (chaud shimmer)
+ *   rank 612 → 0.68   (tiède)
+ *   rank 891 → 0.64   (tiède)
+ *
+ * → ça donne une vraie progression visuelle où le top-25 est rouge/orange,
+ * le top-100 gold, le top-500 shimmer, et le top-1000 reste « tiède »
+ * (bien plus généreux que ma 1re calibration linéaire qui mettait
+ * tout le top-100 en jaune-orange seulement).
+ *
+ * Interpolation linéaire piecewise entre les anchor points.
  */
-function boostSimilarity(raw: number): number {
-  if (raw <= 0) return 0;
-  if (raw >= 1) return 1;
-  return Math.pow(raw, 0.7);
+const RANK_ANCHORS: ReadonlyArray<readonly [number, number]> = [
+  [0, 1.0],
+  [1, 0.99],
+  [3, 0.97],
+  [10, 0.93],
+  [25, 0.91],
+  [100, 0.85],
+  [250, 0.78],
+  [500, 0.7],
+  [1000, 0.62],
+];
+
+function rankToDisplaySim(rank: number): number {
+  if (rank <= 0) return 1.0;
+  if (rank > 1000) return 0;
+  for (let i = 0; i < RANK_ANCHORS.length - 1; i++) {
+    const [r1, s1] = RANK_ANCHORS[i];
+    const [r2, s2] = RANK_ANCHORS[i + 1];
+    if (rank >= r1 && rank <= r2) {
+      const t = (rank - r1) / (r2 - r1);
+      return s1 + t * (s2 - s1);
+    }
+  }
+  return 0;
 }
 
 export interface ScoreResult {
@@ -103,10 +140,45 @@ export async function getDailyTarget(puzzleDate: string = dailyDateKey()): Promi
 }
 
 /**
- * Score un guess contre la cible du jour (lookup O(1) en DB).
+ * Convertit un buffer Bytes (Uint8Array) en Float32Array pour calcul cosine.
+ * Les embeddings sont stockés en little-endian, dim*4 bytes.
+ */
+function bufferToFloat32(buf: Buffer | Uint8Array): Float32Array {
+  // Copie pour garantir l'alignement 4-byte (les Buffers Node peuvent
+  // pointer vers des offsets non-alignés dans un pool partagé).
+  const u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  const aligned = new Uint8Array(u8.byteLength);
+  aligned.set(u8);
+  return new Float32Array(aligned.buffer);
+}
+
+/** Cosine similarity entre 2 vecteurs (peut être négative). */
+function cosineSim(a: Float32Array, b: Float32Array): number {
+  if (a.length !== b.length) return 0;
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  const denom = Math.sqrt(na) * Math.sqrt(nb);
+  return denom === 0 ? 0 : dot / denom;
+}
+
+/**
+ * Score un guess contre la cible du jour.
  *
- * Si le mot n'est pas dans le top 1000 voisins du puzzle, on retourne rank
- * 9999 / tier 5 (glacial). C'est la même UX qu'un mot vraiment inconnu.
+ * **Hot path** (mot dans le top 1000 voisins) : lookup O(1) sur
+ * `CemantixDailyNeighbor`, similarity dérivée du rank via `rankToDisplaySim`
+ * (consistant entre puzzles, feeling Cemantix).
+ *
+ * **Cold path** (mot hors top 1000) : on calcule la similarity à la volée
+ * via embeddings → cosine. Permet d'afficher des températures **négatives**
+ * pour les mots sémantiquement opposés (comme dans le vrai Cemantix), au
+ * lieu d'un binaire « top-1000 vs glacial inconnu ». Coût : 2 lookups en
+ * parallèle (target + guess) + ~0.5 ms de calcul vectoriel sur 500d.
  */
 export async function scoreGuess(
   guess: string,
@@ -115,20 +187,52 @@ export async function scoreGuess(
   const norm = normalizeCemantix(guess);
   if (!norm) return { rank: 9999, tier: 5, similarity: null };
 
+  // Hot path : top 1000 pré-calculé
   const neighbor = await prisma.cemantixDailyNeighbor.findUnique({
     where: { puzzleDate_word: { puzzleDate, word: norm } },
-    select: { rank: true, similarity: true },
+    select: { rank: true },
   });
 
-  if (!neighbor) {
+  if (neighbor) {
+    return {
+      rank: neighbor.rank,
+      tier: rankToTier(neighbor.rank),
+      similarity: rankToDisplaySim(neighbor.rank),
+    };
+  }
+
+  // Cold path : on calcule la cosine à la volée, peut être négatif.
+  const target = await prisma.cemantixDailyTarget.findUnique({
+    where: { puzzleDate },
+    select: { word: true },
+  });
+  if (!target) return { rank: 9999, tier: 5, similarity: null };
+
+  const [targetWord, guessWord] = await Promise.all([
+    prisma.cemantixWord.findUnique({
+      where: { word: target.word },
+      select: { embedding: true },
+    }),
+    prisma.cemantixWord.findUnique({
+      where: { word: norm },
+      select: { embedding: true },
+    }),
+  ]);
+
+  if (!targetWord || !guessWord) {
+    // Mot vraiment inconnu (pas dans le vocab 70k).
     return { rank: 9999, tier: 5, similarity: null };
   }
 
+  const targetVec = bufferToFloat32(targetWord.embedding);
+  const guessVec = bufferToFloat32(guessWord.embedding);
+  const rawSim = cosineSim(targetVec, guessVec);
+  // Clamp à [-1, 1] (par sûreté numérique).
+  const sim = Math.max(-1, Math.min(1, rawSim));
+
   return {
-    rank: neighbor.rank,
-    tier: rankToTier(neighbor.rank),
-    // On retourne la similarity boostée pour un feeling plus Cemantix-style
-    // (top-1 ~0.85-0.92 au lieu de ~0.7). La valeur brute reste en DB.
-    similarity: boostSimilarity(neighbor.similarity),
+    rank: 9999,
+    tier: 5,
+    similarity: sim,
   };
 }

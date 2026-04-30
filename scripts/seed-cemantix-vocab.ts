@@ -4,10 +4,22 @@
  * filtre les mots français propres, et insère les ~70k premiers en DB
  * (`CemantixWord`).
  *
- * **Format attendu** : fastText `.vec.gz` (texte gzippé).
- *   Ligne 1 : `<num_words> <dim>`
- *   Lignes suivantes : `<word> <float1> <float2> ... <floatN>`
- *   Les mots sont triés par fréquence décroissante (top freq en premier).
+ * **Formats supportés** (auto-détection par extension) :
+ *
+ *   .bin       → Word2Vec **binaire** (Fauconnier FrWac, etc.)
+ *                Header ASCII : `<vocab_size> <dim>\n`
+ *                Pour chaque mot :
+ *                  - bytes UTF-8 jusqu'au prochain SPACE (0x20)
+ *                  - dim × float32 little-endian (vecteur)
+ *                  - newline optionnel
+ *
+ *   .vec.gz    → fastText texte gzippé.
+ *   .vec       → fastText texte brut.
+ *                Format texte ligne par ligne : `<word> <f1> <f2> ... <fdim>`
+ *
+ * Dans les deux cas les mots sont triés par fréquence décroissante (top
+ * freq en premier), donc on peut s'arrêter après VOCAB_SIZE entrées
+ * validées sans lire le fichier complet.
  *
  * **Filtre clean-FR** :
  *   - Strip accents NFD + lowercase
@@ -16,7 +28,7 @@
  *   - Pas de doublons après normalisation
  *
  * **Variables d'env** :
- *   - `MODEL_FILE` : chemin du fichier (défaut : .cache/cemantix/cc.fr.300.vec.gz)
+ *   - `MODEL_FILE` : chemin du fichier (auto-détecté sinon)
  *   - `VOCAB_SIZE` : nombre de mots à insérer (défaut : 70000)
  *
  * Run :
@@ -24,7 +36,7 @@
  *
  * Idempotent : truncate `CemantixWord` avant d'insérer.
  */
-import { createReadStream, existsSync } from 'node:fs';
+import { createReadStream, existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import { createGunzip } from 'node:zlib';
@@ -32,12 +44,25 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const MODEL_FILE =
-  process.env.MODEL_FILE ??
-  path.join(process.cwd(), '.cache', 'cemantix', 'cc.fr.300.vec.gz');
+/** Trouve automatiquement le modèle DL'd dans `.cache/cemantix/`. */
+function autodetectModelFile(): string {
+  const cacheDir = path.join(process.cwd(), '.cache', 'cemantix');
+  if (!existsSync(cacheDir)) return '';
+  const files = readdirSync(cacheDir).filter(
+    (f) => f.endsWith('.bin') || f.endsWith('.vec') || f.endsWith('.vec.gz'),
+  );
+  // Préfère .bin (Word2Vec) sur .vec.gz (fastText).
+  files.sort((a, b) => {
+    const score = (f: string) =>
+      f.endsWith('.bin') ? 0 : f.endsWith('.vec.gz') ? 1 : 2;
+    return score(a) - score(b);
+  });
+  return files[0] ? path.join(cacheDir, files[0]) : '';
+}
+
+const MODEL_FILE = process.env.MODEL_FILE ?? autodetectModelFile();
 const VOCAB_SIZE = Number.parseInt(process.env.VOCAB_SIZE ?? '70000', 10);
 
-/** Strip accents + lowercase (équivalent server.ts mais dupliqué pour ce script). */
 function normalize(s: string): string {
   return s
     .normalize('NFD')
@@ -46,7 +71,6 @@ function normalize(s: string): string {
     .trim();
 }
 
-/** Filtre clean-FR : que des lettres a-z, longueur 3-20. */
 function isCleanFrenchWord(w: string): boolean {
   if (w.length < 3 || w.length > 20) return false;
   if (!/^[a-z]+$/.test(w)) return false;
@@ -60,11 +84,10 @@ interface ParsedEntry {
 }
 
 /**
- * Stream-parse le fichier gzippé. Yield chaque entrée parsée au fur et à
- * mesure pour économiser la RAM (un .vec.gz décompressé fait ~7 GB).
- * S'arrête après VOCAB_SIZE entrées validées.
+ * Stream-parse un fichier fastText `.vec[.gz]` (texte).
+ * Yield chaque entrée parsée puis s'arrête après VOCAB_SIZE entrées valides.
  */
-async function* parseModelFile(filepath: string): AsyncGenerator<ParsedEntry> {
+async function* parseTextModel(filepath: string): AsyncGenerator<ParsedEntry> {
   const stream = createReadStream(filepath);
   const isGzip = filepath.endsWith('.gz');
   const decompressed = isGzip ? stream.pipe(createGunzip()) : stream;
@@ -80,17 +103,14 @@ async function* parseModelFile(filepath: string): AsyncGenerator<ParsedEntry> {
 
   for await (const line of rl) {
     if (lineNum === 0) {
-      // Header : "vocab_size dim"
       const parts = line.trim().split(/\s+/);
       dim = Number.parseInt(parts[1] ?? '300', 10);
       console.log(
-        `[cemantix-vocab] header: vocab=${parts[0]}, dim=${dim} ; on garde top ${VOCAB_SIZE} après filtre.`,
+        `[cemantix-vocab] (text) header: vocab=${parts[0]}, dim=${dim} ; on garde top ${VOCAB_SIZE} après filtre.`,
       );
       lineNum++;
       continue;
     }
-
-    // Format ligne : "word f1 f2 f3 ... fdim"
     const sep = line.indexOf(' ');
     if (sep < 0) {
       lineNum++;
@@ -104,12 +124,8 @@ async function* parseModelFile(filepath: string): AsyncGenerator<ParsedEntry> {
     if (seen.has(norm)) continue;
     seen.add(norm);
 
-    // Parse les floats. split + map plutôt que regex pour la perf.
     const floats = line.slice(sep + 1).split(' ');
-    if (floats.length !== dim) {
-      // Quelques lignes corrompues possibles, on skip.
-      continue;
-    }
+    if (floats.length !== dim) continue;
     const vec = new Float32Array(dim);
     let valid = true;
     for (let i = 0; i < dim; i++) {
@@ -129,10 +145,88 @@ async function* parseModelFile(filepath: string): AsyncGenerator<ParsedEntry> {
 }
 
 /**
+ * Stream-parse un fichier Word2Vec binaire (format Fauconnier FrWac).
+ *
+ * Spec :
+ *   Header ASCII : `<vocab_size> <dim>\n`
+ *   Pour chaque mot :
+ *     - bytes UTF-8 jusqu'au SPACE (0x20)
+ *     - vector_size * 4 bytes (float32 little-endian)
+ *     - newline (0x0A) optionnel — varie selon l'outil de génération
+ *
+ * Note : le SPACE (0x20) est sûr comme délimiteur car les bytes de
+ * continuation UTF-8 sont toujours `10xxxxxx` (ne contiennent jamais 0x20).
+ */
+async function* parseBinaryModel(filepath: string): AsyncGenerator<ParsedEntry> {
+  const stream = createReadStream(filepath);
+  let buffer: Buffer = Buffer.alloc(0);
+  let headerRead = false;
+  let dim = 0;
+  let vocabSize = 0;
+  let kept = 0;
+  const seen = new Set<string>();
+
+  for await (const chunk of stream) {
+    buffer = Buffer.concat([buffer, chunk as Buffer]);
+
+    // Header line ASCII jusqu'au '\n'
+    if (!headerRead) {
+      const newlineIdx = buffer.indexOf(0x0a);
+      if (newlineIdx < 0) continue;
+      const header = buffer.slice(0, newlineIdx).toString('utf-8');
+      const parts = header.trim().split(/\s+/);
+      vocabSize = Number.parseInt(parts[0] ?? '0', 10);
+      dim = Number.parseInt(parts[1] ?? '0', 10);
+      console.log(
+        `[cemantix-vocab] (binary) header: vocab=${vocabSize}, dim=${dim} ; on garde top ${VOCAB_SIZE} après filtre.`,
+      );
+      buffer = buffer.slice(newlineIdx + 1);
+      headerRead = true;
+    }
+
+    const vecBytes = dim * 4;
+
+    // Boucle : extrait autant de mots que possible avec les bytes dispos.
+    while (true) {
+      const spaceIdx = buffer.indexOf(0x20);
+      if (spaceIdx < 0) break; // pas encore le space
+      // Total nécessaire : word + SPACE + vecteur (+ optional newline)
+      const need = spaceIdx + 1 + vecBytes;
+      if (buffer.length < need) break;
+
+      const rawWord = buffer.slice(0, spaceIdx).toString('utf-8');
+      const vecStart = spaceIdx + 1;
+      // Parse vecteur via DataView pour LE explicit + force ArrayBuffer pur.
+      const vec = new Float32Array(dim);
+      for (let i = 0; i < dim; i++) {
+        vec[i] = buffer.readFloatLE(vecStart + i * 4);
+      }
+
+      let consumed = vecStart + vecBytes;
+      // Skip optional trailing newline.
+      if (consumed < buffer.length && buffer[consumed] === 0x0a) consumed++;
+      buffer = buffer.slice(consumed);
+
+      const norm = normalize(rawWord);
+      if (isCleanFrenchWord(norm) && !seen.has(norm)) {
+        seen.add(norm);
+        yield { word: norm, vec, freqRank: kept };
+        kept++;
+        if (kept >= VOCAB_SIZE) return;
+      }
+    }
+  }
+}
+
+/** Dispatch sur le bon parser selon l'extension. */
+function parseModelFile(filepath: string): AsyncGenerator<ParsedEntry> {
+  if (filepath.endsWith('.bin')) return parseBinaryModel(filepath);
+  return parseTextModel(filepath);
+}
+
+/**
  * Sérialise Float32Array en Uint8Array (little-endian, dim*4 bytes).
- * Prisma 6 type strict `Bytes` ↔ `Uint8Array<ArrayBuffer>`. On force le
- * paramètre générique en passant explicitement par un `new ArrayBuffer()`,
- * sinon TypeScript infère `ArrayBufferLike` (cf. évolution lib.dom 2024+).
+ * Prisma 6 type strict `Bytes` ↔ `Uint8Array<ArrayBuffer>`.
  */
 function vecToBuffer(vec: Float32Array): Uint8Array<ArrayBuffer> {
   const arr = new ArrayBuffer(vec.byteLength);
@@ -144,13 +238,15 @@ function vecToBuffer(vec: Float32Array): Uint8Array<ArrayBuffer> {
 }
 
 async function main() {
-  if (!existsSync(MODEL_FILE)) {
+  if (!MODEL_FILE || !existsSync(MODEL_FILE)) {
     console.error(
-      `[cemantix-vocab] Fichier introuvable : ${MODEL_FILE}\n` +
+      `[cemantix-vocab] Fichier introuvable : ${MODEL_FILE || '(aucun)'}.\n` +
         `Lance d'abord : npx tsx scripts/download-cemantix-model.ts`,
     );
     process.exit(1);
   }
+
+  console.log(`[cemantix-vocab] modèle : ${MODEL_FILE}`);
 
   // Wipe la table avant d'insérer.
   console.log('[cemantix-vocab] truncate CemantixWord...');
@@ -191,7 +287,6 @@ async function main() {
     }
   }
 
-  // Flush du dernier batch.
   if (batch.length > 0) {
     await prisma.cemantixWord.createMany({ data: batch, skipDuplicates: true });
     totalInserted += batch.length;
@@ -200,7 +295,7 @@ async function main() {
   const dur = ((Date.now() - start) / 1000).toFixed(1);
   console.log(`[cemantix-vocab] OK — ${totalInserted} mots insérés en ${dur}s.`);
   console.log(
-    `[cemantix-vocab] Suivante étape : npx tsx scripts/build-cemantix-puzzles.ts`,
+    `[cemantix-vocab] Suivante étape : npx tsx scripts/build-cemantix-puzzles.ts --rebuild --days 30`,
   );
 }
 
