@@ -137,7 +137,20 @@ function cmxHeatColor(heat: number): string {
   return AC.shimmer;
 }
 
-export function CemantixGame() {
+interface CemantixGameProps {
+  /**
+   * Cible d'hier (UTC), fournie par la page server-side. `null` si pas
+   * encore de puzzle pour cette date (cron pas lancé ou très première
+   * session après déploiement).
+   */
+  yesterday?: {
+    puzzleDate: string;
+    word: string;
+    sense: string | null;
+  } | null;
+}
+
+export function CemantixGame({ yesterday = null }: CemantixGameProps = {}) {
   const today = dailyDateKey();
   const storageKey = `cemantix_v2_${today}`;
 
@@ -287,6 +300,30 @@ export function CemantixGame() {
             }}
           >
             sens : {sense}
+          </span>
+        )}
+        {yesterday && (
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+              fontSize: 10,
+              letterSpacing: '0.22em',
+              color: AC.bone2,
+              border: `1px dashed ${AC.bone2}`,
+              padding: '2px 8px',
+              textTransform: 'uppercase',
+              marginLeft: 'auto',
+            }}
+            title={
+              yesterday.sense
+                ? `Hier (${yesterday.puzzleDate}) — sens : ${yesterday.sense}`
+                : `Hier — ${yesterday.puzzleDate}`
+            }
+          >
+            {'// hier ▸ '}
+            <span style={{ color: AC.gold, fontWeight: 700 }}>
+              {yesterday.word.toUpperCase()}
+            </span>
           </span>
         )}
       </div>

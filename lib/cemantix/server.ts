@@ -140,6 +140,24 @@ export async function getDailyTarget(puzzleDate: string = dailyDateKey()): Promi
 }
 
 /**
+ * Get yesterday's target (UTC). Utilisé pour afficher « Hier : MOT » au
+ * joueur après qu'un puzzle est passé. Si la date d'hier n'a pas de cible
+ * en DB (ex. première session post-déploiement, cron pas encore lancé),
+ * retourne `null`.
+ */
+export async function getYesterdayTarget(): Promise<{
+  puzzleDate: string;
+  word: string;
+  sense: string | null;
+} | null> {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setUTCDate(today.getUTCDate() - 1);
+  return getDailyTarget(dailyDateKey(yesterday));
+}
+
+/**
  * Convertit un buffer Bytes (Uint8Array) en Float32Array pour calcul cosine.
  * Les embeddings sont stockés en little-endian, dim*4 bytes.
  */

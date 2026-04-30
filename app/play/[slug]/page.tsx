@@ -4,11 +4,15 @@ import { WorldleGame } from '@/app/games/worldle/components/WorldleGame';
 import { WikiEraGame } from '@/app/games/wikiera/components/WikiEraGame';
 import { PasswordGame } from '@/app/games/password/components/PasswordGame';
 import { CemantixGame } from '@/app/games/cemantix/components/CemantixGame';
+import { getYesterdayTarget } from '@/lib/cemantix/server';
 
 /**
  * Page unique pour tous les jeux solo. Le slug de l'URL choisit le composant
  * de jeu. Pas de room, pas de token, pas de WebSocket : chaque jeu gère son
  * état via localStorage.
+ *
+ * Cas spécial Cémantix : on fetch la cible d'hier server-side (avant rendu)
+ * pour pouvoir l'afficher au joueur sans coûter une route API supplémentaire.
  */
 export default async function PlayPage({
   params,
@@ -26,8 +30,10 @@ export default async function PlayPage({
       return <WikiEraGame />;
     case 'password':
       return <PasswordGame />;
-    case 'cemantix':
-      return <CemantixGame />;
+    case 'cemantix': {
+      const yesterday = await getYesterdayTarget();
+      return <CemantixGame yesterday={yesterday} />;
+    }
     default:
       notFound();
   }
