@@ -121,6 +121,9 @@ export async function GET(
           redirect: 'follow',
         });
         if (!res.ok) {
+          console.error(
+            `[QUIZ-CEO asset proxy] upstream not ok: ${realPath} → status=${res.status} ct=${res.headers.get('content-type')}`,
+          );
           return new Response('Upstream error', { status: 502 });
         }
         const ct =
@@ -133,7 +136,10 @@ export async function GET(
             'X-Content-Type-Options': 'nosniff',
           },
         });
-      } catch {
+      } catch (e) {
+        console.error(
+          `[QUIZ-CEO asset proxy] upstream fetch threw: ${realPath} → ${e instanceof Error ? e.message : String(e)}`,
+        );
         return new Response('Upstream fetch failed', { status: 502 });
       }
     }

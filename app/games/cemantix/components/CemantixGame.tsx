@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SoloScreen } from '@/app/games/solo/SoloScreen';
 import { usePersistedState } from '@/app/games/solo/usePersistedState';
 import {
@@ -56,6 +56,11 @@ export function CemantixGame() {
   const [input, setInput] = useState('');
   const [lastAttempt, setLastAttempt] = useState<Attempt | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Ref vers l'input pour ré-injecter le focus après chaque tentative.
+  // Sans ça, le bouton OK volait le focus au clic et le `disabled=true`
+  // pendant le submit faisait blur l'input → l'utilisateur devait re-cliquer
+  // pour retaper. On force le focus après chaque submit (succès ou doublon).
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const won = target !== null && attempts.some((a) => a.rank === 0);
 
@@ -65,6 +70,8 @@ export function CemantixGame() {
     if (!norm) return;
     if (attempts.some((a) => normalizeForDedup(a.word) === norm)) {
       setInput('');
+      // Doublon : on garde le focus pour relancer immédiatement.
+      inputRef.current?.focus();
       return;
     }
     setSubmitting(true);
@@ -96,8 +103,26 @@ export function CemantixGame() {
       setInput('');
     } finally {
       setSubmitting(false);
+      // Le re-focus est fait dans un useEffect[submitting] (cf. plus bas) :
+      // on attend que React commit le ré-enabled du <input> avant de tenter
+      // .focus(), sinon le browser gobe le focus dans un blur de bouton OK.
     }
   }, [attempts, input, saved.target, setSaved, submitting, today, won]);
+
+  // Re-focus automatique : dès que `submitting` retombe à false (succès,
+  // doublon ou erreur), on rend la main au champ. Évite que l'utilisateur
+  // doive cliquer dans l'input à chaque tentative quand il valide via le
+  // bouton OK ou qu'un blur intervient pendant le `disabled=true`.
+  useEffect(() => {
+    if (submitting) return;
+    if (won) return;
+    // 0ms suffit : le useEffect tourne après le commit React qui ré-enable
+    // l'input, donc .focus() prend effet immédiatement.
+    const t = setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [submitting, won, attempts.length]);
 
   // Historique trié par proximité (rank croissant).
   const sorted = [...attempts].sort((a, b) => a.rank - b.rank);
@@ -122,6 +147,7 @@ export function CemantixGame() {
         <AcCard fold={false} dashed style={{ padding: 16, marginBottom: 14 }}>
           <div className="flex gap-2">
             <input
+              ref={inputRef}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
