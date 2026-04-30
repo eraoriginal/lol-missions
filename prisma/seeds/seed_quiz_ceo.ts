@@ -51,7 +51,7 @@ import {
 import { INTERNATIONAL_FOODS } from '../../lib/quizCeo/internationalFood';
 import { ROAD_SIGNS } from '../../lib/quizCeo/roadSigns';
 import { FRENCH_ADS } from '../../lib/quizCeo/frenchAds';
-import { KNOW_ERA_QUESTIONS } from '../../lib/quizCeo/knowEra';
+import { KNOW_ERA_QUESTIONS, isValidKnowEraEntry } from '../../lib/quizCeo/knowEra';
 
 const prisma = new PrismaClient();
 
@@ -384,9 +384,22 @@ async function main() {
 
   // Insertion en masse de la catégorie `know-era` (questions sur le CEO de
   // la KAF). Stocke `payload = { text, distractors }` + `answer = { text }` ;
-  // le runtime de `start/route.ts` reconstruit `payload.choices` (4 choix
-  // mélangés à chaque partie, distractors complétés au besoin).
-  const knowEraData = KNOW_ERA_QUESTIONS.map((entry) => ({
+  // le runtime de `start/route.ts` reconstruit `payload.choices` (1 correct
+  // + 3 distractors mélangés à chaque partie). On filtre les entrées
+  // incomplètes (< 3 distractors uniques) pour éviter les QCM cassés en jeu.
+  const knowEraValid: typeof KNOW_ERA_QUESTIONS = [];
+  const knowEraSkipped: string[] = [];
+  for (const entry of KNOW_ERA_QUESTIONS) {
+    if (isValidKnowEraEntry(entry)) knowEraValid.push(entry);
+    else knowEraSkipped.push(entry.id);
+  }
+  if (knowEraSkipped.length > 0) {
+    console.warn(
+      `[quiz-ceo seed] know-era : ${knowEraSkipped.length} entrée(s) ignorée(s) ` +
+        `(distractors incomplets) : ${knowEraSkipped.join(', ')}`,
+    );
+  }
+  const knowEraData = knowEraValid.map((entry) => ({
     type: 'know-era',
     difficulty: 'medium' as const,
     points: DIFFICULTY_POINTS.medium,
@@ -401,6 +414,10 @@ async function main() {
     data: knowEraData,
   });
   created += knowEraResult.count;
+  console.log(
+    `[quiz-ceo seed] know-era : ${knowEraResult.count} entrée(s) seedée(s) ` +
+      `(${knowEraSkipped.length} ignorée(s)).`,
+  );
 
   console.log(`[quiz-ceo seed] ${created} question(s) insérée(s).`);
 }

@@ -1,198 +1,134 @@
 import 'server-only';
 
 /**
- * Puzzles Cemantix (version simplifiée) — **server-only**.
- * `import 'server-only'` empêche tout bundle client : la cible + les tiers
- * restent secrets. Le client passe par `POST /api/solo/cemantix/guess`.
+ * `La Cémantix d'Era` — backend server-only.
  *
- * Sans embeddings français embarqués (trop lourd) ni API externe, on se
- * contente d'une liste hand-curated de mots « voisins sémantiques » classés
- * par tier pour chaque mot-cible.
+ * Refonte 2026-04-30 : on est passé d'une liste hand-curated (~150 mots / 4
+ * tiers) à un vrai système d'embeddings sémantiques pré-calculés.
  *
- *   tier1 : ultra proches (rank 1..10)
- *   tier2 : fortement reliés (rank 11..50)
- *   tier3 : reliés par thème (rank 51..200)
- *   tier4 : vaguement reliés (rank 201..1000)
+ * **Architecture** :
+ *   - `CemantixWord` (DB) : ~70k mots français avec leurs embeddings 300d.
+ *     Utilisé UNIQUEMENT par `scripts/build-cemantix-puzzles.ts`.
+ *   - `CemantixDailyTarget` (DB) : la cible du jour (1 par puzzleDate UTC).
+ *   - `CemantixDailyNeighbor` (DB) : top 1000 voisins pré-calculés par
+ *     puzzle (rank + cosine similarity). Lookup O(1) par `(date, word)`.
  *
- * Un mot inconnu de la table = rank 9999 (glacial). Seul le mot cible exact
- * fait gagner la partie. La comparaison normalise accents + casse.
+ * Au runtime, `scoreGuess` ne fait qu'un `findUnique` sur
+ * `CemantixDailyNeighbor` — pas de chargement de modèle, pas de calcul
+ * vectoriel côté Vercel.
+ *
+ * Pipeline de seed (à lancer une fois sur le PC du dev, puis nightly cron) :
+ *   1. `npx tsx scripts/download-cemantix-model.ts`
+ *   2. `npx tsx scripts/seed-cemantix-vocab.ts`
+ *   3. `npx tsx scripts/build-cemantix-puzzles.ts --days 30`
+ *
+ * Cf. CLAUDE.md « La Cémantix d'Era » pour les détails.
  */
 
-export interface CemantixPuzzle {
-  target: string;
-  tier1: string[];
-  tier2: string[];
-  tier3: string[];
-  tier4: string[];
-}
+import { prisma } from '@/lib/prisma';
+import { dailyDateKey } from '@/lib/solo/dailyIndex';
+import type { CemantixTier } from './shared';
 
-export const PUZZLES: CemantixPuzzle[] = [
-  {
-    target: 'océan',
-    tier1: ['mer', 'vague', 'eau', 'maritime', 'océanique', 'marin', 'atlantique', 'pacifique', 'flot'],
-    tier2: [
-      'plage', 'sable', 'sel', 'salé', 'bateau', 'navire', 'pêche', 'poisson',
-      'dauphin', 'requin', 'baleine', 'corail', 'île', 'rivage', 'côte',
-      'large', 'profondeur', 'courant', 'marée', 'port', 'voilier',
-    ],
-    tier3: [
-      'pirate', 'sous-marin', 'tempête', 'vent', 'horizon', 'mouette',
-      'algue', 'récif', 'tropical', 'littoral', 'nageur', 'plongeur',
-      'coquillage', 'homard', 'crabe', 'méduse', 'tortue', 'orque',
-      'navigation', 'boussole', 'phare', 'capitaine', 'cargaison',
-      'rame', 'voile', 'regate',
-    ],
-    tier4: [
-      'eau douce', 'lac', 'rivière', 'fleuve', 'poissonnier', 'terrestre',
-      'continent', 'côtier', 'nord', 'sud', 'vaste', 'bleu', 'vert',
-      'soleil', 'chaleur', 'été', 'vacances', 'pétrole', 'exploration',
-      'déchets', 'pollution', 'biodiversité', 'écosystème', 'scientifique',
-    ],
-  },
-  {
-    target: 'musique',
-    tier1: ['son', 'mélodie', 'chanson', 'note', 'rythme', 'musical', 'musicien', 'harmonie'],
-    tier2: [
-      'piano', 'guitare', 'violon', 'batterie', 'concert', 'orchestre',
-      'artiste', 'compositeur', 'chanteur', 'partition', 'instrument',
-      'accord', 'écouter', 'danser', 'album', 'groupe', 'studio',
-      'festival', 'radio', 'beat', 'cadence',
-    ],
-    tier3: [
-      'jazz', 'rock', 'classique', 'pop', 'blues', 'opéra', 'symphonie',
-      'solo', 'refrain', 'couplet', 'scène', 'tournée', 'public',
-      'applaudir', 'microphone', 'enceinte', 'casque', 'vinyle', 'disque',
-      'morceau', 'titre', 'hit', 'sample', 'mix', 'dj', 'rap', 'reggae',
-    ],
-    tier4: [
-      'son aigu', 'grave', 'écouteur', 'bande son', 'théâtre', 'spectacle',
-      'danse', 'ballet', 'cinéma', 'émotion', 'silence', 'bruit',
-      'composition', 'écriture', 'artiste peintre', 'création',
-      'culture', 'art', 'jeune', 'ado', 'plaisir', 'passion',
-    ],
-  },
-  {
-    target: 'montagne',
-    tier1: ['sommet', 'altitude', 'mont', 'alpin', 'pic', 'massif'],
-    tier2: [
-      'neige', 'ski', 'alpiniste', 'escalade', 'rocher', 'sentier',
-      'randonnée', 'vallée', 'glacier', 'chalet', 'sapin', 'aigle',
-      'ours', 'chamois', 'marmotte', 'alpes', 'pyrénées', 'himalaya',
-      'everest', 'refuge', 'ascension', 'corde',
-    ],
-    tier3: [
-      'nature', 'forêt', 'roche', 'pierre', 'pente', 'descente',
-      'montée', 'colline', 'plateau', 'vallon', 'gorge', 'crête',
-      'falaise', 'précipice', 'avalanche', 'froid', 'hiver', 'gel',
-      'bâton', 'crampon', 'piolet', 'bivouac', 'tente', 'camping',
-      'guide', 'carte',
-    ],
-    tier4: [
-      'mer', 'plaine', 'campagne', 'ville', 'route', 'voyage',
-      'paysage', 'horizon', 'soleil couchant', 'randonneur', 'touriste',
-      'panneau', 'téléphérique', 'station', 'chocolat chaud', 'fromage',
-      'savoie', 'tyrol', 'géographie', 'géologie', 'séisme', 'volcan',
-    ],
-  },
-  {
-    target: 'livre',
-    tier1: ['lecture', 'lire', 'ouvrage', 'bouquin', 'roman', 'recueil'],
-    tier2: [
-      'auteur', 'écrivain', 'éditeur', 'bibliothèque', 'page', 'chapitre',
-      'titre', 'édition', 'librairie', 'papier', 'imprimer', 'relier',
-      'histoire', 'poésie', 'prose', 'nouvelle', 'essai', 'conte',
-      'fable', 'thèse', 'manuscrit',
-    ],
-    tier3: [
-      'bibliophile', 'collection', 'saga', 'trilogie', 'tome', 'volume',
-      'couverture', 'dos', 'reliure', 'signet', 'préface', 'épilogue',
-      'dédicace', 'personnage', 'protagoniste', 'narrateur', 'intrigue',
-      'suspense', 'mystère', 'polar', 'thriller', 'fantastique',
-      'science-fiction', 'fantasy', 'jeunesse', 'albums',
-    ],
-    tier4: [
-      'papier journal', 'journal', 'magazine', 'bd', 'manga', 'kindle',
-      'liseuse', 'pdf', 'écran', 'digital', 'numérique', 'cinéma',
-      'adaptation', 'scénario', 'film', 'série', 'musée', 'école',
-      'cours', 'professeur', 'élève', 'savoir', 'culture', 'sagesse',
-    ],
-  },
-  {
-    target: 'voyage',
-    tier1: ['voyager', 'déplacement', 'excursion', 'périple', 'expédition', 'odyssée'],
-    tier2: [
-      'vacances', 'tourisme', 'touriste', 'destination', 'pays', 'étranger',
-      'avion', 'train', 'voiture', 'bateau', 'bus', 'métro',
-      'billet', 'valise', 'sac à dos', 'passeport', 'visa', 'frontière',
-      'hôtel', 'auberge', 'camping',
-    ],
-    tier3: [
-      'aventure', 'découverte', 'explorer', 'sillonner', 'traverser',
-      'partir', 'revenir', 'arriver', 'départ', 'arrivée', 'escale',
-      'correspondance', 'aéroport', 'gare', 'port', 'terminal',
-      'carte', 'guide', 'itinéraire', 'circuit', 'road trip',
-      'sac de voyage', 'trousse',
-    ],
-    tier4: [
-      'plage', 'montagne', 'ville', 'campagne', 'désert', 'jungle',
-      'culture', 'langue', 'cuisine locale', 'souvenir', 'photo',
-      'carte postale', 'tampon', 'monnaie', 'change', 'pourboire',
-      'retard', 'annulation', 'bagage perdu', 'vaccin', 'assurance',
-    ],
-  },
-];
-
-/** Normalise input pour comparaison : lowercase + strip accents + trim. */
+/**
+ * Normalise un guess pour matcher les mots stockés en DB :
+ *   - lowercase
+ *   - strip accents (NFD + combining diacriticals)
+ *   - trim + retire chars non-alphabétiques
+ *
+ * Identique au script `seed-cemantix-vocab.ts` : tout mot inséré en DB est
+ * passé par le même pipeline.
+ */
 export function normalizeCemantix(s: string): string {
   return s
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9 -]/g, '');
+    .replace(/[^a-z]/g, '');
+}
+
+/** rank → tier mapping (intégré aux constantes Cemantix officielles). */
+export function rankToTier(rank: number): CemantixTier {
+  if (rank <= 0) return 1; // target trouvé
+  if (rank <= 10) return 1; // brûlant (top 10)
+  if (rank <= 50) return 2; // chaud (top 50)
+  if (rank <= 200) return 3; // tiède (top 200)
+  if (rank <= 1000) return 4; // froid (top 1000)
+  return 5; // glacial (hors top 1000 ou inconnu)
+}
+
+/**
+ * Boost UX du cosine brut.
+ *
+ * fastText `cc.fr.300` (notre modèle par défaut) retourne des cosines plus
+ * serrés que le Cemantix officiel : pour un même target, le top-1 plafonne
+ * souvent à 0.7-0.78 alors que dans le vrai Cemantix on attend 0.85-0.95.
+ * C'est une propriété du training avec subword n-grams (FastText) vs
+ * Word2Vec pur (FrWac) — pas un bug.
+ *
+ * Pour un feeling plus « Cemantix-style », on applique une power curve
+ * `x^0.7` qui boost les valeurs hautes plus que les basses, **sans changer
+ * l'ordre des rangs** (transformation monotone). Exemples :
+ *   0.78 → 0.84  | 0.66 → 0.75  | 0.55 → 0.66  | 0.40 → 0.52  | 0.20 → 0.32
+ *
+ * Le rank stocké en DB ne bouge pas — seule la valeur affichée au joueur
+ * change. Si tu veux la valeur brute, lis `CemantixDailyNeighbor.similarity`
+ * directement.
+ */
+function boostSimilarity(raw: number): number {
+  if (raw <= 0) return 0;
+  if (raw >= 1) return 1;
+  return Math.pow(raw, 0.7);
 }
 
 export interface ScoreResult {
-  rank: number; // 0 = target, sinon 1..9999
-  tier: 1 | 2 | 3 | 4 | 5; // 5 = inconnu (glacial)
+  /** 0 = target trouvée, 1..1000 = rank dans le top voisins, 9999 = inconnu. */
+  rank: number;
+  /** 1 brûlant → 5 glacial. */
+  tier: CemantixTier;
+  /** Cosine similarity dans [-1, 1] (utile pour l'UX). */
+  similarity: number | null;
 }
 
-/** Retourne le score pour un guess donné sur un puzzle. */
-export function scoreGuess(puzzle: CemantixPuzzle, guess: string): ScoreResult {
-  const g = normalizeCemantix(guess);
-  if (!g) return { rank: 9999, tier: 5 };
-  if (normalizeCemantix(puzzle.target) === g) return { rank: 0, tier: 1 };
-
-  const inTier = (list: string[], base: number, slotWidth: number): ScoreResult | null => {
-    for (let i = 0; i < list.length; i++) {
-      if (normalizeCemantix(list[i]) === g) {
-        const rank = base + Math.min(slotWidth - 1, i);
-        const tier = base === 1 ? 1 : base === 11 ? 2 : base === 51 ? 3 : 4;
-        return { rank, tier: tier as 1 | 2 | 3 | 4 };
-      }
-    }
-    return null;
-  };
-
-  return (
-    inTier(puzzle.tier1, 1, 10) ??
-    inTier(puzzle.tier2, 11, 40) ??
-    inTier(puzzle.tier3, 51, 150) ??
-    inTier(puzzle.tier4, 201, 800) ?? { rank: 9999, tier: 5 }
-  );
+/** Get the daily target for a given date (defaults to today UTC). */
+export async function getDailyTarget(puzzleDate: string = dailyDateKey()): Promise<{
+  puzzleDate: string;
+  word: string;
+  sense: string | null;
+} | null> {
+  const t = await prisma.cemantixDailyTarget.findUnique({
+    where: { puzzleDate },
+  });
+  return t ? { puzzleDate: t.puzzleDate, word: t.word, sense: t.sense } : null;
 }
 
-export function tierLabel(tier: 1 | 2 | 3 | 4 | 5): { label: string; color: string; emoji: string } {
-  switch (tier) {
-    case 1:
-      return { label: 'brûlant', color: '#FF3D3D', emoji: '🔥' };
-    case 2:
-      return { label: 'chaud', color: '#F5B912', emoji: '🌶️' };
-    case 3:
-      return { label: 'tiède', color: '#FF3D8B', emoji: '☕' };
-    case 4:
-      return { label: 'froid', color: '#5EB8FF', emoji: '🧊' };
-    case 5:
-      return { label: 'glacial', color: '#8A3DD4', emoji: '❄️' };
+/**
+ * Score un guess contre la cible du jour (lookup O(1) en DB).
+ *
+ * Si le mot n'est pas dans le top 1000 voisins du puzzle, on retourne rank
+ * 9999 / tier 5 (glacial). C'est la même UX qu'un mot vraiment inconnu.
+ */
+export async function scoreGuess(
+  guess: string,
+  puzzleDate: string = dailyDateKey(),
+): Promise<ScoreResult> {
+  const norm = normalizeCemantix(guess);
+  if (!norm) return { rank: 9999, tier: 5, similarity: null };
+
+  const neighbor = await prisma.cemantixDailyNeighbor.findUnique({
+    where: { puzzleDate_word: { puzzleDate, word: norm } },
+    select: { rank: true, similarity: true },
+  });
+
+  if (!neighbor) {
+    return { rank: 9999, tier: 5, similarity: null };
   }
+
+  return {
+    rank: neighbor.rank,
+    tier: rankToTier(neighbor.rank),
+    // On retourne la similarity boostée pour un feeling plus Cemantix-style
+    // (top-1 ~0.85-0.92 au lieu de ~0.7). La valeur brute reste en DB.
+    similarity: boostSimilarity(neighbor.similarity),
+  };
 }

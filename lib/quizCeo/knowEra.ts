@@ -2,15 +2,20 @@
  * Catalogue de la catégorie `know-era` du Quiz du CEO — questions sur la
  * personnalité, les goûts et les références du « CEO de la KAF ».
  *
- * Format QCM : énoncé fixe + 1 réponse correcte + 3 distractors. Si l'entrée
- * fournit moins de 3 distractors, le runtime de `start/route.ts` complète
- * depuis le pool global des autres réponses du catalogue (exclut la bonne
- * réponse et les distractors déjà présents) — pattern identique à
- * `slogan-pub` / `zodiac-mbti`.
+ * Format QCM : énoncé + 1 réponse correcte + 3 distractors **thématiquement
+ * cohérents** (curés à la main). Le runtime de `start/route.ts` ne fait que
+ * mélanger les 4 choix à chaque partie ; il NE complète plus depuis un pool
+ * global (ce qui produisait des QCM incohérents type "Violon vs Backstreet
+ * Boys vs Gladiator vs Pastore").
+ *
+ * **Règle invariante** : `distractors.length === 3` pour TOUTES les entrées.
+ * La page de collecte `/test/know-era` enforce ça côté UI ; le seed log un
+ * warning si une entrée arrive en DB avec moins.
  *
  * Source : réponses collectées via la page `/test/know-era` (formulaire
- * interactif). L'agent ne réécrit JAMAIS le contenu — c'est la voix du CEO,
- * pas la sienne.
+ * interactif). L'agent ne réécrit JAMAIS le contenu d'`answer` — c'est la
+ * voix du CEO, pas la sienne. En revanche les distractors sont curés par
+ * l'agent quand l'entrée arrive sans (cohérence thématique uniquement).
  */
 
 export interface KnowEraEntry {
@@ -21,10 +26,12 @@ export interface KnowEraEntry {
   /** La bonne réponse — apparaîtra dans `payload.choices` à un index random. */
   answer: string;
   /**
-   * 0 à 3 distractors curés. Si < 3, le runtime complète depuis le pool
-   * global de toutes les autres réponses du catalogue.
+   * **Exactement 3** distractors thématiquement cohérents (mêmes catégorie
+   * que `answer` : un instrument vs un instrument, un film vs un film, etc.).
+   * Si une entrée arrive avec < 3, le seed warn et la question est ignorée
+   * pour éviter un QCM incohérent en jeu.
    */
-  distractors: string[];
+  distractors: [string, string, string];
 }
 
 export const KNOW_ERA_QUESTIONS: KnowEraEntry[] = [
@@ -88,14 +95,14 @@ export const KNOW_ERA_QUESTIONS: KnowEraEntry[] = [
   {
     id: 'concert-meilleur',
     questionText: "Quel est le meilleur concert auquel a assisté le « CEO de la KAF » ?",
-    answer: 'Hans Zimmer',
-    distractors: [],
+    answer: 'Hans Zimmer - Accor Arena',
+    distractors: ['Backstreet Boys - Zénith de Paris', 'Boyz II Men - Zénith de Paris', 'Blackpink - Stade de France'],
   },
   {
     id: 'instrument',
     questionText: 'Quel instrument joue (ou rêve de jouer) le « CEO de la KAF » ?',
     answer: 'Violon',
-    distractors: [],
+    distractors: ['Piano', 'Guitare', 'Batterie'],
   },
   {
     id: 'album-iconique',
@@ -131,7 +138,7 @@ export const KNOW_ERA_QUESTIONS: KnowEraEntry[] = [
     id: 'actrice',
     questionText: "Qui est l'actrice préférée du « CEO de la KAF » ?",
     answer: 'Natalie Portman',
-    distractors: [],
+    distractors: ['Keira Knightley', 'Emma Stone', 'Anne Hathaway'],
   },
   {
     id: 'realisateur',
@@ -149,7 +156,7 @@ export const KNOW_ERA_QUESTIONS: KnowEraEntry[] = [
     id: 'super-heros',
     questionText: 'Quel est le super-héros préféré du « CEO de la KAF » ?',
     answer: 'Batman',
-    distractors: [],
+    distractors: ['Iron Man', 'FLash', 'Wolverine'],
   },
   {
     id: 'mechant-cine',
@@ -167,13 +174,13 @@ export const KNOW_ERA_QUESTIONS: KnowEraEntry[] = [
     id: 'serie-binge',
     questionText: 'Quelle série le « CEO de la KAF » a-t-il binge-watchée ?',
     answer: 'Héros fragile',
-    distractors: [],
+    distractors: ['Sans Merci', 'The Boys', 'Squid Game'],
   },
   {
     id: 'film-deteste',
     questionText: 'Quel film populaire le « CEO de la KAF » déteste-t-il ?',
     answer: 'Matrix',
-    distractors: [],
+    distractors: ['Avatar', 'Titanic', 'Pulp Fiction'],
   },
 
   // ───── MANGA / LIVRES ─────
@@ -186,26 +193,26 @@ export const KNOW_ERA_QUESTIONS: KnowEraEntry[] = [
   {
     id: 'manga-2',
     questionText: 'Quel est le deuxième manga favori du « CEO de la KAF » ?',
-    answer: 'Naruto',
-    distractors: [],
+    answer: 'Bleach',
+    distractors: ['Major', 'Naruto', 'Demon Slayer'],
   },
   {
     id: 'perso-manga',
     questionText: 'Qui est le personnage de manga préféré du « CEO de la KAF » ?',
-    answer: 'Sangohan',
-    distractors: ['Shōyō Hinata', 'Eijun Sawamura', 'Light Yagami'],
+    answer: 'Shōyō Hinata',
+    distractors: ['Sangohan', 'Eijun Sawamura', 'Light Yagami'],
   },
   {
     id: 'livre-fav',
     questionText: 'Quel livre a marqué le « CEO de la KAF » ?',
     answer: 'Arsène Lupin, gentleman cambrioleur',
-    distractors: [],
+    distractors: ['Le Petit Prince', 'Les Misérables', "L'Étranger"],
   },
   {
     id: 'auteur-fav',
     questionText: "Qui est l'auteur préféré du « CEO de la KAF » ?",
     answer: 'Maurice Leblanc',
-    distractors: [],
+    distractors: ['Albert Camus', 'Victor Hugo', 'Émile Zola'],
   },
 
   // ───── JEUX VIDÉO ─────
@@ -243,19 +250,19 @@ export const KNOW_ERA_QUESTIONS: KnowEraEntry[] = [
     id: 'mmo',
     questionText: 'Quel est le MMO préféré du « CEO de la KAF » ?',
     answer: 'Lost Ark',
-    distractors: [],
+    distractors: ['World of Warcraft', 'Final Fantasy XIV', 'Guild Wars 2'],
   },
   {
     id: 'fps',
     questionText: 'Quel est le FPS préféré du « CEO de la KAF » ?',
     answer: 'GoldenEye 007',
-    distractors: [],
+    distractors: ['Counter-Strike', 'Call of Duty', 'Halo'],
   },
   {
     id: 'jeu-coop',
     questionText: 'Quel est le meilleur jeu coop entre potes selon le « CEO de la KAF » ?',
     answer: 'Kebab Simulator',
-    distractors: [],
+    distractors: ['It Takes Two', 'Overcooked', 'Helldivers 2'],
   },
   {
     id: 'perso-jv',
@@ -306,13 +313,22 @@ export const KNOW_ERA_QUESTIONS: KnowEraEntry[] = [
 ];
 
 /**
- * Pool global de toutes les réponses uniques du catalogue. Utilisé par le
- * runtime de `start/route.ts` pour compléter les distractors quand une
- * entrée en a moins de 3.
+ * Filtre les entrées valides (i.e. avec exactement 3 distractors non-vides
+ * tous distincts de la réponse). Utilisé par le seed pour ne pas insérer en
+ * DB des QCM cassés. Les anciennes entrées avec `distractors: []` reposaient
+ * sur un fallback "pool global" qui mélangeait toutes les catégories — ça
+ * produisait des QCM incohérents type "Quel instrument joue le CEO ?
+ *  → Violon / Backstreet Boys / Gladiator / Pastore". Le fallback a été
+ * supprimé : on accepte seulement les entrées proprement curées.
  */
-export const KNOW_ERA_ANSWER_POOL: string[] = Array.from(
-  new Set([
-    ...KNOW_ERA_QUESTIONS.map((q) => q.answer),
-    ...KNOW_ERA_QUESTIONS.flatMap((q) => q.distractors),
-  ]),
-);
+export function isValidKnowEraEntry(e: KnowEraEntry): boolean {
+  if (!e.answer || e.answer.trim().length === 0) return false;
+  if (!Array.isArray(e.distractors) || e.distractors.length !== 3) return false;
+  const seen = new Set<string>([e.answer]);
+  for (const d of e.distractors) {
+    if (typeof d !== 'string' || d.trim().length === 0) return false;
+    if (seen.has(d)) return false;
+    seen.add(d);
+  }
+  return true;
+}

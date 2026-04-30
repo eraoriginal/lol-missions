@@ -1087,7 +1087,7 @@ async function s_aveMissedWeapon(origin: string): Promise<ScenarioResult> {
     // Pas de weaponId passé → côté serveur weaponIdToFire vaut state.weaponId
     // (=null pour Eikichi en all-vs-eikichi) → 400.
     const r = await callFireWeapon(origin, sim.code, eikichi.token, target.id);
-    let ok = check(details, !r.ok && r.status === 400, `Tir sans weaponId rejeté 400 (obtenu: status=${r.status})`);
+    const ok = check(details, !r.ok && r.status === 400, `Tir sans weaponId rejeté 400 (obtenu: status=${r.status})`);
     return { id: 's-ave-mw', label: '[AvE] Tir sans weaponId rejeté', ok, details };
   } finally {
     await teardown(sim.roomId);

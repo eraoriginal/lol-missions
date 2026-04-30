@@ -2,20 +2,24 @@
 
 /**
  * /test/know-era — formulaire interactif pour collecter les réponses d'Era
- * pour la future catégorie `know-era` du Quiz du CEO.
+ * pour la catégorie `know-era` du Quiz du CEO.
  *
  * Workflow :
- *   1. Era ouvre la page, voit 100 prompts (sujets : musique, ciné, jeux,
+ *   1. Era ouvre la page, voit ~100 prompts (sujets : musique, ciné, jeux,
  *      sport, food, voyages, perso…).
  *   2. Pour chaque prompt il tape :
  *      - sa réponse (la « bonne » réponse)
- *      - 0 à 3 distractors (mauvaises réponses plausibles).
- *      Si distractors vides, l'agent en proposera plus tard côté seed.
+ *      - **3 distractors thématiquement cohérents** (mauvaises réponses
+ *        plausibles dans la même catégorie). Avant : 0–3 distractors avec
+ *        complétion runtime depuis un pool global → produisait des QCM
+ *        incohérents (« Quel instrument ? Violon / Backstreet Boys / … »).
+ *        Maintenant : 3 distractors obligatoires, sinon l'entrée n'est pas
+ *        seedée.
  *   3. Clic sur « Exporter JSON » → tout est sérialisé et copié dans le
- *      presse-papiers. Era le colle dans le chat → l'agent crée
- *      `lib/quizCeo/knowEra.ts` + ajoute le type + seed.
+ *      presse-papiers. Era le colle dans le chat → l'agent met à jour
+ *      `lib/quizCeo/knowEra.ts`.
  *
- * Persistance : les saisies sont en localStorage (`know-era-draft-v1`) pour
+ * Persistance : les saisies sont en localStorage (`know-era-draft-v3`) pour
  * ne pas perdre la progression à chaque refresh.
  */
 
@@ -256,7 +260,8 @@ export default function KnowEraTestPage() {
 
   const stats = useMemo(() => {
     let answered = 0;
-    let withAllDistractors = 0;
+    let complete = 0; // answer + 3 distractors uniques non-vides
+    let incomplete = 0; // answer présente mais distractors manquants
     let skipped = 0;
     for (const p of PROMPTS) {
       const e = draft[p.id];
@@ -265,15 +270,17 @@ export default function KnowEraTestPage() {
         skipped++;
         continue;
       }
-      if (e.answer.trim().length > 0) answered++;
-      if (
-        e.answer.trim().length > 0 &&
-        e.distractors.every((d) => d.trim().length > 0)
-      ) {
-        withAllDistractors++;
+      if (e.answer.trim().length > 0) {
+        answered++;
+        const dist = e.distractors.map((d) => d.trim());
+        const allFilled = dist.every((d) => d.length > 0);
+        const allUnique =
+          new Set([e.answer.trim(), ...dist]).size === 4;
+        if (allFilled && allUnique) complete++;
+        else incomplete++;
       }
     }
-    return { answered, withAllDistractors, skipped, total: PROMPTS.length };
+    return { answered, complete, incomplete, skipped, total: PROMPTS.length };
   }, [draft]);
 
   const updateAnswer = (id: string, value: string) => {
@@ -309,27 +316,41 @@ export default function KnowEraTestPage() {
   const handleExport = async () => {
     const exportData = PROMPTS.map((p) => {
       const e = draft[p.id];
+      const dist = e.distractors.map((d) => d.trim()).filter((d) => d.length > 0);
       return {
         id: p.id,
         category: p.category,
         prompt: p.prompt,
         questionText: e.questionText,
         answer: e.answer.trim(),
-        distractors: e.distractors.map((d) => d.trim()).filter((d) => d.length > 0),
+        distractors: dist,
         skipped: e.skipped,
+        // Marqueur pour l'agent : on ne seed que les entrées complètes (3
+        // distractors uniques tous distincts de la réponse).
+        complete:
+          !e.skipped &&
+          e.answer.trim().length > 0 &&
+          dist.length === 3 &&
+          new Set([e.answer.trim(), ...dist]).size === 4,
       };
     }).filter((e) => !e.skipped && e.answer.length > 0);
 
     const json = JSON.stringify(exportData, null, 2);
+    const completeCount = exportData.filter((e) => e.complete).length;
+    const incompleteCount = exportData.length - completeCount;
     try {
       await navigator.clipboard.writeText(json);
       setExportToast(
-        `${exportData.length} entrées copiées dans le presse-papiers — colle-les dans le chat.`,
+        `${completeCount} entrées complètes copiées` +
+          (incompleteCount > 0
+            ? ` (${incompleteCount} incomplètes ignorées en jeu — pense à compléter les distractors)`
+            : '') +
+          '.',
       );
     } catch {
       setExportToast('Copie automatique impossible — lit le textarea ci-dessous.');
     }
-    setTimeout(() => setExportToast(null), 5000);
+    setTimeout(() => setExportToast(null), 6000);
   };
 
   const handleReset = () => {
@@ -344,14 +365,20 @@ export default function KnowEraTestPage() {
   const exportPreview = useMemo(() => {
     const exportData = PROMPTS.map((p) => {
       const e = draft[p.id];
+      const dist = e.distractors.map((d) => d.trim()).filter((d) => d.length > 0);
       return {
         id: p.id,
         category: p.category,
         prompt: p.prompt,
         questionText: e.questionText,
         answer: e.answer.trim(),
-        distractors: e.distractors.map((d) => d.trim()).filter((d) => d.length > 0),
+        distractors: dist,
         skipped: e.skipped,
+        complete:
+          !e.skipped &&
+          e.answer.trim().length > 0 &&
+          dist.length === 3 &&
+          new Set([e.answer.trim(), ...dist]).size === 4,
       };
     }).filter((e) => !e.skipped && e.answer.length > 0);
     return JSON.stringify(exportData, null, 2);
@@ -387,10 +414,11 @@ export default function KnowEraTestPage() {
                 style={{
                   fontFamily: AC_FONT_DISPLAY_HEAVY,
                   fontSize: 28,
-                  color: AC.gold,
+                  color: AC.chem,
                 }}
               >
-                {stats.answered} / {stats.total}
+                {stats.complete} / {stats.total}{' '}
+                <span style={{ fontSize: 16, color: AC.bone2 }}>complètes</span>
               </div>
               <div
                 style={{
@@ -402,10 +430,24 @@ export default function KnowEraTestPage() {
                   marginTop: 4,
                 }}
               >
-                {'// '}réponses remplies · {stats.withAllDistractors} avec tous les distractors · {stats.skipped} ignorées
+                {'// '}{stats.answered} répondues · {stats.incomplete} sans 3 distractors · {stats.skipped} ignorées
               </div>
+              {stats.incomplete > 0 && (
+                <div
+                  style={{
+                    fontFamily: AC_FONT_MONO,
+                    fontSize: 11,
+                    letterSpacing: '0.16em',
+                    color: AC.gold,
+                    textTransform: 'uppercase',
+                    marginTop: 4,
+                  }}
+                >
+                  {'// '}les entrées incomplètes ne seront PAS jouées (3 distractors requis)
+                </div>
+              )}
               <div style={{ marginTop: 10 }}>
-                <AcPaintedBar value={stats.answered / stats.total} color={AC.chem} />
+                <AcPaintedBar value={stats.complete / stats.total} color={AC.chem} />
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -467,7 +509,14 @@ export default function KnowEraTestPage() {
           {filteredPrompts.map((p) => {
             const e = draft[p.id];
             if (!e) return null;
-            const filled = !e.skipped && e.answer.trim().length > 0;
+            const answer = e.answer.trim();
+            const dist = e.distractors.map((d) => d.trim());
+            const allDistFilled = dist.every((d) => d.length > 0);
+            const allUnique = new Set([answer, ...dist]).size === 4;
+            const isComplete =
+              !e.skipped && answer.length > 0 && allDistFilled && allUnique;
+            const isIncomplete =
+              !e.skipped && answer.length > 0 && !isComplete;
             return (
               <AcCard
                 key={p.id}
@@ -477,8 +526,10 @@ export default function KnowEraTestPage() {
                   padding: 16,
                   borderColor: e.skipped
                     ? AC.bone2
-                    : filled
+                    : isComplete
                     ? AC.chem
+                    : isIncomplete
+                    ? AC.gold
                     : undefined,
                   opacity: e.skipped ? 0.45 : 1,
                 }}
@@ -509,6 +560,37 @@ export default function KnowEraTestPage() {
                     >
                       {p.category}
                     </span>
+                    {isIncomplete && (
+                      <span
+                        style={{
+                          fontFamily: AC_FONT_MONO,
+                          fontSize: 10,
+                          color: AC.gold,
+                          letterSpacing: '0.22em',
+                          textTransform: 'uppercase',
+                          padding: '2px 8px',
+                          background: 'rgba(245,185,18,0.12)',
+                          border: `1px dashed ${AC.gold}`,
+                        }}
+                      >
+                        {'⚠ '}3 distractors requis
+                      </span>
+                    )}
+                    {isComplete && (
+                      <span
+                        style={{
+                          fontFamily: AC_FONT_MONO,
+                          fontSize: 10,
+                          color: AC.chem,
+                          letterSpacing: '0.22em',
+                          textTransform: 'uppercase',
+                          padding: '2px 8px',
+                          border: `1px solid ${AC.chem}`,
+                        }}
+                      >
+                        {'✓ '}prêt
+                      </span>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -597,32 +679,50 @@ export default function KnowEraTestPage() {
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-3">
-                  {[0, 1, 2].map((idx) => (
-                    <label key={idx}>
-                      <span
-                        style={{
-                          fontFamily: AC_FONT_MONO,
-                          fontSize: 10,
-                          letterSpacing: '0.22em',
-                          color: AC.bone2,
-                          textTransform: 'uppercase',
-                        }}
-                      >
-                        {'// '}distractor {idx + 1}
-                      </span>
-                      <input
-                        type="text"
-                        value={e.distractors[idx]}
-                        onChange={(ev) =>
-                          updateDistractor(p.id, idx as 0 | 1 | 2, ev.target.value)
-                        }
-                        disabled={e.skipped}
-                        className="ac-input"
-                        style={inputStyle}
-                        placeholder="(facultatif)"
-                      />
-                    </label>
-                  ))}
+                  {[0, 1, 2].map((idx) => {
+                    const dValue = e.distractors[idx]?.trim() ?? '';
+                    const filled = dValue.length > 0;
+                    const dup = filled && dValue === e.answer.trim();
+                    const labelColor = dup
+                      ? AC.rust
+                      : filled
+                      ? AC.bone2
+                      : AC.gold;
+                    return (
+                      <label key={idx}>
+                        <span
+                          style={{
+                            fontFamily: AC_FONT_MONO,
+                            fontSize: 10,
+                            letterSpacing: '0.22em',
+                            color: labelColor,
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {'// '}distractor {idx + 1}
+                          {dup ? ' · doublon de la réponse' : !filled ? ' · requis' : ''}
+                        </span>
+                        <input
+                          type="text"
+                          value={e.distractors[idx]}
+                          onChange={(ev) =>
+                            updateDistractor(p.id, idx as 0 | 1 | 2, ev.target.value)
+                          }
+                          disabled={e.skipped}
+                          className="ac-input"
+                          style={{
+                            ...inputStyle,
+                            borderColor: dup
+                              ? AC.rust
+                              : filled
+                              ? AC.bone
+                              : AC.gold,
+                          }}
+                          placeholder="(thématiquement cohérent)"
+                        />
+                      </label>
+                    );
+                  })}
                 </div>
               </AcCard>
             );

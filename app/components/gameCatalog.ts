@@ -111,7 +111,7 @@ export const GAMES: GameOption[] = [
   },
   {
     id: 'cemantix',
-    name: 'CEMANTIX',
+    name: "LA CÉMANTIX D'ERA",
     tag: 'DAILY',
     description: 'Trouve le mot du jour par proximité sémantique.',
     icon: 'flame',

@@ -32,7 +32,6 @@ import {
   type ZodiacSign,
 } from '@/lib/quizCeo/zodiacMbti';
 import { FRENCH_AD_BRANDS_POOL } from '@/lib/quizCeo/frenchAds';
-import { KNOW_ERA_ANSWER_POOL } from '@/lib/quizCeo/knowEra';
 
 const bodySchema = z.object({
   creatorToken: z.string().min(1),
@@ -322,27 +321,25 @@ export async function POST(
           answer: { correctIndex },
         } as FullQuestion;
       }
-      // Pour know-era : QCM 4 choix avec distractors curés (jusqu'à 3) +
-      // complétion runtime depuis le pool global des autres réponses du
-      // catalogue si l'entrée en a moins de 3. La DB stocke
-      // `payload = { text, distractors }` et `answer = { text }`.
+      // Pour know-era : QCM 4 choix avec **3 distractors curés** dans la DB
+      // (catégorie thématiquement cohérente — un instrument vs un instrument,
+      // un film vs un film). Le runtime ne fait que mélanger les 4 choix.
+      // La DB stocke `payload = { text, distractors: [string,string,string] }`
+      // et `answer = { text }`. Le seed garantit `distractors.length === 3`
+      // (cf. `isValidKnowEraEntry` dans `lib/quizCeo/knowEra.ts`) — toute
+      // entrée incomplète est ignorée AVANT d'arriver en DB. Cas dégénéré
+      // (DB corrompue, < 3 distractors) → on garde la shape DB et la question
+      // sera affichée avec aussi peu de choix que disponibles. Pas de
+      // fallback "pool global" qui mélangeait toutes les catégories — ça
+      // produisait des QCM incohérents.
       if (q.type === 'know-era') {
         const correct = (q.answer as { text?: string } | null)?.text;
         const payload = q.payload as { text?: string; distractors?: string[] };
-        if (correct) {
-          const provided = (payload.distractors ?? []).filter(
-            (d) => typeof d === 'string' && d.length > 0 && d !== correct,
-          );
-          let chosen = provided.slice();
-          if (chosen.length < 3) {
-            const pool = KNOW_ERA_ANSWER_POOL.filter(
-              (a) => a !== correct && !chosen.includes(a),
-            );
-            const need = 3 - chosen.length;
-            chosen = [...chosen, ...shuffle(pool).slice(0, need)];
-          } else if (chosen.length > 3) {
-            chosen = shuffle(chosen).slice(0, 3);
-          }
+        const distractors = (payload.distractors ?? []).filter(
+          (d) => typeof d === 'string' && d.length > 0 && d !== correct,
+        );
+        if (correct && distractors.length >= 3) {
+          const chosen = distractors.slice(0, 3);
           const choices = shuffle([correct, ...chosen]) as [
             string,
             string,
@@ -357,6 +354,13 @@ export async function POST(
             answer: { correctIndex },
           } as FullQuestion;
         }
+        // Cas dégénéré : on log et on garde le payload brut (le client
+        // affichera ce qu'il peut, mais ce ne devrait pas se produire si le
+        // seed est OK).
+        console.warn(
+          `[QUIZ-CEO start] know-era id=${q.id} : distractors insuffisants ` +
+            `(${distractors.length}/3) — entrée à corriger dans le catalogue.`,
+        );
         return {
           ...base,
           payload: q.payload as unknown as object,

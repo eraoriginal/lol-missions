@@ -1677,3 +1677,101 @@ body {
     background: rgba(255, 61, 139, 0.22) !important;
   }
 }
+
+/* =============================================================================
+ * La Cémantix d'Era — keyframes de feedback + confetti victoire
+ * (cf. maquettes/Cemantix FX.html, maquettes/screens/cemantix.jsx, cemantix-win.jsx)
+ * Namespace: `cmx-*`
+ * ============================================================================= */
+
+@keyframes cmx-blink {
+  50% { opacity: 0; }
+}
+
+/* Curseur balayant qui parcourt la barre de feedback du dernier essai et
+ * s'arrête EXACTEMENT à la position de la chaleur (`--cmx-final-pct`). Reste
+ * en sync avec la peinture qui se remplit en dessous : tous deux atteignent
+ * `--cmx-final-pct` à 70% du timeline, puis pause + fade-out.
+ *
+ * Le « ralentissement en fin de course » vient de la timing function
+ * `cubic-bezier(0.22, 1, 0.36, 1)` (easeOutQuart) appliquée à l'animation
+ * dans le composant. */
+@keyframes cmx-feedback-cursor {
+  0%   { left: 0%;                            opacity: 0;    }
+  8%   {                                       opacity: 1;    }
+  70%  { left: var(--cmx-final-pct, 100%);    opacity: 1;    }
+  78%  { left: var(--cmx-final-pct, 100%);    opacity: 1;    }
+  88%  { left: var(--cmx-final-pct, 100%);    opacity: 0.55; }
+  100% { left: var(--cmx-final-pct, 100%);    opacity: 0;    }
+}
+
+/* Remplissage progressif de la barre du dernier essai. La largeur du
+ * conteneur est déjà `--cmx-final-pct` ; on anime juste un scaleX(0→1)
+ * pour faire « pousser » la peinture de gauche à droite, synchro avec le
+ * curseur. */
+@keyframes cmx-feedback-fill {
+  0%   { transform: scaleX(0); opacity: 0.35; }
+  8%   {                       opacity: 0.6;  }
+  70%  { transform: scaleX(1); opacity: 1;    }
+  100% { transform: scaleX(1); opacity: 1;    }
+}
+
+/* Apparition latérale du mot tapé dans la zone feedback. */
+@keyframes cmx-feedback-word {
+  0%   { transform: translateX(-6px); opacity: 0; }
+  10%  { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+/* Verdict (% + tier) qui apparaît une fois le curseur arrivé. */
+@keyframes cmx-feedback-verdict {
+  0%, 65% { opacity: 0; transform: translateY(6px); }
+  78%     { opacity: 1; transform: translateY(0); }
+  100%    { opacity: 1; transform: translateY(0); }
+}
+
+/* Burst confetti : translate + rotate par confetto via vars CSS, gravity simulée
+ * via une 2e keyframe d'easing — animation triggered une fois en JS. */
+@keyframes cmx-confetti-burst {
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  6%   { opacity: 1; }
+  90%  { opacity: 1; }
+  100% {
+    transform: translate(var(--cmx-dx, 0), var(--cmx-dy, 600px)) rotate(var(--cmx-spin, 360deg));
+    opacity: 0;
+  }
+}
+
+/* Ribbon TROUVÉ : déroule de gauche à droite. */
+@keyframes cmx-ribbon-unfurl {
+  0%   { width: 0; opacity: 0; }
+  20%  { opacity: 1; }
+  100% { width: var(--cmx-ribbon-w, 760px); opacity: 1; }
+}
+
+/* Stamp du mot gagnant : scale + rotation backing out. */
+@keyframes cmx-word-stamp {
+  0%   { transform: translate(-50%, -50%) rotate(8deg) scale(0.5); opacity: 0; }
+  60%  { transform: translate(-50%, -50%) rotate(-3deg) scale(1.1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) rotate(-3deg) scale(1); opacity: 1; }
+}
+
+/* Flash gold autour de l'input quand on trouve. */
+@keyframes cmx-input-flash {
+  0%   { box-shadow: 0 0 0 rgba(245,185,18,0); border-color: var(--cmx-bone, #f0e4c1); }
+  20%  { box-shadow: 0 0 40px rgba(245,185,18,0.7); border-color: #f5b912; }
+  100% { box-shadow: 0 0 28px rgba(245,185,18,0.45); border-color: #f5b912; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cmx-feedback-fill,
+  .cmx-feedback-cursor,
+  .cmx-feedback-word,
+  .cmx-feedback-verdict,
+  .cmx-confetti,
+  .cmx-ribbon,
+  .cmx-word-stamp {
+    animation-duration: 0.01s !important;
+    animation-iteration-count: 1 !important;
+  }
+}

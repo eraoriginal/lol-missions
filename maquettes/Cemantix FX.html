@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Cemantix · Era Games — 5 propositions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="assets/arcane-tokens.css"/>
+<style>
+  html, body { margin: 0; background: #1F1830; font-family: 'Inter', system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  @keyframes cmx-blink { 50% { opacity: 0; } }
+  @keyframes ac-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+  @keyframes cmx-feedback-cursor {
+    0%   { left: 0%;    opacity: 0; }
+    8%   { opacity: 1; }
+    70%  { left: 97.2%; opacity: 1; }
+    78%  { left: 97.2%; opacity: 1; }
+    88%  { left: 97.2%; opacity: 0.55; }
+    100% { left: 97.2%; opacity: 0; }
+  }
+  @keyframes cmx-feedback-fill {
+    0%   { transform: scaleX(0); opacity: 0.35; }
+    8%   { opacity: 0.6; }
+    70%  { transform: scaleX(1); opacity: 1; }
+    100% { transform: scaleX(1); opacity: 1; }
+  }
+  @keyframes cmx-feedback-word {
+    0%   { transform: translateX(-6px); opacity: 0; }
+    10%  { transform: translateX(0); opacity: 1; }
+    100% { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes cmx-feedback-verdict {
+    0%, 65% { opacity: 0; transform: translateY(6px); }
+    78%     { opacity: 1; transform: translateY(0); }
+    100%    { opacity: 1; transform: translateY(0); }
+  }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="assets/arcane-primitives.jsx"></script>
+<script type="text/babel" src="assets/animations.jsx"></script>
+<script type="text/babel" src="screens/cemantix.jsx"></script>
+<script type="text/babel" src="screens/cemantix-win.jsx"></script>
+
+<script type="text/babel" data-presets="env,react">
+const WIN_ARTBOARD_W = 1240;
+const WIN_ARTBOARD_H = 820;
+const WIN_DUR = 6;
+
+function WinCard({ keyName, children }) {
+  // Stage centre/scale automatiquement à l'intérieur de l'artboard;
+  // on lui donne exactement la taille interne du DCArtboard.
+  return (
+    <div style={{width: WIN_ARTBOARD_W, height: WIN_ARTBOARD_H, position:'relative'}}>
+      <Stage
+        width={WIN_ARTBOARD_W}
+        height={WIN_ARTBOARD_H - 44 /* place pour la barre */}
+        duration={WIN_DUR}
+        loop={true}
+        autoplay={true}
+        background="transparent"
+        persistKey={`cmx-win-${keyName}`}
+      >
+        {children}
+      </Stage>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <>
+      <ArcanePaintDefs/>
+      <DesignCanvas>
+        <DCSection id="cmx" title="Cemantix · 5 propositions" subtitle="Mot du jour caché ▸ chaque essai donne une proximité sémantique. Objectif : faire vivre le froid → brûlant. Mêmes données partout pour comparer.">
+          <DCArtboard id="cmx-01" label="01 · Thermomètre peint" width={1240} height={980}>
+            <CmxV01_Thermometre/>
+          </DCArtboard>
+          <DCArtboard id="cmx-02" label="02 · Liste peinte (gouttes goo) ✓ retenu" width={1240} height={1100}>
+            <CmxV02_PaintedList/>
+          </DCArtboard>
+          <DCArtboard id="cmx-03" label="03 · Heatmap graffiti" width={1240} height={920}>
+            <CmxV03_Heatmap/>
+          </DCArtboard>
+          <DCArtboard id="cmx-04" label="04 · Compteur Geiger · paliers" width={1240} height={920}>
+            <CmxV04_Geiger/>
+          </DCArtboard>
+          <DCArtboard id="cmx-05" label="05 · Fusion bar + archive" width={1240} height={1080}>
+            <CmxV05_Fusion/>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="cmx-win" title="Animations TROUVÉ · 5 propositions" subtitle="Sur la base de la proposition #02. Lecture en boucle 6s — utilise le scrubber de chaque cadre pour passer la frame.">
+          <DCArtboard id="cmx-win-01" label="A · Overflow — la peinture déborde" width={WIN_ARTBOARD_W} height={WIN_ARTBOARD_H}>
+            <WinCard keyName="overflow"><WinAnim01_Overflow/></WinCard>
+          </DCArtboard>
+          <DCArtboard id="cmx-win-02" label="B · Ladder Climb — échelle thermique" width={WIN_ARTBOARD_W} height={WIN_ARTBOARD_H}>
+            <WinCard keyName="ladder"><WinAnim02_Ladder/></WinCard>
+          </DCArtboard>
+          <DCArtboard id="cmx-win-03" label="C · Confetti Blast — éclat graffiti" width={WIN_ARTBOARD_W} height={WIN_ARTBOARD_H}>
+            <WinCard keyName="confetti"><WinAnim03_Confetti/></WinCard>
+          </DCArtboard>
+          <DCArtboard id="cmx-win-04" label="D · Flame Pillar — combustion" width={WIN_ARTBOARD_W} height={WIN_ARTBOARD_H}>
+            <WinCard keyName="flame"><WinAnim04_Flame/></WinCard>
+          </DCArtboard>
+          <DCArtboard id="cmx-win-05" label="E · Stamp Cascade — tampons slam" width={WIN_ARTBOARD_W} height={WIN_ARTBOARD_H}>
+            <WinCard keyName="stamps"><WinAnim05_Stamps/></WinCard>
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

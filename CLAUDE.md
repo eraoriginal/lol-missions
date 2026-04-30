@@ -1,7 +1,7 @@
 # CLAUDE.md — instructions projet
 
 ## Projet
-Application Next.js de mini-jeux **multi-joueurs** (ARAM Missions, Codename du CEO, Beat Eikichi, Quiz du CEO) et **solo quotidiens** (Motus, Worldle, WikiEra, Password, Cemantix).
+Application Next.js de mini-jeux **multi-joueurs** (ARAM Missions, Codename du CEO, Beat Eikichi, Quiz du CEO) et **solo quotidiens** (Motus, Worldle, WikiEra, Password, La Cémantix d'Era).
 Identité : **« La Salle de Pause »**.
 
 - **Multi** : toute partie se joue dans une *room* avec code à 6 caractères, URL `/room/[code]`.
@@ -36,6 +36,9 @@ Si le shell atterrit dans un worktree, bascule immédiatement sur le repo princi
 | `npx tsx scripts/download-lol-champion-spells.ts` | DL icônes Q/W/E/R/Passif des champions LoL depuis Data Dragon (~860 PNG, ~3 MB, idempotent) |
 | `npx tsx scripts/download-lol-match-assets.ts` | DL items + summoner spells + perk styles + portraits champion depuis Data Dragon (~890 PNG, ~50 MB, idempotent) |
 | `npx tsx scripts/download-lol-match-history.ts` | DL historique matches via Riot Match v5 API (12 joueurs × 50 matches, ~15 min, idempotent via cache `.cache/riot/`). Requires `RIOT_API_KEY` dans `.env`. Options : `--player <riotId>`, `--limit <N>`, `--force` |
+| `npx tsx scripts/download-cemantix-model.ts` | DL un modèle d'embeddings français (défaut fastText `cc.fr.300.vec.gz`, ~3 GB compressé). Cache `.cache/cemantix/`. Reprise via HTTP Range. Override : `MODEL_URL=...`. |
+| `npx tsx scripts/seed-cemantix-vocab.ts` | Parse le `.vec.gz` téléchargé, filtre top 70k mots français propres, insère dans `CemantixWord` (~84 MB en DB). Idempotent (truncate + insert). Var : `VOCAB_SIZE` (défaut 70000). |
+| `npx tsx scripts/build-cemantix-puzzles.ts` | Construit la cible quotidienne + top 1000 voisins pré-calculés. Options : `--days N` (N jours à venir), `--date YYYY-MM-DD`, `--rebuild` (force re-calcul). Idempotent. |
 | `npx tsx scripts/test-fuzzyMatch.ts` | Tests unitaires fuzzy match (55 cas) |
 | `npx tsx scripts/test-advance-question.ts` | Test concurrence atomique du gate `advanceQuestionIfMatches` (4 scénarios contre la vraie DB) |
 
@@ -91,8 +94,9 @@ lib/
   worldle/publicNames.ts         — WORLDLE_PUBLIC_COUNTRIES (juste id+name+aliases) + arrowForBearing
   wikiera/server.ts              — WIKIERA_ENTRIES + matchesWikiera (server-only)
   password/rules.ts              — RULES[] + buildDailyContext (client-side, pas de secret)
-  cemantix/server.ts             — PUZZLES + scoreGuess + normalizeCemantix (server-only)
+  cemantix/server.ts             — getDailyTarget + scoreGuess + normalizeCemantix + rankToTier (server-only, DB-backed)
   cemantix/shared.ts             — tierLabel (helper neutre)
+  cemantix/targets.ts            — CEMANTIX_TARGETS (~250 mots cibles curés, sense optionnel) + normalizeTarget
   ...                            — balancedMissionAssignment, filterPrivateMissions, eventScheduling
 prisma/
   schema.prisma                  — `preferred: prisma db push` (multi uniquement ; solo = 0 table)
@@ -420,7 +424,8 @@ Pages de QA visuelle : `/test/lol-champions` (catalogue + 8 traitements CSS) et 
   - `worldle` : pays random parmi 195, payload réécrit
   - `brand-logo` : marque random parmi ~400 SVG existants, payload réécrit
   - `lol-champion` : champion random parmi 172 + mode random (splash/spells), payload réécrit
-  - `zodiac-mbti`, `lol-player-match`, `slogan-pub`, `know-era` : QCM 4 choix avec distractors random tirés d'un pool (signes/types/joueurs/marques/réponses CEO) — `payload.choices` reconstruit à chaque partie. Pour `know-era` les distractors curés (jusqu'à 3) sont conservés et complétés depuis `KNOW_ERA_ANSWER_POOL` si l'entrée en a moins de 3.
+  - `zodiac-mbti`, `lol-player-match`, `slogan-pub` : QCM 4 choix avec distractors random tirés d'un pool (signes/types/joueurs/marques) — `payload.choices` reconstruit à chaque partie.
+  - `know-era` : QCM 4 choix avec **3 distractors curés en DB** (thématiquement cohérents — un instrument vs un instrument, un film vs un film). Le runtime ne fait que mélanger les 4 choix. **Pas de fallback "pool global"** : avant, si une entrée avait `distractors: []`, le runtime piochait dans `KNOW_ERA_ANSWER_POOL` qui mélangeait toutes les catégories → produisait des QCM incohérents type « Quel instrument joue le CEO ? Violon / Backstreet Boys / Gladiator / Pastore ». Le seed log un warning et ignore les entrées incomplètes (< 3 distractors uniques) via `isValidKnowEraEntry`. La page de collecte `/test/know-era` enforce ça côté UI (border gold + badge « ⚠ 3 distractors requis » sur les cards incomplètes ; border chem + « ✓ prêt » sur les complètes).
 - `next` (tous, idempotent) : avance `currentIndex` quand timer expiré ; dernière question → `phase=waiting_review`. Tolérance clock-drift `1500ms`.
 - `submit` (joueur) : auto-save de la réponse courante (écrase la précédente si déjà posée sur cette position). Vérifie `playerToken` → `player.roomId === room.id`.
 - `asset/[index]` : proxy opaque pour servir un asset dont le filename leak la réponse (cf. section sécurité).
@@ -453,7 +458,7 @@ Pages de QA visuelle : `/test/lol-champions` (catalogue + 8 traitements CSS) et 
 - **Wrapper visuel** : `app/games/solo/SoloScreen.tsx` — topbar avec bouton « RETOUR » + badge DAILY + date UTC, puis hero title avec accent color. Chaque jeu choisit son accent (ex : Motus = chem, Worldle = hex, Cemantix = shimmer).
 - **Persistance** : `usePersistedState<T>(key, default)` dans `app/games/solo/usePersistedState.ts`. Utilise `useSyncExternalStore` (conforme lint strict). Écrit via `window.dispatchEvent(new StorageEvent(...))` pour re-trigger le hook dans le même onglet. Clé typiquement `<game>_YYYY-MM-DD`. Si la date change, on ignore la saved value et on affiche le default.
 
-### Anti-cheat — server-side validation (Motus / Worldle / WikiEra / Cemantix)
+### Anti-cheat — server-side validation (Motus / Worldle / WikiEra / La Cémantix d'Era)
 Les catalogues solo (mots, pays, wikis, puzzles) sont **server-only** : impossible de les lire depuis les DevTools. Pattern :
 - Catalogue dans `lib/<game>/server.ts` avec `import 'server-only'` au top → empêche tout bundle client (Webpack / Turbopack lèvent une erreur si un Client Component l'importe).
 - Helper neutre (sans secret) dans `lib/<game>/normalize.ts` ou `shared.ts` ou `publicNames.ts` → bundlable client (juste pour input UI / display tier / autocomplete).
@@ -467,7 +472,7 @@ Les catalogues solo (mots, pays, wikis, puzzles) sont **server-only** : impossib
 - `/api/solo/motus/{today,guess}` — Motus, 6 essais max
 - `/api/solo/worldle/{silhouette,guess}` — Worldle, 7 essais max
 - `/api/solo/wikiera/{today,guess}` — WikiEra, essais illimités, support `giveUp`
-- `/api/solo/cemantix/guess` — Cemantix, essais illimités (pas de `today` car aucun hint upfront)
+- `/api/solo/cemantix/guess` — La Cémantix d'Era, essais illimités (DB-backed cosine similarity, lookup O(1) sur `CemantixDailyNeighbor`)
 
 **Limites résiduelles (assumées)** :
 - Brute force : un cheater peut tester N guesses via l'API (44 pays Worldle = 44 req max). Pas de rate-limit pour l'instant — ajouter si abus.
@@ -510,12 +515,37 @@ Les catalogues solo (mots, pays, wikis, puzzles) sont **server-only** : impossib
 - Progression : la règle N+1 se révèle dès que toutes les règles 1..N sont satisfaites simultanément (pattern « setState during render », PAS useEffect).
 - Exemples de règles : « contient 3 voyelles », « les chiffres totalisent 25 », « contient le jour de la semaine », « longueur premier », « contient un chiffre romain », « pas deux lettres identiques collées », etc.
 
-### Cemantix (`/play/cemantix`)
-- **Version simplifiée** (pas d'embeddings français embarqués, pas d'API externe pour éviter coûts supplémentaires).
-- 5 puzzles dans `PUZZLES[]`. Chaque puzzle = `target` + 4 tiers de mots voisins hand-curated (`tier1` brûlant, `tier2` chaud, `tier3` tiède, `tier4` froid). Mot hors tier → rank 9999 / glacial.
-- `scoreGuess(puzzle, input)` → `{ rank: number, tier: 1..5 }` via match exact normalisé.
-- UI : dernier essai mis en avant + historique trié par rank croissant, progress bar + emoji thermomètre par tier.
-- **Dette technique** : passer à de vrais embeddings (modèle français embarqué ou API) pour couvrir tout le vocabulaire. Les tiers actuels couvrent ~150 mots/puzzle.
+### La Cémantix d'Era (`/play/cemantix`)
+**Refonte 2026-04-30** : passage des listes hand-curated (~150 mots / 4 tiers / 5 puzzles fixes) à un vrai système d'embeddings sémantiques pré-calculés. Plus aucune limite de vocabulaire — n'importe quel mot français du top 70k est évalué.
+
+#### Pipeline de seed (one-shot local)
+1. **`npx tsx scripts/download-cemantix-model.ts`** — DL un modèle d'embeddings FR (défaut : fastText `cc.fr.300.vec.gz` de Facebook AI, ~3 GB compressé / ~7 GB décompressé). Cache `.cache/cemantix/`. Reprise via HTTP Range. Override possible via `MODEL_URL=...`.
+2. **`npx tsx scripts/seed-cemantix-vocab.ts`** — stream-parse le `.vec.gz`, filtre les top **70k** mots français propres (lettres a-z, longueur 3-20, pas de doublons après normalisation), insère dans `CemantixWord` (Float32Array sérialisé en `Bytes`, ~84 MB total).
+3. **`npx tsx scripts/build-cemantix-puzzles.ts [--days N | --date YYYY-MM-DD | --rebuild]`** — pour chaque date, pioche déterministiquement une cible dans `lib/cemantix/targets.ts` (~250 mots concrets curés, avec sense optionnel pour désambiguïsation), calcule cosine similarity contre les 70k mots, garde le top 1000, insère `CemantixDailyTarget` + 1000 `CemantixDailyNeighbor`. ~5-10s par puzzle.
+
+#### Runtime (Vercel/Neon, zéro modèle en RAM)
+- `POST /api/solo/cemantix/guess` — body `{ word }`. Lookup O(1) sur `CemantixDailyNeighbor` par `(puzzleDate, word)` normalisé. Retourne `{ rank, tier, similarity, won, target?, sense? }`.
+- Si pas de puzzle pour aujourd'hui → 503 (admin doit lancer `build-cemantix-puzzles`).
+- `lib/cemantix/server.ts::scoreGuess(guess, puzzleDate?)` — normalise + lookup. Pas de calcul vectoriel côté Node.
+- **rank → tier** : `0`/`1-10` → 1 brûlant, `11-50` → 2 chaud, `51-200` → 3 tiède, `201-1000` → 4 froid, `9999` → 5 glacial. Cf. `rankToTier()`.
+
+#### Schéma DB
+- `CemantixWord(word PK, embedding Bytes, dim, freqRank)` — vocabulaire 70k, lu uniquement par le builder de puzzles.
+- `CemantixDailyTarget(puzzleDate PK, word, sense?, createdAt)` — 1 cible par jour UTC, sense optionnel pour polysémies (« avocat (fruit) »).
+- `CemantixDailyNeighbor(puzzleDate, word PK composite, rank, similarity)` — top 1000 voisins par puzzle. `rank=0` = la cible elle-même.
+
+#### UI (Arcane.kit · variante V02 « Liste peinte · gouttes goo »)
+- Header titre + meta (`// N essais · meilleur ▸ MOT · 97.2°` + badge sense optionnel).
+- Input peint (`// ▸` prompt + bouton ENVOYER torn-clipped shimmer).
+- **Feedback animé** sur le dernier essai : barre gradient froid→chaud + curseur balayant + remplissage goo (`url(#ac-goo)`) + verdict % + tier (keyframes `cmx-feedback-{cursor,fill,word,verdict}` dans globals.css).
+- **Liste triée par similarité** : grid `52px 1fr 2fr 90px 80px 24px`, taille du mot proportionnelle à la chaleur (20→34px), textShadow glow pour brûlant+, blur+strikethrough pour glacé, % et rang à droite, glyphe tier.
+- **Animation de victoire « Confetti Blast » (proposition C)** : 80 confettis (rect / triangle / disc / x / star) tirés du centre haut, gravity-driven via vars CSS (`--cmx-dx/dy/spin` + keyframe `cmx-confetti-burst`), ribbon « TROUVÉ EN N ESSAIS » qui se déroule (`cmx-ribbon-unfurl`), stamp du mot du jour avec scale-back-out (`cmx-word-stamp`). Joué une seule fois (flag `winAnimPlayed` en localStorage). `prefers-reduced-motion` neutralise tout.
+
+#### Polysémie
+Limitation Word2Vec : un mot = un vecteur (avocat-juriste et avocat-fruit collapsent). Mitigation : la liste curée `CEMANTIX_TARGETS` peut spécifier un `sense` qui s'affiche au joueur (« sens : fruit »). À terme, si on veut une vraie désambiguïsation, l'option « LLM-as-judge avec cache » documentée dans le brainstorm devient le bon move.
+
+#### Choix de modèle
+Default : **fastText `cc.fr.300.vec.gz`** (Common Crawl, 300d). Standard moderne, public sur le CDN Facebook AI, format texte `.vec.gz` (mots triés par fréquence → on stream-lit les premiers ~80k lignes). Alternative possible via `MODEL_URL` : Word2Vec FrWac binaire de Fauconnier (la « vraie » méthode du Cemantix original) — mais le parsing binaire n'est pas implémenté côté script (à ajouter si besoin).
 
 ## Env vars requises
 - `DATABASE_URL` — PostgreSQL Neon
@@ -539,7 +569,7 @@ Les catalogues solo (mots, pays, wikis, puzzles) sont **server-only** : impossib
 | Worldle | Solo | ✅ Arcane.kit | `app/games/worldle/` |
 | WikiEra | Solo | ✅ Arcane.kit | `app/games/wikiera/` |
 | Password | Solo | ✅ Arcane.kit | `app/games/password/` |
-| Cemantix | Solo | ✅ Arcane.kit | `app/games/cemantix/` |
+| La Cémantix d'Era | Solo | ✅ Arcane.kit (V02 PaintedList + Confetti Blast) | `app/games/cemantix/` |
 
 Pour refaire un jeu legacy : utiliser les primitives Arcane.kit, wrapper la page racine dans `<AcScreen>`, remplacer `<LeaveRoomButton>` / `<BackToLobbyButton>` (déjà Arcane-compatibles). Les classes `lol-*`/`arcane-*`/`poki-*` restent en coexistence dans `globals.css` pour ne pas casser les jeux non-refaits.
 

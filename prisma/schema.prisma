@@ -10,13 +10,13 @@ datasource db {
 model Event {
   id         String   @id @default(cuid())
   text       String
-  type       String   // 'START', 'MID' ou 'LATE'
+  type       String // 'START', 'MID' ou 'LATE'
   category   String
-  difficulty String   // 'easy', 'medium', 'hard'
+  difficulty String // 'easy', 'medium', 'hard'
   points     Int
   duration   Int      @default(60) // durée en secondes pendant laquelle l'événement est actif
-  minPlayers Int?     // nombre minimum de joueurs requis (null = pas de minimum)
-  music      String?  // code musique associé (ex: "1V1", "2V2", "3V3")
+  minPlayers Int? // nombre minimum de joueurs requis (null = pas de minimum)
+  music      String? // code musique associé (ex: "1V1", "2V2", "3V3")
   createdAt  DateTime @default(now())
 
   roomEvents RoomEvent[]
@@ -27,126 +27,126 @@ model Event {
 model Mission {
   id                String   @id @default(cuid())
   text              String
-  type              String   // 'START', 'MID' ou 'LATE'
+  type              String // 'START', 'MID' ou 'LATE'
   category          String
-  difficulty        String   // 'easy', 'medium', 'hard'
-  points            Int      // 100 (easy), 200 (medium), 300 (hard)
+  difficulty        String // 'easy', 'medium', 'hard'
+  points            Int // 100 (easy), 200 (medium), 300 (hard)
   isPrivate         Boolean  @default(false)
-  minPlayers        Int?     // nombre minimum de joueurs requis (null = pas de minimum)
-  maps              String   @default("all")   // "howling_abyss", "summoners_rift" ou "all"
-  playerPlaceholder String?  // null, "teammate", "opponent", "any", "duel" - si présent, {player} dans le texte sera remplacé. "duel" = même mission pour 2 joueurs d'équipes opposées
+  minPlayers        Int? // nombre minimum de joueurs requis (null = pas de minimum)
+  maps              String   @default("all") // "howling_abyss", "summoners_rift" ou "all"
+  playerPlaceholder String? // null, "teammate", "opponent", "any", "duel" - si présent, {player} dans le texte sera remplacé. "duel" = même mission pour 2 joueurs d'équipes opposées
   createdAt         DateTime @default(now())
 
-  playerMissions     PlayerMission[]
-  pendingChoices     PendingMissionChoice[]
+  playerMissions PlayerMission[]
+  pendingChoices PendingMissionChoice[]
 
   @@index([type])
 }
 
 model Room {
-  id                  String    @id @default(cuid())
-  code                String    @unique
-  creatorToken        String
-  gameType            String    @default("aram-missions")
-  gameStarted         Boolean   @default(false)
-  gameStartTime       DateTime?
-  gameStopped         Boolean   @default(false)
-  validationStatus    String    @default("not_started") // 'not_started', 'in_progress', 'completed'
-  midMissionDelay     Int       @default(480)            // en secondes, défaut 5 min
-  lateMissionDelay    Int       @default(960)            // en secondes, défaut 10 min
-  missionVisibility   String    @default("team")         // 'all', 'team', 'hidden'
-  gameMap             String    @default("howling_abyss") // 'howling_abyss', 'summoners_rift'
-  victoryBonus        Boolean   @default(true)            // bonus de 0-500 pts pour l'équipe victorieuse
-  betsEnabled         Boolean   @default(true)            // paris activés
-  missionChoiceCount  Int       @default(1)               // 1 = imposée, 2 ou 3 = choix parmi N missions
-  maxEventsPerGame    Int       @default(0)               // 0-5, nombre d'événements aléatoires par partie
-  eventPausedAt       DateTime?                           // set quand un événement est actif (timer en pause)
-  totalPausedDuration Int       @default(0)               // durée totale en secondes passée en pause événements
-  winnerTeam          String?                             // "red" ou "blue", null si pas encore défini
-  victoryBonusPoints  Int       @default(0)              // points bonus attribués à l'équipe gagnante
-  selectedCategories  String[]  @default([])             // catégories sélectionnées pour Codename
-  beatEikichiEikichiId String?                           // joueur désigné comme "Je suis Eikichi" (Beat Eikichi) - setté depuis le lobby, visible par tous
-  beatEikichiTimerSeconds Int     @default(30)           // durée d'une question (Beat Eikichi) - réglable par le créateur
-  beatEikichiMode         String  @default("standard")   // mode de jeu (Beat Eikichi) : "standard" ou "all-vs-eikichi"
-  quizCeoTimerSeconds     Int     @default(30)           // durée d'une question (Quiz du CEO) - 10..300
-  quizCeoQuestionCount    Int     @default(16)           // nombre de questions par partie (Quiz du CEO)
-  quizCeoDisabledTypes    String[] @default([])          // types de questions désactivés par le créateur (Quiz du CEO)
-  createdAt           DateTime  @default(now())
+  id                      String    @id @default(cuid())
+  code                    String    @unique
+  creatorToken            String
+  gameType                String    @default("aram-missions")
+  gameStarted             Boolean   @default(false)
+  gameStartTime           DateTime?
+  gameStopped             Boolean   @default(false)
+  validationStatus        String    @default("not_started") // 'not_started', 'in_progress', 'completed'
+  midMissionDelay         Int       @default(480) // en secondes, défaut 5 min
+  lateMissionDelay        Int       @default(960) // en secondes, défaut 10 min
+  missionVisibility       String    @default("team") // 'all', 'team', 'hidden'
+  gameMap                 String    @default("howling_abyss") // 'howling_abyss', 'summoners_rift'
+  victoryBonus            Boolean   @default(true) // bonus de 0-500 pts pour l'équipe victorieuse
+  betsEnabled             Boolean   @default(true) // paris activés
+  missionChoiceCount      Int       @default(1) // 1 = imposée, 2 ou 3 = choix parmi N missions
+  maxEventsPerGame        Int       @default(0) // 0-5, nombre d'événements aléatoires par partie
+  eventPausedAt           DateTime? // set quand un événement est actif (timer en pause)
+  totalPausedDuration     Int       @default(0) // durée totale en secondes passée en pause événements
+  winnerTeam              String? // "red" ou "blue", null si pas encore défini
+  victoryBonusPoints      Int       @default(0) // points bonus attribués à l'équipe gagnante
+  selectedCategories      String[]  @default([]) // catégories sélectionnées pour Codename
+  beatEikichiEikichiId    String? // joueur désigné comme "Je suis Eikichi" (Beat Eikichi) - setté depuis le lobby, visible par tous
+  beatEikichiTimerSeconds Int       @default(30) // durée d'une question (Beat Eikichi) - réglable par le créateur
+  beatEikichiMode         String    @default("standard") // mode de jeu (Beat Eikichi) : "standard" ou "all-vs-eikichi"
+  quizCeoTimerSeconds     Int       @default(30) // durée d'une question (Quiz du CEO) - 10..300
+  quizCeoQuestionCount    Int       @default(16) // nombre de questions par partie (Quiz du CEO)
+  quizCeoDisabledTypes    String[]  @default([]) // types de questions désactivés par le créateur (Quiz du CEO)
+  createdAt               DateTime  @default(now())
 
-  players          Player[]
-  codenameGame     CodenameGame?
-  beatEikichiGame  BeatEikichiGame?
-  quizCeoGame      QuizCeoGame?
-  gameHistories    GameHistory[]
-  roomEvents       RoomEvent[]
-  playerBets       PlayerBet[]
+  players         Player[]
+  codenameGame    CodenameGame?
+  beatEikichiGame BeatEikichiGame?
+  quizCeoGame     QuizCeoGame?
+  gameHistories   GameHistory[]
+  roomEvents      RoomEvent[]
+  playerBets      PlayerBet[]
 
   @@index([code])
 }
 
 model GameHistory {
-  id                 String   @id @default(cuid())
-  roomId             String
-  room               Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
-  gameNumber         Int      // 1, 2, 3... (numéro de la partie dans cette room)
+  gameNumber Int // 1, 2, 3... (numéro de la partie dans cette room)
 
   // Résultats
-  redScore           Int      // Total points équipe rouge
-  blueScore          Int      // Total points équipe bleue
-  winnerTeam         String?  // "red", "blue" ou null (égalité)
-  victoryBonusPoints Int      @default(0)
-  bonusTeam          String?  // Équipe qui a reçu le bonus
+  redScore           Int // Total points équipe rouge
+  blueScore          Int // Total points équipe bleue
+  winnerTeam         String? // "red", "blue" ou null (égalité)
+  victoryBonusPoints Int     @default(0)
+  bonusTeam          String? // Équipe qui a reçu le bonus
 
   // Snapshot des joueurs et missions (JSON pour simplicité)
-  playersSnapshot    String   // JSON: [{ name, team, avatar, missions: [{ text, type, validated, points }] }]
-  eventsSnapshot     String?  // JSON: snapshot des événements de la partie
-  betsSnapshot       String?  // JSON: snapshot des paris de la partie
+  playersSnapshot String // JSON: [{ name, team, avatar, missions: [{ text, type, validated, points }] }]
+  eventsSnapshot  String? // JSON: snapshot des événements de la partie
+  betsSnapshot    String? // JSON: snapshot des paris de la partie
 
-  playedAt           DateTime @default(now())
+  playedAt DateTime @default(now())
 
   @@index([roomId])
 }
 
 model RoomEvent {
-  id                String    @id @default(cuid())
-  roomId            String
-  room              Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  eventId           String
-  event             Event     @relation(fields: [eventId], references: [id])
-  scheduledAt       Int       // secondes depuis gameStartTime
-  resolvedText      String?   // texte résolu avec noms des joueurs (null = pas de placeholder)
-  appearedAt        DateTime? // null = pas encore apparu
-  endedAt           DateTime? // null = événement encore actif (ou pas encore apparu)
-  redValidated      Boolean   @default(false)
-  blueValidated     Boolean   @default(false)
-  redDecided        Boolean   @default(false)
-  blueDecided       Boolean   @default(false)
-  pointsEarnedRed   Int       @default(0)
-  pointsEarnedBlue  Int       @default(0)
-  createdAt         DateTime  @default(now())
+  id               String    @id @default(cuid())
+  roomId           String
+  room             Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  eventId          String
+  event            Event     @relation(fields: [eventId], references: [id])
+  scheduledAt      Int // secondes depuis gameStartTime
+  resolvedText     String? // texte résolu avec noms des joueurs (null = pas de placeholder)
+  appearedAt       DateTime? // null = pas encore apparu
+  endedAt          DateTime? // null = événement encore actif (ou pas encore apparu)
+  redValidated     Boolean   @default(false)
+  blueValidated    Boolean   @default(false)
+  redDecided       Boolean   @default(false)
+  blueDecided      Boolean   @default(false)
+  pointsEarnedRed  Int       @default(0)
+  pointsEarnedBlue Int       @default(0)
+  createdAt        DateTime  @default(now())
 
-  @@index([roomId])
   @@unique([roomId, scheduledAt])
+  @@index([roomId])
 }
 
 model Player {
-  id        String   @id @default(cuid())
-  name      String
-  token     String   @unique
-  avatar    String   @default("")
-  team      String   @default("")   // "" = spectateur, "red" ou "blue"
-  role      String?  // "spymaster" or "operative" for Codenames
+  id                  String   @id @default(cuid())
+  name                String
+  token               String   @unique
+  avatar              String   @default("")
+  team                String   @default("") // "" = spectateur, "red" ou "blue"
+  role                String? // "spymaster" or "operative" for Codenames
   // Arme choisie dans le lobby pour Beat Eikichi (snapshotée sur PlayerState au /start).
   beatEikichiWeaponId String?
-  roomId    String
-  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  roomId              String
+  room                Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdAt           DateTime @default(now())
 
-  missions       PlayerMission[]
-  pendingChoices PendingMissionChoice[]
-  bets           PlayerBet[]  @relation("PlayerBets")
-  betTargets     PlayerBet[]  @relation("BetTargets")
+  missions          PlayerMission[]
+  pendingChoices    PendingMissionChoice[]
+  bets              PlayerBet[]              @relation("PlayerBets")
+  betTargets        PlayerBet[]              @relation("BetTargets")
   beatEikichiStates BeatEikichiPlayerState[]
   quizCeoStates     QuizCeoPlayerState[]
 
@@ -160,7 +160,7 @@ model PendingMissionChoice {
   player       Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
   missionId    String
   mission      Mission  @relation(fields: [missionId], references: [id])
-  type         String   // 'START', 'MID', 'LATE'
+  type         String // 'START', 'MID', 'LATE'
   resolvedText String?
   createdAt    DateTime @default(now())
 
@@ -173,8 +173,8 @@ model PlayerMission {
   player       Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
   missionId    String
   mission      Mission  @relation(fields: [missionId], references: [id])
-  type         String   // 'START', 'MID' ou 'LATE'
-  resolvedText String?  // Texte avec le placeholder {player} remplacé par le nom réel
+  type         String // 'START', 'MID' ou 'LATE'
+  resolvedText String? // Texte avec le placeholder {player} remplacé par le nom réel
   validated    Boolean  @default(false)
   pointsEarned Int      @default(0)
   decided      Boolean  @default(false) // true dès que le créateur a traité cette mission
@@ -202,7 +202,7 @@ model PlayerBet {
   betType        BetType  @relation(fields: [betTypeId], references: [id])
   targetPlayerId String
   targetPlayer   Player   @relation("BetTargets", fields: [targetPlayerId], references: [id])
-  points         Int      // 100, 200, 300, 400, 500
+  points         Int // 100, 200, 300, 400, 500
   validated      Boolean  @default(false)
   decided        Boolean  @default(false)
   createdAt      DateTime @default(now())
@@ -215,61 +215,61 @@ model PlayerBet {
 model CodenameWord {
   id        String   @id @default(cuid())
   word      String   @unique
-  category  String?  // optional categorization (champions, items, places, etc.)
+  category  String? // optional categorization (champions, items, places, etc.)
   createdAt DateTime @default(now())
 }
 
 // Codename du CEO - Game state
 model CodenameGame {
-  id            String   @id @default(cuid())
-  roomId        String   @unique
-  room          Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  roomId String @unique
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
-  currentTeam   String   @default("red")  // "red" or "blue"
-  redRemaining  Int      @default(9)
-  blueRemaining Int      @default(8)
-  gameOver      Boolean  @default(false)
-  winner        String?  // "red", "blue", or null
+  currentTeam   String  @default("red") // "red" or "blue"
+  redRemaining  Int     @default(9)
+  blueRemaining Int     @default(8)
+  gameOver      Boolean @default(false)
+  winner        String? // "red", "blue", or null
 
   currentClue   String?
   currentNumber Int?
-  guessesLeft   Int      @default(0)
+  guessesLeft   Int     @default(0)
 
-  cards         CodenameCard[]
-  history       CodenameHistory[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  cards     CodenameCard[]
+  history   CodenameHistory[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
 }
 
 // Codename du CEO - Game history (clues and guesses)
 model CodenameHistory {
-  id         String       @id @default(cuid())
-  gameId     String
-  game       CodenameGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  id     String       @id @default(cuid())
+  gameId String
+  game   CodenameGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
-  team       String       // "red" or "blue"
-  type       String       // "clue" or "guess"
-  clue       String?      // if type is "clue"
-  number     Int?         // if type is "clue"
-  cardWord   String?      // if type is "guess"
-  cardColor  String?      // if type is "guess"
+  team      String // "red" or "blue"
+  type      String // "clue" or "guess"
+  clue      String? // if type is "clue"
+  number    Int? // if type is "clue"
+  cardWord  String? // if type is "guess"
+  cardColor String? // if type is "guess"
 
-  createdAt  DateTime     @default(now())
+  createdAt DateTime @default(now())
 
   @@index([gameId])
 }
 
 // Codename du CEO - Individual cards on the board
 model CodenameCard {
-  id        String        @id @default(cuid())
-  gameId    String
-  game      CodenameGame  @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  id     String       @id @default(cuid())
+  gameId String
+  game   CodenameGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
-  word      String
-  category  String?       // category of the word
-  color     String        // "red", "blue", "neutral", "assassin"
-  revealed  Boolean       @default(false)
-  position  Int           // 0-24 for grid position
+  word     String
+  category String? // category of the word
+  color    String // "red", "blue", "neutral", "assassin"
+  revealed Boolean @default(false)
+  position Int // 0-24 for grid position
 
   interests CardInterest[]
 
@@ -302,12 +302,12 @@ model CardInterest {
 // Les GIFs (GIPHY) ont été retirés ; IGDB ne fournit que des screenshots et
 // le retour produit après les essais GIPHY est qu'ils sont souvent hors-sujet.
 model VideoGame {
-  id          String   @id @default(cuid())
-  igdbId      Int      @unique
-  slug        String
-  name        String          // nom canonique pour l'affichage en review (seule source de vérité)
-  releaseDate DateTime?       // first_release_date (timestamp Unix → DateTime)
-  coverImageId String?        // image_id IGDB pour la jaquette (optionnel)
+  id           String    @id @default(cuid())
+  igdbId       Int       @unique
+  slug         String
+  name         String // nom canonique pour l'affichage en review (seule source de vérité)
+  releaseDate  DateTime? // first_release_date (timestamp Unix → DateTime)
+  coverImageId String? // image_id IGDB pour la jaquette (optionnel)
 
   createdAt DateTime @default(now())
 
@@ -325,13 +325,13 @@ model VideoGame {
 // permet de switcher de taille (`t_screenshot_big`, `t_1080p`, etc.) sans
 // re-seeder.
 model ScreenshotImage {
-  id        String    @id @default(cuid())
-  videoGame VideoGame @relation(fields: [videoGameId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  videoGame   VideoGame @relation(fields: [videoGameId], references: [id], onDelete: Cascade)
   videoGameId String
-  imageId   String    // image_id IGDB (ex: "co1r7d") — sert à construire l'URL
-  width     Int?
-  height    Int?
-  createdAt DateTime  @default(now())
+  imageId     String // image_id IGDB (ex: "co1r7d") — sert à construire l'URL
+  width       Int?
+  height      Int?
+  createdAt   DateTime  @default(now())
 
   @@unique([videoGameId, imageId])
   @@index([videoGameId])
@@ -339,60 +339,60 @@ model ScreenshotImage {
 
 // Beat Eikichi - état de la partie pour une room
 model BeatEikichiGame {
-  id                String    @id @default(cuid())
-  roomId            String    @unique
-  room              Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  roomId String @unique
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
-  questions         Json      // snapshot des 20 questions tirées au démarrage de CETTE partie
+  questions Json // snapshot des 20 questions tirées au démarrage de CETTE partie
 
   phase             String    @default("playing") // "playing" | "review_intro" | "review" | "leaderboard"
-  currentIndex      Int       @default(0)        // 0..19 — réutilisé en review
-  questionStartedAt DateTime?                    // début de la question courante (source du timer)
+  currentIndex      Int       @default(0) // 0..19 — réutilisé en review
+  questionStartedAt DateTime? // début de la question courante (source du timer)
 
   // Paramètres snapshotés au démarrage depuis la Room (immutables durant la partie).
-  timerSeconds      Int       @default(30)       // durée par question
-  mode              String    @default("standard") // "standard" ou "blur"
+  timerSeconds Int    @default(30) // durée par question
+  mode         String @default("standard") // "standard" ou "blur"
 
   // ID du joueur désigné comme "Je suis Eikichi" (optionnel). S'il trouve la bonne réponse,
   // la question avance immédiatement pour tous les joueurs (les autres ont perdu leur chance).
-  eikichiPlayerId   String?
+  eikichiPlayerId String?
 
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  playerStates      BeatEikichiPlayerState[]
-  weaponEvents      BeatEikichiWeaponEvent[]
+  playerStates BeatEikichiPlayerState[]
+  weaponEvents BeatEikichiWeaponEvent[]
 }
 
 // Beat Eikichi - état par-joueur
 model BeatEikichiPlayerState {
-  id            String   @id @default(cuid())
-  gameId        String
-  game          BeatEikichiGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  playerId      String
-  player        Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  id       String          @id @default(cuid())
+  gameId   String
+  game     BeatEikichiGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  playerId String
+  player   Player          @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
-  currentTyping String   @default("")       // dernière saisie (persistée throttle ~1s, fallback review)
-  answers       Json     @default("[]")     // Array<{ position, submittedText, correct, answeredAtMs }>
-  score         Int      @default(0)
+  currentTyping String @default("") // dernière saisie (persistée throttle ~1s, fallback review)
+  answers       Json   @default("[]") // Array<{ position, submittedText, correct, answeredAtMs }>
+  score         Int    @default(0)
 
   // Arme snapshotée depuis Player.beatEikichiWeaponId au /start (mode standard).
   // En mode "all-vs-eikichi", `weaponId` reste `null` pour les non-Eikichi (ils
   // n'ont QUE des boucliers) et `null` pour le Eikichi aussi (ses 12 stacks
   // sont stockés dans `weaponStacks` à la place).
   weaponId              String?
-  weaponUsesLeft        Int    @default(3)  // 3 utilisations par partie (mode standard)
-  lastUsedQuestionIndex Int    @default(-1) // (obsolète depuis le passage en "effet différé")
+  weaponUsesLeft        Int     @default(3) // 3 utilisations par partie (mode standard)
+  lastUsedQuestionIndex Int     @default(-1) // (obsolète depuis le passage en "effet différé")
   // Bouclier (défensif) : disponible pour tous les joueurs en mode standard.
   // En mode "all-vs-eikichi", seuls les NON-Eikichi ont un bouclier (Eikichi en
   // est privé, c'est lui l'attaquant exclusif).
-  shieldUsesLeft        Int    @default(3)  // 3 boucliers par partie
+  shieldUsesLeft        Int     @default(3) // 3 boucliers par partie
 
   // Stacks d'armes pour le Eikichi en mode "all-vs-eikichi" UNIQUEMENT.
   // Map { weaponId: usesLeft } — initialisée au /start avec 12 entrées × 3.
   // Null pour tous les autres états (mode standard, non-Eikichi). Décrémenté
   // à chaque /fire-weapon ; remis à null en sortie du mode.
-  weaponStacks          Json?
+  weaponStacks Json?
 
   @@unique([gameId, playerId])
   @@index([gameId])
@@ -401,9 +401,9 @@ model BeatEikichiPlayerState {
 // Beat Eikichi - historique des tirs d'armes pendant une partie.
 // Les clients lisent ces events pour faire jouer les effets sur la cible.
 model BeatEikichiWeaponEvent {
-  id              String   @id @default(cuid())
-  gameId          String
-  game            BeatEikichiGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  id     String          @id @default(cuid())
+  gameId String
+  game   BeatEikichiGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   firedByPlayerId String
   targetPlayerId  String
@@ -413,7 +413,6 @@ model BeatEikichiWeaponEvent {
   // Données spécifiques à l'arme (ex: mirage → fausse image URL).
   data            Json?
 
-  @@index([gameId, questionIndex])
   // Contrainte d'unicité : un même tireur ne peut viser deux fois le même
   // joueur pour la même question (mode all-vs-eikichi : 1 cible/question
   // peu importe l'arme). En mode standard, chaque tireur n'a qu'une arme
@@ -423,6 +422,7 @@ model BeatEikichiWeaponEvent {
   // par cette contrainte aussi (1 bouclier max par question, ce qui est
   // déjà l'intention).
   @@unique([gameId, firedByPlayerId, targetPlayerId, questionIndex])
+  @@index([gameId, questionIndex])
 }
 
 // Le Quiz du CEO - banque de questions
@@ -433,12 +433,12 @@ model BeatEikichiWeaponEvent {
 // de `type` — voir lib/quizCeo/types.ts pour l'union typée.
 model QuizCeoQuestion {
   id         String   @id @default(cuid())
-  type       String   // voir lib/quizCeo/config.ts pour la liste
-  difficulty String   // "easy" | "medium" | "hard"
-  points     Int      // 1 (easy), 2 (medium), 3 (hard)
-  prompt     String   // consigne spécifique à la question, ex: "Qui est cette personnalité ?"
-  payload    Json     // données d'affichage (imageUrl, choices, text…) — dépend de `type`
-  answer     Json     // réponse correcte — strippée côté API en phase "playing"
+  type       String // voir lib/quizCeo/config.ts pour la liste
+  difficulty String // "easy" | "medium" | "hard"
+  points     Int // 1 (easy), 2 (medium), 3 (hard)
+  prompt     String // consigne spécifique à la question, ex: "Qui est cette personnalité ?"
+  payload    Json // données d'affichage (imageUrl, choices, text…) — dépend de `type`
+  answer     Json // réponse correcte — strippée côté API en phase "playing"
   createdAt  DateTime @default(now())
 
   @@index([type])
@@ -446,25 +446,25 @@ model QuizCeoQuestion {
 
 // Le Quiz du CEO - état de la partie pour une room
 model QuizCeoGame {
-  id                String    @id @default(cuid())
-  roomId            String    @unique
-  room              Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  roomId String @unique
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   // Snapshot des questions tirées au démarrage. Array de
   // { id, type, difficulty, points, prompt, payload, answer }.
-  questions         Json
+  questions Json
 
   // "playing" | "waiting_review" | "review" | "leaderboard"
   phase             String    @default("playing")
-  currentIndex      Int       @default(0)       // 0..N-1 — réutilisé en review
-  questionStartedAt DateTime?                   // début de la question courante (timer)
+  currentIndex      Int       @default(0) // 0..N-1 — réutilisé en review
+  questionStartedAt DateTime? // début de la question courante (timer)
 
-  timerSeconds      Int       @default(30)      // snapshoté depuis Room.quizCeoTimerSeconds
+  timerSeconds Int @default(30) // snapshoté depuis Room.quizCeoTimerSeconds
 
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  playerStates      QuizCeoPlayerState[]
+  playerStates QuizCeoPlayerState[]
 }
 
 // Le Quiz du CEO - état par joueur
@@ -477,9 +477,68 @@ model QuizCeoPlayerState {
 
   // Array de { position, type, submitted (JSON), validated? : bool,
   //   pointsAwarded? : int }.
-  answers  Json        @default("[]")
-  score    Int         @default(0)
+  answers Json @default("[]")
+  score   Int  @default(0)
 
   @@unique([gameId, playerId])
   @@index([gameId])
+}
+
+// =============================================================================
+// La Cémantix d'Era — vocabulaire embeddings + cibles quotidiennes
+// =============================================================================
+//
+// Architecture (cf. CLAUDE.md « La Cémantix d'Era ») :
+//   - `CemantixWord` : vocabulaire de ~70k mots français, chaque mot a un
+//     embedding stocké en `Bytes` (Float32Array sérialisé). Utilisé UNIQUEMENT
+//     par le script de build des puzzles.
+//   - `CemantixDailyTarget` : cible du jour (1 par puzzleDate UTC). Contient
+//     le mot cible + un libellé optionnel de désambiguïsation (« avocat »
+//     au sens « fruit »).
+//   - `CemantixDailyNeighbor` : top 1000 voisins pré-calculés par cible.
+//     Lookup O(1) à chaque guess (`puzzleDate, word` → `rank`).
+//
+// Au runtime, `/api/solo/cemantix/guess` ne touche QUE `CemantixDailyNeighbor`
+// (pas besoin de charger les vecteurs en RAM Vercel).
+
+model CemantixWord {
+  /// Mot normalisé (lowercase, NFD strip accents).
+  word      String @id
+  /// Float32Array sérialisé en little-endian (dim × 4 bytes).
+  embedding Bytes
+  /// Dimension du vecteur (300 typique avec FrWac/fastText).
+  dim       Int
+  /// Rang de fréquence dans le corpus source (0 = mot le plus fréquent).
+  freqRank  Int
+
+  @@index([freqRank])
+}
+
+model CemantixDailyTarget {
+  /// Format YYYY-MM-DD UTC, identifie le puzzle du jour.
+  puzzleDate String   @id
+  /// Mot cible normalisé (matche `CemantixWord.word`).
+  word       String
+  /// Libellé optionnel de désambiguïsation (« avocat (fruit) »).
+  sense      String?
+  createdAt  DateTime @default(now())
+
+  neighbors CemantixDailyNeighbor[]
+
+  @@index([word])
+}
+
+model CemantixDailyNeighbor {
+  puzzleDate String
+  /// Mot voisin (normalisé).
+  word       String
+  /// 0 = cible, 1..999 = top voisins. Au-delà → mot inconnu (rank 9999).
+  rank       Int
+  /// Cosine similarity avec la cible, dans [-1, 1].
+  similarity Float
+
+  target CemantixDailyTarget @relation(fields: [puzzleDate], references: [puzzleDate], onDelete: Cascade)
+
+  @@id([puzzleDate, word])
+  @@index([puzzleDate, rank])
 }
