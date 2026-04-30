@@ -330,7 +330,7 @@ export function CemantixGame() {
               total={sorted.length}
               isLatest={latestAttempt?.order === a.order}
               isLast={i === sorted.length - 1}
-              dimmed={animActive && !won}
+              dimmed={animActive}
             />
           ))}
 
@@ -781,7 +781,7 @@ function PaintedRow({
         background: isLatest
           ? `linear-gradient(90deg, rgba(255,61,139,0.08) 0%, rgba(255,61,139,0) 60%)`
           : 'transparent',
-        opacity: dimmed ? 0.35 : 1,
+        opacity: dimmed ? 0.18 : 1,
         transition: 'opacity 0.4s ease',
       }}
     >
@@ -822,7 +822,7 @@ function PaintedRow({
         >
           {attempt.word}
         </span>
-        {isLatest && (
+        {isLatest && !isTarget && (
           <span
             style={{
               fontFamily: "'JetBrains Mono', 'Courier New', monospace",
@@ -986,8 +986,11 @@ function ConfettiBlast({
         position: 'absolute',
         inset: 0,
         pointerEvents: 'none',
-        overflow: 'hidden',
-        zIndex: 5,
+        // Pas de overflow:hidden — sinon les confettis qui débordent à
+        // gauche/droite/bas de la liste sont clippés. On les laisse voler
+        // librement par-dessus l'écran (pas de scroll horizontal possible
+        // grâce à AcScreen + max-width sur SoloScreen).
+        zIndex: 10,
       }}
     >
       {/* Confettis émergeant du centre haut de la liste */}
