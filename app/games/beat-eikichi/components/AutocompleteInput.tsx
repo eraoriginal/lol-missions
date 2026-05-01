@@ -135,17 +135,18 @@ export function AutocompleteInput({
       clearTimeout(blurTimeoutRef.current);
       blurTimeoutRef.current = null;
     }
-    // Resync `focused` au DOM activeElement : si le state React s'est
-    // désynchronisé (focused=false alors que l'input a toujours le focus),
-    // on le rétablit pour que la dropdown réapparaisse dès la 1re frappe.
-    if (
-      typeof document !== 'undefined' &&
-      inputRef.current &&
-      document.activeElement === inputRef.current
-    ) {
+    // Refocus systématique de l'input à chaque nouvelle question : que la
+    // transition vienne d'un /next (timer expiré), d'un Eikichi qui trouve,
+    // d'un all-found, ou d'un submit gagnant — le joueur doit pouvoir
+    // continuer à taper la réponse suivante sans recliquer dans le champ.
+    // On focus uniquement si le composant n'est pas disabled (un focus()
+    // sur un input disabled est silencieusement ignoré et déstabilise le
+    // state React de toute façon).
+    if (inputRef.current && !disabled) {
+      inputRef.current.focus();
       setFocused(true);
     }
-  }, [resetKey]);
+  }, [resetKey, disabled]);
 
   // Reset highlight + navigation + dismiss dès que la saisie change : taper rouvre
   // toujours la liste et repart d'une sélection à 0 (sinon on peut submit la mauvaise
