@@ -75,10 +75,12 @@ export function PlayingView({ room, roomCode, playerToken, refetch }: Props) {
   const submitTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const submit = (value: QuizCeoSubmitted) => {
     if (!value) return;
+    // expectedIndex évite que la réponse soit enregistrée à la mauvaise
+    // position si /next a avancé la question entre l'envoi et le traitement.
     fetch(`/api/games/quiz-ceo/${roomCode}/submit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ playerToken, submitted: value }),
+      body: JSON.stringify({ playerToken, submitted: value, expectedIndex: currentIndex }),
     }).catch(() => {});
   };
   const scheduleSubmit = (value: QuizCeoSubmitted) => {
@@ -118,7 +120,11 @@ export function PlayingView({ room, roomCode, playerToken, refetch }: Props) {
         fetch(`/api/games/quiz-ceo/${roomCode}/submit`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ playerToken, submitted: draftValue }),
+          body: JSON.stringify({
+            playerToken,
+            submitted: draftValue,
+            expectedIndex: currentIndex,
+          }),
         }).catch(() => {});
       }
     }

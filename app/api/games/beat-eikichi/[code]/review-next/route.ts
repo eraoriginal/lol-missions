@@ -39,18 +39,36 @@ export async function POST(
     }
 
     const total = BEAT_EIKICHI_CONFIG.QUESTIONS_PER_GAME;
-    const nextIndex = room.beatEikichiGame.currentIndex + 1;
+    const expectedIndex = room.beatEikichiGame.currentIndex;
+    const nextIndex = expectedIndex + 1;
 
-    if (nextIndex >= total) {
-      await prisma.beatEikichiGame.update({
-        where: { id: room.beatEikichiGame.id },
-        data: { phase: 'leaderboard' },
-      });
-    } else {
-      await prisma.beatEikichiGame.update({
-        where: { id: room.beatEikichiGame.id },
-        data: { currentIndex: nextIndex },
-      });
+    // Gate atomique sur currentIndex pour éviter qu'un double-click du créateur
+    // ne saute une review : sans ce filtre, deux requêtes concurrentes pouvaient
+    // chacune lire currentIndex=N, l'une commit N+1 puis l'autre lisait N+1
+    // après commit et écrivait N+2 → la review N+1 n'était jamais affichée.
+    // updateMany WHERE id+phase+currentIndex est atomique côté PostgreSQL.
+    const result =
+      nextIndex >= total
+        ? await prisma.beatEikichiGame.updateMany({
+            where: {
+              id: room.beatEikichiGame.id,
+              phase: 'review',
+              currentIndex: expectedIndex,
+            },
+            data: { phase: 'leaderboard' },
+          })
+        : await prisma.beatEikichiGame.updateMany({
+            where: {
+              id: room.beatEikichiGame.id,
+              phase: 'review',
+              currentIndex: expectedIndex,
+            },
+            data: { currentIndex: nextIndex },
+          });
+
+    if (result.count === 0) {
+      // Quelqu'un d'autre (autre clic du créateur) a déjà avancé → no-op.
+      return Response.json({ ok: true, skipped: 'already advanced' });
     }
 
     await pushRoomUpdate(code);

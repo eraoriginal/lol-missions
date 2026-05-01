@@ -37,10 +37,16 @@ export async function POST(
       return Response.json({ ok: true, skipped: 'not in review_intro' });
     }
 
-    await prisma.beatEikichiGame.update({
-      where: { id: room.beatEikichiGame.id },
+    // Gate atomique sur la phase pour idempotence si le créateur double-clique.
+    // updateMany WHERE phase='review_intro' garantit qu'une seule transition
+    // commit, les autres reçoivent count=0.
+    const result = await prisma.beatEikichiGame.updateMany({
+      where: { id: room.beatEikichiGame.id, phase: 'review_intro' },
       data: { phase: 'review', currentIndex: 0 },
     });
+    if (result.count === 0) {
+      return Response.json({ ok: true, skipped: 'already started' });
+    }
 
     await pushRoomUpdate(code);
     return Response.json({ ok: true });

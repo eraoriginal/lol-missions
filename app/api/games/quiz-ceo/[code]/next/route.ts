@@ -52,19 +52,25 @@ export async function POST(
     }
 
     const nextIndex = game.currentIndex + 1;
-    if (nextIndex >= questions.length) {
-      // Plus de questions → phase d'attente de correction.
-      await prisma.quizCeoGame.update({
-        where: { id: game.id },
-        data: { phase: 'waiting_review', questionStartedAt: null },
-      });
-    } else {
-      await prisma.quizCeoGame.update({
-        where: { id: game.id },
-        data: { currentIndex: nextIndex, questionStartedAt: new Date() },
-      });
-    }
+    const indexAtRead = game.currentIndex;
+    // Gate atomique sur currentIndex+phase : si une autre requête /next
+    // concurrente (ou /set-question-count, etc.) a avancé la question entre
+    // la lecture initiale et ce moment, count=0 et on no-op sans écraser le
+    // timer qui vient d'être posé par le gagnant.
+    const result =
+      nextIndex >= questions.length
+        ? await prisma.quizCeoGame.updateMany({
+            where: { id: game.id, phase: 'playing', currentIndex: indexAtRead },
+            data: { phase: 'waiting_review', questionStartedAt: null },
+          })
+        : await prisma.quizCeoGame.updateMany({
+            where: { id: game.id, phase: 'playing', currentIndex: indexAtRead },
+            data: { currentIndex: nextIndex, questionStartedAt: new Date() },
+          });
 
+    if (result.count === 0) {
+      return Response.json({ ok: true, skipped: 'already-advanced' });
+    }
     await pushRoomUpdate(code);
     return Response.json({ ok: true });
   } catch (error) {

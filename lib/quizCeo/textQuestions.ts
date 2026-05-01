@@ -1002,7 +1002,7 @@ export const TEXT_QUESTIONS_MEDIUM: TextQuestionEntry[] = [
   { text: 'Quel pays est le berceau du fado ?', answer: 'Portugal' },
   { text: 'Quel langue est officielle au Sénégal ?', answer: 'français' },
   { text: 'Quelle langue est officielle au Mexique ?', answer: 'espagnol' },
-  { text: 'Quelle langue est parlée en Égypte ?', answer: 'arabe', aliases: ['arabe égyptien'] },
+  { text: 'Quelle est la langue officielle de l\'Égypte ?', answer: 'arabe', aliases: ['arabe égyptien'] },
   { text: 'Combien y a-t-il de pays officiellement membres de la Francophonie (OIF) en 2024 ?', answer: '88', aliases: ['80', 'environ 90'] },
   { text: 'Quel acide est responsable du goût aigre du vinaigre ?', answer: 'acide acétique' },
   { text: 'Quel élément chimique est essentiel à la formation de l\'os (avec le calcium) ?', answer: 'phosphore' },

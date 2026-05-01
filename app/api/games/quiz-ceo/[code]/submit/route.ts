@@ -22,6 +22,12 @@ const submittedSchema = z.union([
 const bodySchema = z.object({
   playerToken: z.string().min(1),
   submitted: submittedSchema,
+  // Index de la question vue par le client au moment de l'envoi. Permet de
+  // rejeter le submit si /next a avancé la question entre l'envoi et le
+  // traitement (sinon la réponse "Paris" pour la Q3 « capitale de la France »
+  // serait enregistrée à position=4 — la nouvelle question — créant des
+  // bonnes réponses attribuées à la mauvaise question en review).
+  expectedIndex: z.number().int().min(0).optional(),
 });
 
 /**
@@ -40,7 +46,7 @@ export async function POST(
   try {
     const { code } = await params;
     const body = await request.json();
-    const { playerToken, submitted } = bodySchema.parse(body);
+    const { playerToken, submitted, expectedIndex } = bodySchema.parse(body);
 
     const room = await prisma.room.findUnique({
       where: { code },
@@ -52,6 +58,13 @@ export async function POST(
     const game = room.quizCeoGame;
     if (game.phase !== 'playing') {
       return Response.json({ error: 'Not in playing phase' }, { status: 400 });
+    }
+    // Anti-race : si la question a avancé entre l'envoi du submit et son
+    // traitement (typiquement /next du timer), on n'enregistre PAS la réponse
+    // à la nouvelle position, ce qui attribuerait la réponse à la mauvaise
+    // question.
+    if (expectedIndex !== undefined && expectedIndex !== game.currentIndex) {
+      return Response.json({ ok: true, skipped: 'late', actualIndex: game.currentIndex });
     }
 
     const player = await prisma.player.findUnique({ where: { token: playerToken } });
@@ -88,10 +101,25 @@ export async function POST(
         ? answers.map((a, i) => (i === existingIdx ? entry : a))
         : [...answers, entry];
 
-    await prisma.quizCeoPlayerState.update({
-      where: { id: state.id },
+    // Insertion atomique gardée par game.currentIndex pour fermer la fenêtre
+    // entre la lecture du game et l'écriture de la réponse : sans ce gate,
+    // /next pouvait avancer la question entre les deux et l'écriture serait
+    // enregistrée pour position = currentIndex initial alors que la question
+    // a déjà changé.
+    const writeResult = await prisma.quizCeoPlayerState.updateMany({
+      where: {
+        id: state.id,
+        game: { currentIndex: game.currentIndex, phase: 'playing' },
+      },
       data: { answers: newAnswers as unknown as object },
     });
+    if (writeResult.count === 0) {
+      return Response.json({
+        ok: true,
+        skipped: 'late-on-write',
+        actualIndex: -1,
+      });
+    }
 
     await pushRoomUpdate(code);
     return Response.json({ ok: true });

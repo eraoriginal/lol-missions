@@ -124,6 +124,27 @@ export function AutocompleteInput({
     setUserNavigated(false);
     setDismissed(false);
     interactionModeRef.current = 'idle';
+    // Annule tout blur retardé en vol : si l'utilisateur était en train de
+    // cliquer/scroller dans la dropdown au moment où l'Eikichi avance la
+    // question, un onBlur (browser ou stale closure pendant le toggle de
+    // `disabled`) a pu armer un setTimeout 150ms → setFocused(false). Sans
+    // cette annulation, le timeout fire à la question suivante et la
+    // dropdown ne réapparaît plus malgré la frappe (showDropdown=false car
+    // focused=false).
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
+    // Resync `focused` au DOM activeElement : si le state React s'est
+    // désynchronisé (focused=false alors que l'input a toujours le focus),
+    // on le rétablit pour que la dropdown réapparaisse dès la 1re frappe.
+    if (
+      typeof document !== 'undefined' &&
+      inputRef.current &&
+      document.activeElement === inputRef.current
+    ) {
+      setFocused(true);
+    }
   }, [resetKey]);
 
   // Reset highlight + navigation + dismiss dès que la saisie change : taper rouvre
@@ -255,7 +276,14 @@ export function AutocompleteInput({
           type="text"
           className="ac-input"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            onChange(e.target.value);
+            // Garde-fou : taper signifie que l'utilisateur est focusé sur
+            // l'input, même si le state React s'est désynchronisé du DOM
+            // (ex : blur stale armé pendant une transition Eikichi). Sans
+            // ça, la dropdown peut rester invisible à la question suivante.
+            if (!focused) setFocused(true);
+          }}
           onKeyDown={handleKeyDown}
           onFocus={() => {
             if (blurTimeoutRef.current) {
@@ -290,26 +318,13 @@ export function AutocompleteInput({
             border: 'none',
             outline: 'none',
             color: value ? AC.shimmer : AC.bone,
+            caretColor: AC.shimmer,
             fontFamily: "'JetBrains Mono', 'Courier New', monospace",
             fontSize: 16,
             width: 'calc(100% - 40px)',
             letterSpacing: '0.05em',
           }}
         />
-        {/* Curseur clignotant shimmer (décoration, n'empêche pas la saisie). */}
-        {focused && !disabled && (
-          <span
-            className="ac-blink"
-            aria-hidden="true"
-            style={{
-              display: 'inline-block',
-              width: 2,
-              height: 20,
-              background: AC.shimmer,
-              verticalAlign: 'middle',
-            }}
-          />
-        )}
       </div>
 
       {showDropdown && (

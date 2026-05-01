@@ -130,14 +130,34 @@ export async function POST(
       answeredAtMs,
     };
 
-    await prisma.beatEikichiPlayerState.update({
-      where: { id: state.id },
+    // Insertion atomique gardée par le `currentIndex` du game : si une autre
+    // requête (typiquement /next d'un autre client au timeout) a fait avancer
+    // la question entre notre `findUnique` initial et ce moment, le filtre
+    // relationnel ne match plus → count=0 et on traite ce submit comme `late`.
+    // Sans ce gate, un Eikichi pouvait gagner +1 point pour une réponse alors
+    // que la question avait déjà été avancée par /next (timer expiré côté
+    // d'autres clients à cause d'un drift d'horloge).
+    const indexAtSubmit = game.currentIndex;
+    const writeResult = await prisma.beatEikichiPlayerState.updateMany({
+      where: {
+        id: state.id,
+        game: { currentIndex: indexAtSubmit, phase: 'playing' },
+      },
       data: {
         answers: [...answers, newAnswer] as unknown as object,
         score: { increment: 1 },
         currentTyping: text,
       },
     });
+    if (writeResult.count === 0) {
+      // La question a été avancée par une autre requête entre notre lecture
+      // et notre écriture → on traite comme un submit en retard, sans crédit.
+      return Response.json({
+        correct: false,
+        late: true,
+        actualIndex: -1,
+      });
+    }
 
     // Règles d'avancement automatique :
     // 1. Si le joueur est Eikichi → avance immédiatement pour tous.
@@ -150,7 +170,6 @@ export async function POST(
     // question (bug racine du "passé de 8 à 10").
     let advanced = false;
     const isEikichi = game.eikichiPlayerId === player.id;
-    const indexAtSubmit = game.currentIndex;
 
     if (isEikichi) {
       // L'Eikichi a trouvé → on tente d'avancer atomiquement.
@@ -161,13 +180,17 @@ export async function POST(
         await pushBeatEikichiSound(code, 'eikichi-found');
       }
     } else {
-      // Simule l'état post-insertion pour la vérification "tous trouvé".
-      const updatedStates = game.playerStates.map((s) =>
-        s.id === state.id
-          ? { ...s, answers: [...answers, newAnswer] }
-          : s,
-      );
-      if (allPlayersHaveFoundAnswer(updatedStates, indexAtSubmit)) {
+      // Re-lit les playerStates depuis la DB pour avoir la vue la plus à jour,
+      // qui inclut potentiellement les writes concurrents (ex : 2 derniers
+      // joueurs qui submittent en parallèle). Sans ce refresh, chaque handler
+      // simulait l'état post-insertion uniquement avec sa propre answer → si
+      // 2 joueurs étaient les derniers à trouver, aucun ne déclenchait l'advance
+      // immédiat car chacun voyait l'autre comme « pas encore trouvé ».
+      // La question ne s'avançait plus que via /next au timeout.
+      const freshStates = await prisma.beatEikichiPlayerState.findMany({
+        where: { gameId: game.id },
+      });
+      if (allPlayersHaveFoundAnswer(freshStates, indexAtSubmit)) {
         advanced = await advanceQuestionIfMatches(game.id, indexAtSubmit);
       }
     }
